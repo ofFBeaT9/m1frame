@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "m1frame"
+version = "1.0.0"
+description = "Portable multi-agent AI framework: BMAD · Council · Miras · Karpathy · LLM Wiki"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Mahdad Shakiba"}]
+keywords = ["ai", "agents", "llm", "bmad", "multi-agent", "workflow"]
+dependencies = [
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "anthropic>=0.40.0",
+    "openai>=1.30.0",
+]
+
+[project.scripts]
+m1frame = "scripts.run_workflow:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+vector = ["lancedb>=0.8.0", "sentence-transformers>=3.0"]

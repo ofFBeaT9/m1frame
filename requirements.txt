@@ -1,0 +1,27 @@
+# ── Core (always required) ────────────────────────────────────
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# ── LLM Backends — install the one(s) you need ───────────────
+anthropic>=0.40.0           # Claude (claude backend)
+openai>=1.30.0              # OpenAI, Ollama, vLLM, LM Studio (openai-compatible)
+
+# ── Source Repos — installed directly from GitHub ─────────────
+# These pull the actual implementations so we don't reinvent the wheel.
+# Uncomment any you want to use as importable libraries.
+
+# BMAD Method (42k stars) — agile AI agent framework
+# git+https://github.com/bmad-code-org/BMAD-METHOD.git
+
+# LLM Wiki (nashsu) — persistent markdown knowledge graph
+# git+https://github.com/nashsu/llm_wiki.git
+
+# LLM Council Skill (gcpdev) — multi-persona brainstorm/review
+# git+https://github.com/gcpdev/llm-council-skill.git
+
+# Miras — multi-agent orchestration framework
+# git+https://github.com/ofFBeaT9/miras.git
+
+# ── Optional — Semantic Search in LLM Wiki ────────────────────
+# lancedb>=0.8.0            # Vector search backend
+# sentence-transformers>=3  # Local embeddings
