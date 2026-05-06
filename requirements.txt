@@ -1,0 +1,26 @@
+# ── Core (required) ───────────────────────────────────────────────────────────
+pyyaml==6.0.2
+python-dotenv==1.0.1
+
+# ── LLM Backends — install the one(s) you need ───────────────────────────────
+anthropic==0.40.0          # Claude (backend: claude)
+openai==1.51.0             # OpenAI / Ollama / vLLM / LM Studio (backend: openai|ollama|vllm|lmstudio)
+
+# ── Dev tools (optional, for contributors) ────────────────────────────────────
+# ruff==0.4.9
+# mypy==1.10.0
+# pytest==8.2.2
+
+# ── Source repos — install directly from GitHub if you want the originals ─────
+# Uncomment any to install alongside m1frame. They are not required — m1frame
+# reimplements each pattern faithfully — but you may want them for reference.
+#
+# git+https://github.com/bmad-code-org/BMAD-METHOD.git     # BMAD agile framework
+# git+https://github.com/nashsu/llm_wiki.git               # LLM Wiki
+# git+https://github.com/gcpdev/llm-council-skill.git      # LLM Council
+# git+https://github.com/ofFBeaT9/miras.git                # Miras orchestrator
+# git+https://github.com/ShinMegamiBoson/OpenPlanter.git   # OpenPlanter investigation agent
+
+# ── Optional — Semantic vector search in LLM Wiki ─────────────────────────────
+# lancedb==0.8.2
+# sentence-transformers==3.0.1

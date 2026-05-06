@@ -1,0 +1,87 @@
+# ================================================================
+# m1frame — Configuration
+# ================================================================
+# Switch LLM backends with one line change: `backend: ollama`
+# All other settings are backend-specific.
+
+# ── LLM Backend ──────────────────────────────────────────────────
+backend: claude          # claude | openai | ollama | vllm | lmstudio
+
+claude:
+  model: claude-sonnet-4-20250514
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: ANTHROPIC_API_KEY
+
+openai:
+  model: gpt-4o
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+
+ollama:
+  model: llama3.2         # any model from `ollama pull`
+  base_url: http://localhost:11434/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null       # not needed
+
+vllm:
+  model: meta-llama/Meta-Llama-3-8B-Instruct
+  base_url: http://localhost:8000/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null
+
+lmstudio:
+  model: local-model      # matches model loaded in LM Studio UI
+  base_url: http://localhost:1234/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null
+
+# ── Pillar: BMAD ─────────────────────────────────────────────────
+bmad:
+  max_subtasks: 10         # max stories in one Blueprint
+
+# ── Pillar: Miras ────────────────────────────────────────────────
+miras:
+  max_agents: 5
+  sequential_handoff: true
+
+# ── Pillar: Karpathy ─────────────────────────────────────────────
+karpathy:
+  thought_tag: thought     # wraps CoT as <thought>...</thought>
+  force_cot: true
+  temperature_override: 0.1
+
+# ── Pillar: LLM Council ──────────────────────────────────────────
+council:
+  # Debating personas — Synthesiser is separate, not listed here
+  personas:
+    - name: Critic
+      role: "Find logical flaws, hallucinations, missing edge cases, and unsupported claims. Be rigorous."
+    - name: Advocate
+      role: "Defend the strongest approach. Highlight what is working and why the output is sound."
+    - name: Domain Expert
+      role: "Apply deep technical knowledge. Flag domain-specific risks, best practices, and anti-patterns."
+  consensus_threshold: 7   # score ≥ 7/10 → approved
+  max_debate_rounds: 2
+
+# ── Pillar: LLM Wiki ─────────────────────────────────────────────
+wiki:
+  directory: wiki/
+  index_file: wiki/index.md
+  purpose_file: purpose.md
+  vector_store: file       # file | lancedb
+  embed_model: null        # null = keyword search; path = local embedding model
+
+# ── Pillar: OpenPlanter (Investigation) ──────────────────────────
+openplanter:
+  workspace: workspace/           # directory for investigation outputs
+  provider: anthropic             # anthropic | openai | openrouter | cerebras
+  # Optional service keys (set in .env):
+  #   EXA_API_KEY    — web search
+  #   VOYAGE_API_KEY — embeddings for entity resolution
+  auto_invoke: true               # auto-route investigator stories through OpenPlanter
