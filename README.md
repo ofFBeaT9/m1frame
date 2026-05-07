@@ -26,7 +26,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 ## Quick Start
 
 ```bash
-git clone https://github.com/mahdadshakiba/m1frame.git && cd m1frame
+git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
 python scripts/qa_validate.py  # 43 tests, no key needed
