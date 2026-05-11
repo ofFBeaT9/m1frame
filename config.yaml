@@ -81,7 +81,41 @@ wiki:
 openplanter:
   workspace: workspace/           # directory for investigation outputs
   provider: anthropic             # anthropic | openai | openrouter | cerebras
-  # Optional service keys (set in .env):
-  #   EXA_API_KEY    — web search
-  #   VOYAGE_API_KEY — embeddings for entity resolution
   auto_invoke: true               # auto-route investigator stories through OpenPlanter
+  # Optional service keys (set in .env):
+  #   EXA_API_KEY    — web search (exa-py)
+  #   VOYAGE_API_KEY — semantic entity matching (voyageai)
+
+# ── API Server ───────────────────────────────────────────────────
+api:
+  host: 0.0.0.0
+  port: 8080
+  # Start with: python api/server.py
+  # or: uvicorn api.server:app --host 0.0.0.0 --port 8080
+  # Requires: pip install fastapi uvicorn httpx
+
+# ── Observability: Metrics ───────────────────────────────────────
+metrics:
+  enabled: false           # set true to auto-expose /metrics on startup
+  port: 9090               # Prometheus scrape port
+  # Grafana: add datasource http://localhost:9090 (Prometheus)
+
+# ── Observability: Logging ───────────────────────────────────────
+logging:
+  log_dir: logs/           # JSONL files written here: m1frame_YYYY-MM-DD.jsonl
+  # Tail live: tail -f logs/m1frame_$(date +%F).jsonl | jq .
+
+# ── Webhooks ─────────────────────────────────────────────────────
+webhooks:
+  on_complete: null        # POST URL called when pipeline completes
+  timeout_s: 10
+  # Usage: python -m m1frame --goal "..." --webhook https://your-url/hook
+
+# ── Scheduler ────────────────────────────────────────────────────
+scheduler:
+  enabled: false
+  jobs: []
+  # Example jobs (uncomment to use via scheduler):
+  # - job_id: daily_vendors
+  #   task: "Cross-reference vendor payments vs lobbying disclosures"
+  #   interval_hours: 24
