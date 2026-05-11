@@ -6,6 +6,19 @@ python-dotenv==1.0.1
 anthropic==0.40.0          # Claude (backend: claude)
 openai==1.51.0             # OpenAI / Ollama / vLLM / LM Studio (backend: openai|ollama|vllm|lmstudio)
 
+# ── REST API (optional) — pip install fastapi uvicorn httpx ──────────────────
+# fastapi>=0.111.0
+# uvicorn>=0.29.0
+# httpx>=0.27.0            # webhook delivery
+
+# ── Observability: LanceDB semantic vector search (optional) ──────────────────
+# lancedb>=0.8.2
+# sentence-transformers>=3.0.1
+
+# ── OpenPlanter enrichment (optional) ─────────────────────────────────────────
+# exa-py>=1.1.0            # EXA_API_KEY — live web search for investigations
+# voyageai>=0.2.3          # VOYAGE_API_KEY — semantic entity matching
+
 # ── Dev tools (optional, for contributors) ────────────────────────────────────
 # ruff==0.4.9
 # mypy==1.10.0
@@ -20,7 +33,3 @@ openai==1.51.0             # OpenAI / Ollama / vLLM / LM Studio (backend: openai
 # git+https://github.com/gcpdev/llm-council-skill.git      # LLM Council
 # git+https://github.com/ofFBeaT9/miras.git                # Miras orchestrator
 # git+https://github.com/ShinMegamiBoson/OpenPlanter.git   # OpenPlanter investigation agent
-
-# ── Optional — Semantic vector search in LLM Wiki ─────────────────────────────
-# lancedb==0.8.2
-# sentence-transformers==3.0.1

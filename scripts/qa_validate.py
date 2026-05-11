@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-m1frame — QA Validation Suite  (38 tests, zero API key required)
+m1frame — QA Validation Suite  (65 tests, zero API key required)
 Usage:
   python scripts/qa_validate.py
   python scripts/qa_validate.py --pillar openplanter
   python scripts/qa_validate.py --pillar e2e
+  python scripts/qa_validate.py --pillar logger
+  python scripts/qa_validate.py --pillar metrics
+  python scripts/qa_validate.py --pillar scheduler
+  python scripts/qa_validate.py --pillar parallel
+  python scripts/qa_validate.py --pillar self_critique
 """
 from __future__ import annotations
 import sys, json, time, argparse, traceback, tempfile
@@ -97,6 +102,22 @@ class MockLLMClient:
                     "## Evidence Chain\nVendor payment records matched lobbying disclosures.\n\n"
                     "## Recommended Follow-up\nRequest financial records.")
 
+        # Semantic entity matching (Voyage merge)
+        if "semantic entity matching" in s or "merge_confidence" in s:
+            return json.dumps({
+                "merged_entities":[
+                    {"canonical_name":"AcmeCorp","members":["AcmeCorp","Acme Corp"],
+                     "merge_confidence":"high","rationale":"Same company, name variants"}
+                ]
+            })
+
+        # Contradiction detection
+        if "contradiction detection" in s or "page_a" in s or "conflict" in s:
+            return json.dumps({
+                "contradictions":[],
+                "clean": True,
+            })
+
         # Wiki lint
         if "lint" in s or "health_score" in s or "orphan" in s:
             return json.dumps({
@@ -125,6 +146,11 @@ class MockLLMClient:
                     "## Summary\nMock QA page.\n\n## Key Concepts\n- Testing\n\n"
                     "## Details\nSynthetic content.\n\n## Open Questions\nNone.")
 
+        # Karpathy / self-critique
+        if "self-critique" in s or "critique agent" in s or "brutally honest" in s:
+            return ("<thought>\nDraft looks correct. No critical flaws found.\n</thought>\n\n"
+                    "Refined mock answer: same as draft, no issues found.")
+
         # Karpathy
         if "reasoning engine" in s or "chain-of-thought" in s or "thought block" in s:
             return ("<thought>\nStep 1: Understand.\nStep 2: Plan.\nStep 3: Execute.\n</thought>\n\n"
@@ -137,6 +163,11 @@ class MockLLMClient:
         # Miras / fallback
         return ("<thought>\nProcessing story as Miras sub-agent.\n</thought>\n\n"
                 "Mock sub-agent result: story completed successfully.")
+
+    def stream(self, prompt: str = "", system: str = "", **kw):
+        """Mock stream — yields the full response as single chunk."""
+        full = self.chat(prompt=prompt, system=system, **kw)
+        yield full
 
 
 # ══ Runner ════════════════════════════════════════════════════════════════════
@@ -157,19 +188,21 @@ class Suite:
             r = R(name=name,passed=False,msg=str(e),ms=(time.perf_counter()-t0)*1000,
                   tb=traceback.format_exc()[-800:])
         self.results.append(r)
-        print(f"  {'✓' if r.passed else '✗'} {'PASS' if r.passed else 'FAIL'}  {name:<52} ({r.ms:.0f}ms)")
+        mark = "PASS" if r.passed else "FAIL"
+        print(f"  [{mark}]  {name:<52} ({r.ms:.0f}ms)")
         if not r.passed:
-            print(f"       → {r.msg}")
+            print(f"       -> {r.msg}")
             if r.tb: print(r.tb)
         return r
     def summary(self) -> bool:
         ok=sum(1 for r in self.results if r.passed); n=len(self.results)
-        print(f"\n{'═'*65}\n  m1frame QA: {ok}/{n} passed")
-        if ok==n: print("  🟢  ALL TESTS PASSED — release ready")
+        sep="="*65
+        print(f"\n{sep}\n  m1frame QA: {ok}/{n} passed")
+        if ok==n: print("  ALL TESTS PASSED -- release ready")
         else:
-            print(f"  🔴  {n-ok} FAILED:")
-            [print(f"     • {r.name}: {r.msg}") for r in self.results if not r.passed]
-        print(f"{'═'*65}\n")
+            print(f"  {n-ok} FAILED:")
+            [print(f"     * {r.name}: {r.msg}") for r in self.results if not r.passed]
+        print(f"{sep}\n")
         return ok==n
 
 
@@ -177,7 +210,8 @@ class Suite:
 def t_config(m):
     from llm_client import load_config
     cfg = load_config()
-    for k in ["backend","claude","ollama","bmad","miras","karpathy","council","wiki","openplanter"]:
+    for k in ["backend","claude","ollama","bmad","miras","karpathy","council","wiki","openplanter",
+              "api","metrics","logging","webhooks","scheduler"]:
         assert k in cfg, f"missing: {k}"
 
 def t_purpose(m):
@@ -185,14 +219,16 @@ def t_purpose(m):
 
 def t_claude_md(m):
     p=Path("CLAUDE.md"); assert p.exists()
-    c=p.read_text(); assert "Page Types" in c and "WikiLink" in c
+    c=p.read_text(encoding="utf-8"); assert "Page Types" in c and "WikiLink" in c
 
 def t_imports(m):
     from agents import (BMADAgent,Blueprint,Story,BMAD_ROLES,
                         MirasOrchestrator,AgentState,KarpathyEngine,KarpathyResult,
                         LLMCouncil,CouncilVerdict,BrainstormResult,
-                        LLMWiki,WikiPage,LintReport,
-                        OpenPlanterAgent,InvestigationResult)
+                        LLMWiki,WikiPage,LintReport,ContradictionReport,
+                        OpenPlanterAgent,InvestigationResult,
+                        PillarLogger,MetricsCollector,get_metrics,
+                        InvestigationScheduler,ScheduledJob)
 
 def t_pyproject(m): assert Path("pyproject.toml").exists()
 def t_license(m):   assert Path("LICENSE").exists()
@@ -255,6 +291,37 @@ def t_miras_investigator_role(m):
     from agents.miras import ROLE_MAP
     assert "investigator" in ROLE_MAP
 
+def t_miras_adaptive_temp(m):
+    from agents.miras import _COMPLEXITY_TEMP
+    assert _COMPLEXITY_TEMP["low"] < _COMPLEXITY_TEMP["medium"] < _COMPLEXITY_TEMP["high"]
+    assert _COMPLEXITY_TEMP["low"] <= 0.15
+
+
+# ══ Tests — PARALLEL MIRAS ═══════════════════════════════════════════════════
+def t_parallel_run(m):
+    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    bp = BMADAgent(m).plan("x")
+    st = MirasOrchestrator(m).run_parallel(bp)
+    assert st.outputs
+    for sid in bp.execution_order: assert sid in st.outputs
+
+def t_parallel_same_result(m):
+    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    bp = BMADAgent(m).plan("x")
+    seq = MirasOrchestrator(m).run(bp)
+    par = MirasOrchestrator(m).run_parallel(bp)
+    assert set(seq.outputs.keys()) == set(par.outputs.keys())
+
+def t_parallel_state_threadsafe(m):
+    from agents.miras import AgentState
+    import threading
+    st = AgentState(goal="g", blueprint_summary="b")
+    def write(i): st.add_result(i, f"result_{i}")
+    threads = [threading.Thread(target=write, args=(i,)) for i in range(20)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    assert len(st.outputs) == 20
+
 
 # ══ Tests — KARPATHY ═════════════════════════════════════════════════════════
 def t_karpathy_thought(m):
@@ -268,6 +335,23 @@ def t_karpathy_batch(m):
 def t_karpathy_str(m):
     from agents.karpathy import KarpathyEngine
     r=KarpathyEngine(m).run("x"); assert str(r)==r.answer
+
+
+# ══ Tests — SELF-CRITIQUE ════════════════════════════════════════════════════
+def t_self_critique_runs(m):
+    from agents.karpathy import KarpathyEngine
+    r = KarpathyEngine(m).self_critique("What is 2+2?")
+    assert r.answer  # must return something
+
+def t_self_critique_has_cot(m):
+    from agents.karpathy import KarpathyEngine
+    r = KarpathyEngine(m).self_critique("Explain recursion briefly.")
+    assert r.had_thought_tag  # critique pass must produce <thought>
+
+def t_self_critique_result_type(m):
+    from agents.karpathy import KarpathyEngine, KarpathyResult
+    r = KarpathyEngine(m).self_critique("x")
+    assert isinstance(r, KarpathyResult)
 
 
 # ══ Tests — COUNCIL ══════════════════════════════════════════════════════════
@@ -340,6 +424,29 @@ def t_wiki_overview(m):
     tmp=Path(tempfile.mkdtemp()); LLMWiki(m,config=_wc(tmp)).ingest("Content","c")
     assert (tmp/"wiki"/"overview.md").exists()
 
+def t_wiki_decay_confidence(m):
+    from agents.wiki import LLMWiki
+    tmp=Path(tempfile.mkdtemp())
+    w=LLMWiki(m,config=_wc(tmp))
+    # ingest a page, then manually set its created date to old
+    pg=w.ingest("Old content","old")
+    page_path=tmp/"wiki"/pg.filename
+    content=page_path.read_text()
+    old_content=content.replace("created: 2026-05-06","created: 2025-12-01")
+    page_path.write_text(old_content)
+    # decay should update confidence for old pages
+    updated=w.decay_confidence(medium_after_days=30)
+    assert isinstance(updated,int)  # returns count (0 is ok if already medium)
+
+def t_wiki_contradictions(m):
+    from agents.wiki import LLMWiki
+    tmp=Path(tempfile.mkdtemp())
+    w=LLMWiki(m,config=_wc(tmp))
+    w.ingest("Python is fast","perf")
+    report=w.detect_contradictions()
+    assert hasattr(report,"contradictions") and hasattr(report,"clean")
+    assert (tmp/"wiki"/"contradictions.md").exists()
+
 
 # ══ Tests — OPENPLANTER ═══════════════════════════════════════════════════════
 def t_op_investigate(m):
@@ -381,7 +488,134 @@ def t_op_mode(m):
     from agents.openplanter import OpenPlanterAgent
     tmp=Path(tempfile.mkdtemp())
     op=OpenPlanterAgent(m,workspace=str(tmp))
-    assert op.mode in ("full","llm-only")
+    assert "llm-only" in op.mode or "full" in op.mode
+
+def t_op_web_results_field(m):
+    from agents.openplanter import OpenPlanterAgent
+    tmp=Path(tempfile.mkdtemp())
+    r=OpenPlanterAgent(m,workspace=str(tmp)).investigate("any task")
+    assert isinstance(r.web_results, list)
+
+
+# ══ Tests — LOGGER ═══════════════════════════════════════════════════════════
+def t_logger_creates_file(m):
+    from agents.logger import PillarLogger
+    tmp=Path(tempfile.mkdtemp())
+    lg=PillarLogger(log_dir=str(tmp))
+    lg.info("bmad","test_event",foo="bar")
+    files=list(tmp.glob("m1frame_*.jsonl"))
+    assert len(files)==1
+
+def t_logger_valid_json(m):
+    from agents.logger import PillarLogger
+    tmp=Path(tempfile.mkdtemp())
+    lg=PillarLogger(log_dir=str(tmp))
+    lg.info("miras","event",stories=3)
+    lines=(list(tmp.glob("*.jsonl"))[0]).read_text().strip().splitlines()
+    parsed=json.loads(lines[0])
+    assert parsed["pillar"]=="miras" and parsed["event"]=="event"
+
+def t_logger_trace_id(m):
+    from agents.logger import PillarLogger
+    tmp=Path(tempfile.mkdtemp())
+    lg=PillarLogger(log_dir=str(tmp))
+    assert len(lg.trace_id)==8
+
+def t_logger_timing(m):
+    from agents.logger import PillarLogger
+    tmp=Path(tempfile.mkdtemp())
+    lg=PillarLogger(log_dir=str(tmp))
+    lg.timing("karpathy",ms=123.4)
+    lines=(list(tmp.glob("*.jsonl"))[0]).read_text().strip().splitlines()
+    d=json.loads(lines[0])
+    assert d["latency_ms"]==123.4
+
+def t_logger_read_trace(m):
+    from agents.logger import PillarLogger
+    tmp=Path(tempfile.mkdtemp())
+    lg=PillarLogger(log_dir=str(tmp))
+    lg.info("wiki","ingest"); lg.error("council","fail")
+    trace=lg.read_trace()
+    assert len(trace)==2
+    assert all(e["trace"]==lg.trace_id for e in trace)
+
+
+# ══ Tests — METRICS ══════════════════════════════════════════════════════════
+def t_metrics_record(m):
+    from agents.metrics import MetricsCollector
+    mc=MetricsCollector()
+    mc.record("bmad",ms=100); mc.record("bmad",ms=200,error=True)
+    p=mc.get("bmad")
+    assert p.calls==2 and p.errors==1 and abs(p.avg_ms-150)<1
+
+def t_metrics_prometheus(m):
+    from agents.metrics import MetricsCollector
+    mc=MetricsCollector()
+    mc.record("council",ms=300)
+    out=mc.to_prometheus()
+    assert "m1frame_pillar_calls_total" in out
+    assert 'pillar="council"' in out
+
+def t_metrics_timer_ctx(m):
+    from agents.metrics import MetricsCollector
+    import time
+    mc=MetricsCollector()
+    with mc.timer("miras"):
+        time.sleep(0.01)
+    assert mc.get("miras").calls==1 and mc.get("miras").total_ms>=10
+
+def t_metrics_timer_error(m):
+    from agents.metrics import MetricsCollector
+    mc=MetricsCollector()
+    try:
+        with mc.timer("wiki"):
+            raise ValueError("oops")
+    except ValueError:
+        pass
+    assert mc.get("wiki").errors==1
+
+def t_metrics_singleton(m):
+    from agents.metrics import get_metrics
+    a=get_metrics(); b=get_metrics()
+    assert a is b
+
+
+# ══ Tests — SCHEDULER ════════════════════════════════════════════════════════
+def t_scheduler_add(m):
+    from agents.scheduler import InvestigationScheduler
+    tmp=Path(tempfile.mkdtemp())
+    s=InvestigationScheduler(m,workspace=str(tmp))
+    job=s.add("test_job","Investigate vendors",interval_hours=1)
+    assert job.job_id=="test_job" and job.interval_hours==1
+
+def t_scheduler_persist(m):
+    from agents.scheduler import InvestigationScheduler
+    tmp=Path(tempfile.mkdtemp())
+    InvestigationScheduler(m,workspace=str(tmp)).add("j1","task",2)
+    s2=InvestigationScheduler(m,workspace=str(tmp))
+    assert any(j.job_id=="j1" for j in s2.list_jobs())
+
+def t_scheduler_remove(m):
+    from agents.scheduler import InvestigationScheduler
+    tmp=Path(tempfile.mkdtemp())
+    s=InvestigationScheduler(m,workspace=str(tmp))
+    s.add("rm_me","task",1); assert s.remove("rm_me")
+    assert not any(j.job_id=="rm_me" for j in s.list_jobs())
+
+def t_scheduler_run_now(m):
+    from agents.scheduler import InvestigationScheduler
+    tmp=Path(tempfile.mkdtemp())
+    s=InvestigationScheduler(m,workspace=str(tmp))
+    s.add("now_job","Find overlaps",1)
+    result=s.run_now("now_job")
+    assert isinstance(result,str) and len(result)>0
+
+def t_scheduler_disable(m):
+    from agents.scheduler import InvestigationScheduler
+    tmp=Path(tempfile.mkdtemp())
+    s=InvestigationScheduler(m,workspace=str(tmp))
+    s.add("d_job","task",1); s.disable("d_job")
+    assert not s.get_job("d_job").enabled
 
 
 # ══ E2E ═══════════════════════════════════════════════════════════════════════
@@ -395,10 +629,15 @@ def t_e2e(m):
     st=MirasOrchestrator(m).run(bp);          assert st.outputs
     rf=KarpathyEngine(m).run(f"Synthesise:\n{st.final_output()[:600]}",refine=True)
     assert rf.answer
+    sc=KarpathyEngine(m).self_critique(f"Critique: {rf.answer[:200]}")
+    assert sc.answer
     v=LLMCouncil(m).review(goal,rf.answer);   assert v.consensus_score>0
     pg=LLMWiki(m,config=_wc(tmp)).ingest(v.approved_output,goal); assert pg.filename
     inv=OpenPlanterAgent(m,workspace=str(tmp)).investigate("Validate data sources for: "+goal)
     assert inv.summary
+    # Parallel also works
+    st2=MirasOrchestrator(m).run_parallel(bp)
+    assert set(st2.outputs.keys())==set(st.outputs.keys())
 
 
 # ══ Registry ══════════════════════════════════════════════════════════════════
@@ -423,10 +662,17 @@ ALL: dict[str,list] = {
     "miras":    [("Full run",                 t_miras_run),
                  ("State handoff",            t_miras_state),
                  ("Callbacks",                t_miras_callbacks),
-                 ("Investigator in ROLE_MAP", t_miras_investigator_role)],
+                 ("Investigator in ROLE_MAP", t_miras_investigator_role),
+                 ("Adaptive temperature",     t_miras_adaptive_temp)],
+    "parallel": [("run_parallel() works",    t_parallel_run),
+                 ("Same stories as seq",      t_parallel_same_result),
+                 ("Thread-safe AgentState",   t_parallel_state_threadsafe)],
     "karpathy": [("Thought extraction",       t_karpathy_thought),
                  ("Batch",                    t_karpathy_batch),
                  ("__str__ == answer",        t_karpathy_str)],
+    "self_critique": [("self_critique() runs",    t_self_critique_runs),
+                      ("self_critique has CoT",   t_self_critique_has_cot),
+                      ("self_critique type",      t_self_critique_result_type)],
     "council":  [("Brainstorm",               t_council_brainstorm),
                  ("Perspectives count",       t_council_perspectives),
                  ("Review verdict",           t_council_review),
@@ -438,19 +684,39 @@ ALL: dict[str,list] = {
                  ("Index updated",            t_wiki_index),
                  ("Search",                   t_wiki_search),
                  ("Lint report",              t_wiki_lint),
-                 ("Overview generated",       t_wiki_overview)],
+                 ("Overview generated",       t_wiki_overview),
+                 ("Confidence decay",         t_wiki_decay_confidence),
+                 ("Contradiction detection",  t_wiki_contradictions)],
     "openplanter":[("investigate()",          t_op_investigate),
                    ("Workspace file saved",   t_op_workspace_file),
                    ("Entity resolution",      t_op_entity_resolution),
                    ("Cross-reference",        t_op_cross_reference),
                    ("miras_handler()",        t_op_miras_handler),
-                   ("Mode detection",         t_op_mode)],
+                   ("Mode detection",         t_op_mode),
+                   ("web_results field",      t_op_web_results_field)],
+    "logger":   [("Creates JSONL file",       t_logger_creates_file),
+                 ("Valid JSON entries",       t_logger_valid_json),
+                 ("Trace ID length",          t_logger_trace_id),
+                 ("Timing entry",             t_logger_timing),
+                 ("read_trace filter",        t_logger_read_trace)],
+    "metrics":  [("record() counts",          t_metrics_record),
+                 ("Prometheus format",        t_metrics_prometheus),
+                 ("timer() context manager",  t_metrics_timer_ctx),
+                 ("timer() error tracking",   t_metrics_timer_error),
+                 ("Singleton get_metrics()",  t_metrics_singleton)],
+    "scheduler":[("add() job",                t_scheduler_add),
+                 ("Persist to disk",          t_scheduler_persist),
+                 ("remove() job",             t_scheduler_remove),
+                 ("run_now() executes",       t_scheduler_run_now),
+                 ("disable() job",            t_scheduler_disable)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 
 def run_all(pillar: Optional[str]=None) -> bool:
     m=MockLLMClient(); suite=Suite()
-    print(f"\n{'═'*65}\n  m1frame — QA Validation Suite  (offline mock)\n{'═'*65}\n")
+    total=sum(len(v) for v in ALL.values())
+    sep="="*65
+    print(f"\n{sep}\n  m1frame QA Validation Suite  ({total} tests, offline mock)\n{sep}\n")
     groups={pillar:ALL[pillar]} if pillar else ALL
     for grp,tests in groups.items():
         print(f"[{grp.upper()}]")

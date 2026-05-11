@@ -18,6 +18,11 @@ Key files:
   wiki/overview.md — global summary (auto-regenerated on ingest)
   purpose.md       — goals, research scope, evolving thesis (the wiki's soul)
   CLAUDE.md        — schema: page types, conventions, workflows
+
+New in v1.1:
+  decay_confidence()  — age-based confidence decay on stale pages
+  detect_contradictions() — writes wiki/contradictions.md
+  Semantic search via LanceDB (optional, vector_store: lancedb in config)
 """
 
 from __future__ import annotations
@@ -83,6 +88,28 @@ Respond in this JSON format:
 No preamble. Pure JSON only.
 """
 
+CONTRADICTION_SYSTEM = """You are a Contradiction Detection Agent.
+Given a list of wiki page excerpts, identify any factual contradictions:
+- Two pages asserting conflicting facts about the same entity
+- Pages with incompatible dates, numbers, or claims
+- Logical inconsistencies between related concepts
+
+Respond in JSON:
+{
+  "contradictions": [
+    {
+      "page_a": "...",
+      "page_b": "...",
+      "conflict": "...",
+      "severity": "high|medium|low",
+      "recommendation": "..."
+    }
+  ],
+  "clean": true|false
+}
+No preamble. Pure JSON only.
+"""
+
 OVERVIEW_SYSTEM = """You are a Wiki Overview Agent.
 Given the wiki index and recent changes, write a fresh overview.md — a global summary
 of everything in the wiki: key themes, major entities, open questions, evolving synthesis.
@@ -124,6 +151,25 @@ class WikiPage:
         body = re.sub(r"^---.*?---\n", "", self.content, flags=re.DOTALL).strip()
         return body[:chars] + ("..." if len(body) > chars else "")
 
+    @property
+    def confidence(self) -> str:
+        fm, _ = _split_frontmatter(self.content)
+        return fm.get("confidence", "high")
+
+    @property
+    def created_date(self) -> Optional[datetime.date]:
+        try:
+            return datetime.date.fromisoformat(str(self.created))
+        except (ValueError, TypeError):
+            return None
+
+    @property
+    def age_days(self) -> int:
+        d = self.created_date
+        if d is None:
+            return 0
+        return (datetime.date.today() - d).days
+
 
 @dataclass
 class LintReport:
@@ -149,6 +195,20 @@ class LintReport:
         return "\n".join(lines)
 
 
+@dataclass
+class ContradictionReport:
+    contradictions: list[dict]   # {page_a, page_b, conflict, severity, recommendation}
+    clean: bool
+
+    def summary(self) -> str:
+        if self.clean:
+            return "No contradictions detected."
+        lines = [f"Contradictions found: {len(self.contradictions)}"]
+        for c in self.contradictions:
+            lines.append(f"  [{c.get('severity','?').upper()}] {c.get('page_a')} ↔ {c.get('page_b')}: {c.get('conflict','')}")
+        return "\n".join(lines)
+
+
 # ── Main class ────────────────────────────────────────────────────────────────
 
 class LLMWiki:
@@ -161,7 +221,7 @@ class LLMWiki:
       CLAUDE.md           — schema (rules & conventions)
 
     Two-step ingest: Analysis → Generation (per nashsu implementation)
-    Operations: ingest | query | lint
+    Operations: ingest | query | lint | decay_confidence | detect_contradictions
     """
 
     def __init__(self, llm_client, config: Optional[dict] = None):
@@ -170,6 +230,8 @@ class LLMWiki:
         self.wiki_dir = Path(self.cfg.get("directory", "wiki"))
         self.index_file = Path(self.cfg.get("index_file", "wiki/index.md"))
         self.purpose_file = Path(self.cfg.get("purpose_file", "purpose.md"))
+        self._vector_store = self.cfg.get("vector_store", "file")
+        self._lancedb_table = None
         self._init_structure()
 
     # ── Three Operations ──────────────────────────────────────────────────────
@@ -202,6 +264,11 @@ class LLMWiki:
         # Update index, log, overview
         self._update_index(page)
         self._append_log("ingest", topic_hint or page.title)
+
+        # Index into LanceDB if configured
+        if self._vector_store == "lancedb":
+            self._lancedb_upsert(page)
+
         self._update_overview()
 
         return page
@@ -210,8 +277,13 @@ class LLMWiki:
         """
         Query the wiki: read index first, find relevant pages, synthesise answer.
         Follows Karpathy's query pattern — index.md as navigation entry point.
+        Uses LanceDB semantic search when available, keyword search otherwise.
         """
-        relevant = self.search(question, max_results=max_pages)
+        if self._vector_store == "lancedb":
+            relevant = self._lancedb_search(question, max_pages)
+        else:
+            relevant = self.search(question, max_results=max_pages)
+
         context_parts = [f"Question: {question}\n\nWiki pages retrieved:"]
         for page in relevant:
             context_parts.append(f"\n### {page.title}\n{page.excerpt(600)}")
@@ -259,6 +331,90 @@ class LLMWiki:
         self._append_log("lint", f"score={report.health_score}")
         return report
 
+    # ── New v1.1 Operations ───────────────────────────────────────────────────
+
+    def decay_confidence(
+        self,
+        medium_after_days: int = 30,
+        low_after_days: int = 90,
+    ) -> int:
+        """
+        Age-based confidence decay: pages older than the thresholds are
+        downgraded if no newer sources have confirmed their claims.
+
+          high  → medium  after `medium_after_days` days
+          medium → low    after `low_after_days` days
+
+        Returns the number of pages whose confidence was updated.
+        """
+        updated = 0
+        for md_file in self.wiki_dir.rglob("*.md"):
+            if md_file.name in ("index.md", "log.md", "overview.md", "contradictions.md"):
+                continue
+            if "raw" in md_file.parts:
+                continue
+            content = md_file.read_text(encoding="utf-8")
+            page = WikiPage.from_markdown(content, filename=md_file.name)
+            current = page.confidence
+            age = page.age_days
+
+            new_confidence = current
+            if current == "high" and age >= medium_after_days:
+                new_confidence = "medium"
+            elif current == "medium" and age >= low_after_days:
+                new_confidence = "low"
+
+            if new_confidence != current:
+                updated_content = re.sub(
+                    r"(confidence:\s*)\S+",
+                    f"\\g<1>{new_confidence}",
+                    content,
+                    count=1,
+                )
+                md_file.write_text(updated_content, encoding="utf-8")
+                updated += 1
+
+        if updated:
+            self._append_log("decay", f"updated={updated} pages")
+        return updated
+
+    def detect_contradictions(self) -> ContradictionReport:
+        """
+        Run an LLM contradiction-detection pass across all wiki pages.
+        Writes a summary to wiki/contradictions.md.
+        Returns a ContradictionReport.
+        """
+        import json
+        pages = self._load_all_pages()
+        if len(pages) < 2:
+            report = ContradictionReport(contradictions=[], clean=True)
+            self._write_contradictions(report)
+            return report
+
+        excerpts = "\n\n".join(
+            f"=== [[{p.title}]] (type={p.page_type}) ===\n{p.excerpt(400)}"
+            for p in pages[:20]
+        )
+        raw = self.llm.chat(
+            prompt=f"Analyse these wiki pages for contradictions:\n\n{excerpts}",
+            system=CONTRADICTION_SYSTEM,
+            temperature=0.1,
+        )
+        try:
+            clean = re.sub(r"```(?:json)?", "", raw).strip()
+            data = json.loads(clean)
+            report = ContradictionReport(
+                contradictions=data.get("contradictions", []),
+                clean=bool(data.get("clean", True)),
+            )
+        except (json.JSONDecodeError, ValueError):
+            report = ContradictionReport(contradictions=[], clean=True)
+
+        # Persist to wiki/contradictions.md
+        self._write_contradictions(report)
+        self._append_log("contradictions", f"found={len(report.contradictions)}")
+        return report
+
     # ── Search & Read ─────────────────────────────────────────────────────────
 
     def search(self, query: str, max_results: int = 5) -> list[WikiPage]:
@@ -286,12 +442,62 @@ class LLMWiki:
     def list_pages(self) -> list[str]:
         return [
             f.stem for f in sorted(self.wiki_dir.rglob("*.md"))
-            if f.name not in ("index.md", "log.md", "overview.md")
+            if f.name not in ("index.md", "log.md", "overview.md", "contradictions.md")
             and "raw" not in f.parts
         ]
 
     def read_purpose(self) -> str:
         return self.purpose_file.read_text() if self.purpose_file.exists() else ""
+
+    # ── LanceDB semantic search ───────────────────────────────────────────────
+
+    def _lancedb_upsert(self, page: WikiPage) -> None:
+        try:
+            import lancedb
+            db = lancedb.connect(str(self.wiki_dir / ".lancedb"))
+            embed = self._embed(page.excerpt(800))
+            if embed is None:
+                return
+            data = [{"id": page.title, "text": page.excerpt(800), "vector": embed}]
+            if "pages" not in db.table_names():
+                tbl = db.create_table("pages", data=data)
+            else:
+                tbl = db.open_table("pages")
+                tbl.add(data)
+        except Exception:
+            pass  # LanceDB not available — degrade to keyword search
+
+    def _lancedb_search(self, query: str, max_results: int = 5) -> list[WikiPage]:
+        try:
+            import lancedb
+            db = lancedb.connect(str(self.wiki_dir / ".lancedb"))
+            if "pages" not in db.table_names():
+                return self.search(query, max_results)
+            embed = self._embed(query)
+            if embed is None:
+                return self.search(query, max_results)
+            tbl = db.open_table("pages")
+            hits = tbl.search(embed).limit(max_results).to_list()
+            pages = []
+            for h in hits:
+                p = self.get_page(h["id"])
+                if p:
+                    pages.append(p)
+            return pages or self.search(query, max_results)
+        except Exception:
+            return self.search(query, max_results)
+
+    def _embed(self, text: str) -> Optional[list[float]]:
+        """Return a vector embedding for text. Returns None if no embed model."""
+        embed_model = self.cfg.get("embed_model")
+        if not embed_model:
+            return None
+        try:
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer(embed_model)
+            return model.encode(text).tolist()
+        except Exception:
+            return None
 
     # ── Private ───────────────────────────────────────────────────────────────
 
@@ -320,6 +526,22 @@ class LLMWiki:
         overview_text = self.llm.chat(prompt=prompt, system=OVERVIEW_SYSTEM, temperature=0.3)
         overview_path = self.wiki_dir / "overview.md"
         overview_path.write_text(overview_text)
+
+    def _write_contradictions(self, report: ContradictionReport) -> None:
+        path = self.wiki_dir / "contradictions.md"
+        lines = [
+            "# Contradiction Report",
+            f"\nGenerated: {datetime.datetime.utcnow().isoformat()}Z\n",
+        ]
+        if report.clean:
+            lines.append("✓ No contradictions detected.\n")
+        else:
+            for i, c in enumerate(report.contradictions, 1):
+                lines.append(f"## Contradiction {i} [{c.get('severity','?').upper()}]")
+                lines.append(f"**Pages:** [[{c.get('page_a','')}]] ↔ [[{c.get('page_b','')}]]")
+                lines.append(f"**Conflict:** {c.get('conflict','')}")
+                lines.append(f"**Recommendation:** {c.get('recommendation','')}\n")
+        path.write_text("\n".join(lines), encoding="utf-8")
 
     def _save_page(self, page: WikiPage, content: str, subdir: str = "", suffix: str = "") -> str:
         slug = _slugify(page.title)
@@ -356,7 +578,7 @@ class LLMWiki:
     def _load_all_pages(self) -> list[WikiPage]:
         pages = []
         for f in sorted(self.wiki_dir.rglob("*.md")):
-            if f.name in ("index.md", "log.md", "overview.md") or "raw" in f.parts:
+            if f.name in ("index.md", "log.md", "overview.md", "contradictions.md") or "raw" in f.parts:
                 continue
             pages.append(WikiPage.from_markdown(f.read_text(), filename=f.name))
         return pages

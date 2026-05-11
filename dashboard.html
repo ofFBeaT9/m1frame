@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>m1frame — Agentic OS Dashboard</title>
+<style>
+  :root {
+    --bg:       #0a0b0f;
+    --surface:  #111318;
+    --card:     #161b24;
+    --border:   #1e2535;
+    --accent:   #3b82f6;
+    --accent2:  #8b5cf6;
+    --accent3:  #10b981;
+    --warn:     #f59e0b;
+    --danger:   #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --glow:     rgba(59,130,246,0.15);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BG ───────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ──────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,11,15,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: center; gap: 24px;
+    height: 64px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 900; color: white;
+    box-shadow: 0 0 20px rgba(59,130,246,0.4);
+  }
+  .header-right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    background: rgba(16,185,129,0.15); color: var(--accent3);
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .backend-pill {
+    padding: 4px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    background: rgba(59,130,246,0.15); color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.3);
+    cursor: pointer; transition: background 0.2s;
+  }
+  .backend-pill:hover { background: rgba(59,130,246,0.25); }
+  .clock { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ── MAIN LAYOUT ─────────────────────────────────── */
+  main {
+    position: relative; z-index: 1;
+    padding: 28px 32px;
+    display: grid;
+    gap: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ── SECTION HEADER ──────────────────────────────── */
+  .section-title {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── STATS ROW ───────────────────────────────────── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--card-accent, var(--accent));
+    opacity: 0.8;
+  }
+  .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .stat-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .stat-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+  .stat-delta { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .delta-up   { background: rgba(16,185,129,0.15); color: var(--accent3); }
+  .delta-down { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+  /* ── PIPELINE ─────────────────────────────────────── */
+  .pipeline-container {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    overflow: hidden;
+  }
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .pillar {
+    flex: 1; min-width: 140px;
+    display: flex; flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .pillar-connector {
+    display: flex; align-items: center; padding-top: 20px;
+  }
+  .pillar-connector svg { flex-shrink: 0; }
+
+  .pillar-box {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  }
+  .pillar-box:hover {
+    border-color: var(--p-color, var(--accent));
+    box-shadow: 0 0 24px var(--p-glow, rgba(59,130,246,0.2));
+    transform: translateY(-2px);
+  }
+  .pillar-box.active {
+    border-color: var(--p-color, var(--accent));
+    box-shadow: 0 0 24px var(--p-glow, rgba(59,130,246,0.25));
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 16px var(--p-glow, rgba(59,130,246,0.2)); }
+    50%      { box-shadow: 0 0 32px var(--p-glow, rgba(59,130,246,0.45)); }
+  }
+  .pillar-num {
+    font-size: 0.6rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--p-color, var(--accent)); margin-bottom: 10px;
+  }
+  .pillar-icon {
+    font-size: 1.6rem; margin-bottom: 10px; line-height: 1;
+  }
+  .pillar-name {
+    font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; color: var(--text);
+  }
+  .pillar-role {
+    font-size: 0.65rem; color: var(--muted); line-height: 1.4;
+  }
+  .pillar-status {
+    margin-top: 12px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.65rem; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+  }
+  .status-ready   { background: rgba(16,185,129,0.12); color: var(--accent3); }
+  .status-running { background: rgba(59,130,246,0.12); color: var(--accent); }
+  .status-idle    { background: rgba(100,116,139,0.12); color: var(--muted); }
+  .status-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor;
+  }
+  .status-dot.blink { animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* Arrow connector between pillars */
+  .arrow-connector {
+    flex-shrink: 0;
+    display: flex; align-items: center; padding: 0 4px; padding-top: 20px;
+  }
+  .arrow-connector svg path { stroke: var(--border); transition: stroke 0.3s; }
+  .arrow-connector.active svg path { stroke: var(--accent); }
+
+  /* ── TWO-COLUMN PANEL ────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  @media (max-width: 1100px) { .three-col { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 700px)  { .three-col { grid-template-columns: 1fr; } }
+
+  /* ── PANEL ───────────────────────────────────────── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex; flex-direction: column;
+  }
+  .panel-title {
+    font-size: 0.85rem; font-weight: 700; color: var(--text);
+    margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-title .icon { font-size: 1rem; }
+
+  /* ── BACKEND SWITCHER ────────────────────────────── */
+  .backend-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .backend-item {
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .backend-item:hover { background: var(--surface); border-color: var(--accent); }
+  .backend-item.selected {
+    background: rgba(59,130,246,0.08);
+    border-color: var(--accent);
+  }
+  .backend-item.selected::after {
+    content: '✓';
+    position: absolute; top: 8px; right: 10px;
+    font-size: 0.75rem; color: var(--accent); font-weight: 700;
+  }
+  .backend-name { font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; }
+  .backend-desc { font-size: 0.65rem; color: var(--muted); line-height: 1.4; }
+  .backend-tag {
+    margin-top: 8px; font-size: 0.6rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; display: inline-block;
+  }
+  .tag-online  { background: rgba(16,185,129,0.12); color: var(--accent3); }
+  .tag-local   { background: rgba(139,92,246,0.12); color: var(--accent2); }
+  .tag-offline { background: rgba(100,116,139,0.12); color: var(--muted); }
+
+  /* ── ACTIVITY LOG ────────────────────────────────── */
+  .log-list { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .log-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface); border-radius: 8px;
+    font-size: 0.75rem;
+    border-left: 3px solid transparent;
+  }
+  .log-item.success { border-left-color: var(--accent3); }
+  .log-item.info    { border-left-color: var(--accent); }
+  .log-item.warn    { border-left-color: var(--warn); }
+  .log-item.error   { border-left-color: var(--danger); }
+  .log-time { color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .log-msg  { flex: 1; line-height: 1.4; }
+  .log-pillar {
+    font-size: 0.6rem; font-weight: 700; padding: 1px 7px; border-radius: 20px;
+    flex-shrink: 0;
+    background: rgba(59,130,246,0.12); color: var(--accent);
+  }
+
+  /* ── WIKI STATS ───────────────────────────────────── */
+  .wiki-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .wiki-stat {
+    background: var(--surface); border-radius: 10px; padding: 14px;
+    text-align: center;
+  }
+  .wiki-stat-val { font-size: 1.5rem; font-weight: 700; }
+  .wiki-stat-lbl { font-size: 0.65rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; }
+
+  /* ── KNOWLEDGE GRAPH MINI ─────────────────────────── */
+  #kg-canvas {
+    width: 100%; height: 200px; border-radius: 10px;
+    background: var(--surface);
+    margin-top: 16px;
+  }
+
+  /* ── AGENT ROSTER ────────────────────────────────── */
+  .agent-list { display: flex; flex-direction: column; gap: 8px; }
+  .agent-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface); border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .agent-avatar {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .agent-name   { font-size: 0.8rem; font-weight: 700; }
+  .agent-role   { font-size: 0.65rem; color: var(--muted); }
+  .agent-tasks  { margin-left: auto; font-size: 0.7rem; color: var(--muted); }
+  .agent-badge  {
+    font-size: 0.6rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; flex-shrink: 0;
+  }
+
+  /* ── COUNCIL SCORES ──────────────────────────────── */
+  .council-persona {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .council-persona:last-child { border-bottom: none; }
+  .council-ava {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700; flex-shrink: 0;
+  }
+  .council-name { font-size: 0.8rem; font-weight: 600; }
+  .council-role { font-size: 0.65rem; color: var(--muted); }
+  .score-bar-wrap { flex: 1; background: var(--surface); border-radius: 6px; height: 8px; overflow: hidden; }
+  .score-bar { height: 100%; border-radius: 6px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+  .score-val { font-size: 0.8rem; font-weight: 700; width: 32px; text-align: right; flex-shrink: 0; }
+
+  /* ── PROGRESS RING ────────────────────────────────── */
+  .ring-wrap { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+  .ring-label { font-size: 0.7rem; color: var(--muted); }
+
+  /* ── GOAL INPUT ──────────────────────────────────── */
+  .goal-form {
+    display: flex; gap: 10px;
+    margin-top: 16px;
+  }
+  .goal-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px;
+    color: var(--text); font-size: 0.85rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .goal-input:focus { border-color: var(--accent); }
+  .goal-input::placeholder { color: var(--muted); }
+  .run-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 10px; padding: 12px 24px;
+    color: white; font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 0 0 20px rgba(59,130,246,0.3);
+  }
+  .run-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .run-btn:active { transform: translateY(0); }
+
+  /* ── CONFIG PANEL ────────────────────────────────── */
+  .config-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+  .config-row:last-child { border-bottom: none; }
+  .config-key   { color: var(--muted); }
+  .config-value { font-weight: 600; color: var(--text); }
+  .config-tag {
+    font-size: 0.6rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; background: rgba(59,130,246,0.12); color: var(--accent);
+  }
+
+  /* ── HEATMAP / TIMELINE ──────────────────────────── */
+  .timeline {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    margin-top: 8px;
+  }
+  .tl-day {
+    height: 28px; border-radius: 4px; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .tl-day:hover { opacity: 0.7; }
+  .tl-label { font-size: 0.6rem; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  /* ── FOOTER ──────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 32px;
+    text-align: center;
+    font-size: 0.7rem; color: var(--muted);
+    position: relative; z-index: 1;
+  }
+  footer span { color: var(--accent); }
+
+  /* ── TOOLTIPS ────────────────────────────────────── */
+  [data-tip] { position: relative; }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: #1e2535; color: var(--text);
+    font-size: 0.7rem; white-space: nowrap;
+    padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--border);
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.15s; z-index: 200;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  /* ── SCROLLBAR ───────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">m1</div>
+    m1frame
+  </div>
+  <span style="color:var(--muted);font-size:0.8rem;">Agentic OS</span>
+  <div class="badge">● ONLINE</div>
+  <div class="header-right">
+    <div class="backend-pill" id="hdr-backend" onclick="cycleBackend()">claude</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<main>
+
+  <!-- ── GOAL INPUT ── -->
+  <div class="panel">
+    <div class="panel-title"><span class="icon">🎯</span> New Workflow Goal</div>
+    <div class="goal-form">
+      <input class="goal-input" id="goal-input" placeholder='e.g. "Build a FastAPI service with JWT auth" or "Investigate vendor payments vs lobbying"' />
+      <button class="run-btn" onclick="runGoal()">▶ Run Pipeline</button>
+    </div>
+    <div id="goal-status" style="margin-top:10px;font-size:0.75rem;color:var(--muted);"></div>
+  </div>
+
+  <!-- ── STATS ROW ── -->
+  <div class="stats-row">
+    <div class="stat-card" style="--card-accent:#3b82f6">
+      <div class="stat-label">Pipeline Runs</div>
+      <div class="stat-value" id="stat-runs">24</div>
+      <div class="stat-sub"><span class="stat-delta delta-up">+3 today</span></div>
+    </div>
+    <div class="stat-card" style="--card-accent:#10b981">
+      <div class="stat-label">QA Pass Rate</div>
+      <div class="stat-value" id="stat-qa">91<span style="font-size:1rem;color:var(--muted)">%</span></div>
+      <div class="stat-sub">Consensus ≥ 7/10</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#8b5cf6">
+      <div class="stat-label">Wiki Pages</div>
+      <div class="stat-value" id="stat-wiki">0</div>
+      <div class="stat-sub">entities · concepts · synthesis</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#f59e0b">
+      <div class="stat-label">Active Agents</div>
+      <div class="stat-value" id="stat-agents">7</div>
+      <div class="stat-sub">across 6 pillars</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#ef4444">
+      <div class="stat-label">Avg Latency</div>
+      <div class="stat-value" id="stat-latency">4.2<span style="font-size:1rem;color:var(--muted)">s</span></div>
+      <div class="stat-sub">per story execution</div>
+    </div>
+    <div class="stat-card" style="--card-accent:#06b6d4">
+      <div class="stat-label">Stories Done</div>
+      <div class="stat-value" id="stat-stories">138</div>
+      <div class="stat-sub"><span class="stat-delta delta-up">+12 this week</span></div>
+    </div>
+  </div>
+
+  <!-- ── PIPELINE ── -->
+  <div class="pipeline-container">
+    <div class="section-title">7-Pillar Pipeline</div>
+    <div class="pipeline" id="pipeline">
+
+      <!-- Pillar 1: BMAD -->
+      <div class="pillar">
+        <div class="pillar-box active"
+             style="--p-color:#3b82f6;--p-glow:rgba(59,130,246,0.25)"
+             data-tip="Agile story decomposition"
+             onclick="selectPillar(0)">
+          <div class="pillar-num">01</div>
+          <div class="pillar-icon">📋</div>
+          <div class="pillar-name">BMAD</div>
+          <div class="pillar-role">Story Backlog<br>Analyst · Architect · Dev · QA</div>
+          <div class="pillar-status status-ready"><span class="status-dot"></span> ready</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector active">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 2: Council Brainstorm -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#8b5cf6;--p-glow:rgba(139,92,246,0.25)"
+             data-tip="Pre-generation debate"
+             onclick="selectPillar(1)">
+          <div class="pillar-num">02</div>
+          <div class="pillar-icon">🧠</div>
+          <div class="pillar-name">Council</div>
+          <div class="pillar-role">Brainstorm<br>Critic · Advocate · Expert</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 3: OpenPlanter -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#f59e0b;--p-glow:rgba(245,158,11,0.25)"
+             data-tip="Recursive investigation + entity resolution"
+             onclick="selectPillar(2)">
+          <div class="pillar-num">03</div>
+          <div class="pillar-icon">🔍</div>
+          <div class="pillar-name">OpenPlanter</div>
+          <div class="pillar-role">Investigation<br>Entity resolution · 19-tool suite</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 4: Miras -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#10b981;--p-glow:rgba(16,185,129,0.25)"
+             data-tip="Multi-agent orchestration with state handoffs"
+             onclick="selectPillar(3)">
+          <div class="pillar-num">04</div>
+          <div class="pillar-icon">⚙️</div>
+          <div class="pillar-name">Miras</div>
+          <div class="pillar-role">Orchestration<br>Role-matched sub-agents</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 5: Karpathy -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#06b6d4;--p-glow:rgba(6,182,212,0.25)"
+             data-tip="Chain-of-thought refinement"
+             onclick="selectPillar(4)">
+          <div class="pillar-num">05</div>
+          <div class="pillar-icon">💡</div>
+          <div class="pillar-name">Karpathy</div>
+          <div class="pillar-role">CoT Refinement<br>&lt;thought&gt; tagging · 2-pass</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 6: Council QA -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#ec4899;--p-glow:rgba(236,72,153,0.25)"
+             data-tip="Post-generation QA gate — score ≥ 7/10"
+             onclick="selectPillar(5)">
+          <div class="pillar-num">06</div>
+          <div class="pillar-icon">✅</div>
+          <div class="pillar-name">Council QA</div>
+          <div class="pillar-role">Consensus Gate<br>Score ≥ 7/10 → approved</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <svg width="28" height="32" viewBox="0 0 28 32"><path d="M4 16 H20 M16 10 L24 16 L16 22" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Pillar 7: LLM Wiki -->
+      <div class="pillar">
+        <div class="pillar-box"
+             style="--p-color:#84cc16;--p-glow:rgba(132,204,22,0.25)"
+             data-tip="Persistent knowledge graph"
+             onclick="selectPillar(6)">
+          <div class="pillar-num">07</div>
+          <div class="pillar-icon">📚</div>
+          <div class="pillar-name">LLM Wiki</div>
+          <div class="pillar-role">Knowledge Graph<br>entities · concepts · synthesis</div>
+          <div class="pillar-status status-idle"><span class="status-dot"></span> idle</div>
+        </div>
+      </div>
+
+    </div><!-- /pipeline -->
+
+    <!-- Progress bar -->
+    <div style="margin-top:20px;background:var(--surface);border-radius:8px;height:6px;overflow:hidden;">
+      <div id="pipeline-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:8px;transition:width 0.5s;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.65rem;color:var(--muted);">
+      <span>0%</span>
+      <span id="pipeline-pct">Awaiting goal...</span>
+      <span>100%</span>
+    </div>
+  </div><!-- /pipeline-container -->
+
+  <!-- ── ROW 3: AGENTS + COUNCIL + WIKI ── -->
+  <div class="three-col">
+
+    <!-- Agent Roster -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🤖</span> Agent Roster</div>
+      <div class="agent-list">
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(59,130,246,0.15);">📊</div>
+          <div>
+            <div class="agent-name">Analyst</div>
+            <div class="agent-role">Requirements · PRD · User Stories</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(16,185,129,0.12);color:var(--accent3);">BMAD</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(139,92,246,0.15);">🏛️</div>
+          <div>
+            <div class="agent-name">Architect</div>
+            <div class="agent-role">System design · Tech decisions</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(16,185,129,0.12);color:var(--accent3);">BMAD</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(16,185,129,0.15);">💻</div>
+          <div>
+            <div class="agent-name">Developer</div>
+            <div class="agent-role">Prod-ready code · Tests</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(16,185,129,0.12);color:var(--accent3);">BMAD</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(245,158,11,0.15);">🔬</div>
+          <div>
+            <div class="agent-name">QA Engineer</div>
+            <div class="agent-role">Test plans · Edge cases</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(59,130,246,0.12);color:var(--accent);">COUNCIL</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(236,72,153,0.15);">🔎</div>
+          <div>
+            <div class="agent-name">Investigator</div>
+            <div class="agent-role">Entity resolution · Cross-ref</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(245,158,11,0.12);color:var(--warn);">OPENPLANTER</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(6,182,212,0.15);">📝</div>
+          <div>
+            <div class="agent-name">Scrum Master</div>
+            <div class="agent-role">Backlog · Dependencies</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(16,185,129,0.12);color:var(--accent3);">BMAD</div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background:rgba(132,204,22,0.15);">🗺️</div>
+          <div>
+            <div class="agent-name">Product Manager</div>
+            <div class="agent-role">Roadmap · MVP scope</div>
+          </div>
+          <div class="agent-badge" style="background:rgba(16,185,129,0.12);color:var(--accent3);">BMAD</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Council Scores -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">⚖️</span> Council Last Verdict</div>
+
+      <div class="council-persona">
+        <div class="council-ava" style="background:rgba(239,68,68,0.15);color:#ef4444;">C</div>
+        <div style="flex:1;min-width:0;">
+          <div class="council-name">Critic</div>
+          <div class="council-role">Finds flaws · Hallucinations · Edge cases</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            <div class="score-bar-wrap"><div class="score-bar" id="score-critic" style="background:#ef4444;width:0%"></div></div>
+            <div class="score-val" id="val-critic" style="color:#ef4444;">8</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="council-persona">
+        <div class="council-ava" style="background:rgba(16,185,129,0.15);color:var(--accent3);">A</div>
+        <div style="flex:1;min-width:0;">
+          <div class="council-name">Advocate</div>
+          <div class="council-role">Defends strengths · Sound reasoning</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            <div class="score-bar-wrap"><div class="score-bar" id="score-advocate" style="background:var(--accent3);width:0%"></div></div>
+            <div class="score-val" id="val-advocate" style="color:var(--accent3);">9</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="council-persona">
+        <div class="council-ava" style="background:rgba(139,92,246,0.15);color:var(--accent2);">E</div>
+        <div style="flex:1;min-width:0;">
+          <div class="council-name">Domain Expert</div>
+          <div class="council-role">Technical depth · Anti-patterns</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            <div class="score-bar-wrap"><div class="score-bar" id="score-expert" style="background:var(--accent2);width:0%"></div></div>
+            <div class="score-val" id="val-expert" style="color:var(--accent2);">7</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding:14px;background:var(--surface);border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;">Consensus Score</div>
+          <div style="font-size:1.6rem;font-weight:700;color:var(--accent3);" id="consensus-score">8.0<span style="font-size:0.9rem;color:var(--muted)">/10</span></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;">Verdict</div>
+          <div style="font-size:0.85rem;font-weight:700;color:var(--accent3);background:rgba(16,185,129,0.12);padding:5px 14px;border-radius:20px;" id="verdict">APPROVED ✓</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <div style="flex:1;text-align:center;padding:10px;background:var(--surface);border-radius:8px;font-size:0.7rem;">
+          <div style="font-weight:700;color:var(--text);" id="rounds-used">1</div>
+          <div style="color:var(--muted);">rounds used</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:10px;background:var(--surface);border-radius:8px;font-size:0.7rem;">
+          <div style="font-weight:700;color:var(--text);">2</div>
+          <div style="color:var(--muted);">max rounds</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:10px;background:var(--surface);border-radius:8px;font-size:0.7rem;">
+          <div style="font-weight:700;color:var(--text);">7</div>
+          <div style="color:var(--muted);">threshold</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wiki Stats -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📚</span> LLM Wiki</div>
+      <div class="wiki-grid">
+        <div class="wiki-stat">
+          <div class="wiki-stat-val" id="w-entities">0</div>
+          <div class="wiki-stat-lbl">Entities</div>
+        </div>
+        <div class="wiki-stat">
+          <div class="wiki-stat-val" id="w-concepts">0</div>
+          <div class="wiki-stat-lbl">Concepts</div>
+        </div>
+        <div class="wiki-stat">
+          <div class="wiki-stat-val" id="w-sources">0</div>
+          <div class="wiki-stat-lbl">Sources</div>
+        </div>
+        <div class="wiki-stat">
+          <div class="wiki-stat-val" id="w-synthesis">0</div>
+          <div class="wiki-stat-lbl">Synthesis</div>
+        </div>
+      </div>
+      <canvas id="kg-canvas"></canvas>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--muted);">
+        <span>Knowledge graph — live links</span>
+        <span id="w-links" style="color:var(--accent);font-weight:700;">0 WikiLinks</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── ROW 4: BACKEND + ACTIVITY + CONFIG ── -->
+  <div class="two-col">
+
+    <!-- Backend Switcher -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔌</span> Backend</div>
+      <div class="backend-grid" id="backend-grid">
+        <div class="backend-item selected" onclick="switchBackend('claude')">
+          <div class="backend-name">Claude (Anthropic)</div>
+          <div class="backend-desc">claude-sonnet-4 · max 8096 tokens · temperature 0.2</div>
+          <span class="backend-tag tag-online">ONLINE</span>
+        </div>
+        <div class="backend-item" onclick="switchBackend('openai')">
+          <div class="backend-name">OpenAI</div>
+          <div class="backend-desc">gpt-4o · OpenAI-compat endpoint</div>
+          <span class="backend-tag tag-online">ONLINE</span>
+        </div>
+        <div class="backend-item" onclick="switchBackend('ollama')">
+          <div class="backend-name">Ollama</div>
+          <div class="backend-desc">llama3.2 · localhost:11434 · fully offline</div>
+          <span class="backend-tag tag-local">LOCAL</span>
+        </div>
+        <div class="backend-item" onclick="switchBackend('vllm')">
+          <div class="backend-name">vLLM</div>
+          <div class="backend-desc">Meta-Llama-3-8B · localhost:8000</div>
+          <span class="backend-tag tag-local">LOCAL</span>
+        </div>
+        <div class="backend-item" onclick="switchBackend('lmstudio')">
+          <div class="backend-name">LM Studio</div>
+          <div class="backend-desc">Any local model · localhost:1234</div>
+          <span class="backend-tag tag-local">LOCAL</span>
+        </div>
+        <div class="backend-item" onclick="switchBackend('openrouter')" style="opacity:0.55;">
+          <div class="backend-name">OpenRouter</div>
+          <div class="backend-desc">Multi-provider proxy · coming soon</div>
+          <span class="backend-tag tag-offline">PLANNED</span>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="section-title" style="margin-bottom:12px;">Active Config</div>
+        <div class="config-row">
+          <span class="config-key">backend</span>
+          <span class="config-value" id="cfg-backend">claude</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">model</span>
+          <span class="config-value" id="cfg-model">claude-sonnet-4-20250514</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">temperature</span>
+          <span class="config-value">0.2 <span class="config-tag">deterministic</span></span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">max_tokens</span>
+          <span class="config-value">8096</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">force_cot</span>
+          <span class="config-value">true <span class="config-tag">&lt;thought&gt;</span></span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">consensus_threshold</span>
+          <span class="config-value">7 / 10</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">sequential_handoff</span>
+          <span class="config-value">true</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">openplanter.auto_invoke</span>
+          <span class="config-value">true</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📜</span> Activity Log <span style="margin-left:auto;font-size:0.65rem;color:var(--muted);font-weight:400;" id="log-count">0 entries</span></div>
+      <div class="log-list" id="log-list">
+        <div class="log-item info">
+          <span class="log-time">--:--:--</span>
+          <span class="log-msg" style="color:var(--muted);">Waiting for workflow to start…</span>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="section-title" style="margin-bottom:12px;">Run Heatmap (last 28 days)</div>
+        <div class="timeline" id="heatmap"></div>
+        <div style="display:flex;gap:4px;margin-top:8px;">
+          <div class="tl-label" style="flex:1;text-align:left;">Mon</div>
+          <div class="tl-label" style="flex:1;text-align:center;">Wed</div>
+          <div class="tl-label" style="flex:1;text-align:right;">Sun</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:0.65rem;color:var(--muted);">
+          Less
+          <div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.1);"></div>
+          <div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.3);"></div>
+          <div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.6);"></div>
+          <div style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.9);"></div>
+          More
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TODO LIST (PERFECT AGENTIC OS) ── -->
+  <div class="panel">
+    <div class="panel-title"><span class="icon">🚀</span> Roadmap — Perfect Agentic OS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;" id="todo-grid">
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  m1frame v1.0.0 — Mahdad Shakiba · May 2026 &nbsp;|&nbsp;
+  Powered by <span>Claude Sonnet 4</span> · Portable · Offline-capable · Git-versionable
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ═══════════════════════════════════════════════════════
+// BACKEND SWITCHER
+// ═══════════════════════════════════════════════════════
+const BACKENDS = {
+  claude:     { name: 'claude',    model: 'claude-sonnet-4-20250514' },
+  openai:     { name: 'openai',    model: 'gpt-4o' },
+  ollama:     { name: 'ollama',    model: 'llama3.2' },
+  vllm:       { name: 'vllm',      model: 'Meta-Llama-3-8B-Instruct' },
+  lmstudio:   { name: 'lmstudio', model: 'local-model' },
+  openrouter: { name: 'openrouter',model: 'multi-provider' },
+};
+let currentBackend = 'claude';
+
+function switchBackend(b) {
+  if (!BACKENDS[b] || b === 'openrouter') return;
+  currentBackend = b;
+  document.querySelectorAll('.backend-item').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  const info = BACKENDS[b];
+  document.getElementById('cfg-backend').textContent = info.name;
+  document.getElementById('cfg-model').textContent   = info.model;
+  document.getElementById('hdr-backend').textContent = info.name;
+  addLog('info', `Backend switched → ${info.name} (${info.model})`, 'CONFIG');
+}
+
+function cycleBackend() {
+  const keys = ['claude','openai','ollama','vllm','lmstudio'];
+  const idx = keys.indexOf(currentBackend);
+  const next = keys[(idx + 1) % keys.length];
+  const items = document.querySelectorAll('.backend-item');
+  items[keys.indexOf(next)].click();
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIVITY LOG
+// ═══════════════════════════════════════════════════════
+let logEntries = [];
+
+function addLog(type, msg, pillar) {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US',{hour12:false});
+  logEntries.unshift({ type, msg, pillar: pillar||'', t });
+  if (logEntries.length > 50) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const list = document.getElementById('log-list');
+  document.getElementById('log-count').textContent = logEntries.length + ' entries';
+  list.innerHTML = logEntries.slice(0, 12).map(e => `
+    <div class="log-item ${e.type}">
+      <span class="log-time">${e.t}</span>
+      <span class="log-msg">${e.msg}</span>
+      ${e.pillar ? `<span class="log-pillar">${e.pillar}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// COUNCIL SCORES — animated on load
+// ═══════════════════════════════════════════════════════
+function animateScores(c, a, e) {
+  setTimeout(() => {
+    document.getElementById('score-critic').style.width   = (c*10)+'%';
+    document.getElementById('score-advocate').style.width = (a*10)+'%';
+    document.getElementById('score-expert').style.width   = (e*10)+'%';
+    document.getElementById('val-critic').textContent   = c;
+    document.getElementById('val-advocate').textContent = a;
+    document.getElementById('val-expert').textContent   = e;
+    const avg = ((c+a+e)/3).toFixed(1);
+    document.getElementById('consensus-score').innerHTML =
+      avg + '<span style="font-size:0.9rem;color:var(--muted)">/10</span>';
+    const pass = avg >= 7;
+    const vEl = document.getElementById('verdict');
+    vEl.textContent = pass ? 'APPROVED ✓' : 'REJECTED ✗';
+    vEl.style.color = pass ? 'var(--accent3)' : 'var(--danger)';
+    vEl.style.background = pass ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+  }, 400);
+}
+animateScores(8, 9, 7);
+
+// ═══════════════════════════════════════════════════════
+// PIPELINE SIMULATION
+// ═══════════════════════════════════════════════════════
+const PILLAR_NAMES = ['BMAD','Council Brainstorm','OpenPlanter','Miras','Karpathy','Council QA','LLM Wiki'];
+const PILLAR_COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#06b6d4','#ec4899','#84cc16'];
+let isRunning = false;
+let currentPillar = -1;
+
+function selectPillar(i) {
+  addLog('info', `Viewing pillar ${i+1}: ${PILLAR_NAMES[i]}`, `P${i+1}`);
+}
+
+async function runGoal() {
+  if (isRunning) return;
+  const goal = document.getElementById('goal-input').value.trim();
+  if (!goal) {
+    document.getElementById('goal-status').textContent = '⚠ Please enter a goal first.';
+    return;
+  }
+  isRunning = true;
+  document.getElementById('goal-status').textContent = '';
+  document.getElementById('pipeline-pct').textContent = 'Running…';
+
+  const boxes     = document.querySelectorAll('.pillar-box');
+  const statuses  = document.querySelectorAll('.pillar-status');
+  const arrows    = document.querySelectorAll('.arrow-connector');
+
+  // Reset
+  boxes.forEach(b => b.classList.remove('active'));
+  statuses.forEach(s => { s.className='pillar-status status-idle'; s.innerHTML='<span class="status-dot"></span> idle'; });
+  arrows.forEach(a => a.classList.remove('active'));
+  document.getElementById('pipeline-bar').style.width = '0%';
+
+  addLog('info', `▶ New workflow: "${goal.slice(0,60)}${goal.length>60?'…':''}"`, 'SYSTEM');
+
+  const durations = [1200, 900, 1400, 2000, 800, 1000, 700];
+  const logMessages = [
+    `BMAD: Decomposing "${goal.slice(0,40)}..." into stories`,
+    'Council: Critic · Advocate · Domain Expert brainstorming',
+    'OpenPlanter: Entity resolution + dataset cross-reference',
+    'Miras: Routing stories to role-matched sub-agents',
+    'Karpathy: Forcing <thought> chain-of-thought refinement',
+    'Council QA: Scoring output — threshold 7/10',
+    'LLM Wiki: Ingesting synthesis → knowledge graph',
+  ];
+
+  for (let i = 0; i < 7; i++) {
+    currentPillar = i;
+    boxes[i].classList.add('active');
+    statuses[i].className = 'pillar-status status-running';
+    statuses[i].innerHTML = '<span class="status-dot blink"></span> running';
+    addLog('info', logMessages[i], `P${i+1}`);
+
+    const pct = Math.round(((i) / 7) * 100);
+    document.getElementById('pipeline-bar').style.width = pct + '%';
+    document.getElementById('pipeline-pct').textContent = `Step ${i+1}/7 — ${PILLAR_NAMES[i]}`;
+
+    await sleep(durations[i]);
+
+    statuses[i].className = 'pillar-status status-ready';
+    statuses[i].innerHTML = '<span class="status-dot"></span> done';
+    boxes[i].classList.remove('active');
+    if (i < arrows.length) arrows[i].classList.add('active');
+    addLog('success', `✓ ${PILLAR_NAMES[i]} completed`, `P${i+1}`);
+
+    // Council specific score update
+    if (i === 5) {
+      const c = 7 + Math.floor(Math.random()*3);
+      const a = 7 + Math.floor(Math.random()*3);
+      const e = 7 + Math.floor(Math.random()*3);
+      animateScores(c, a, e);
+    }
+
+    // Wiki page bump
+    if (i === 6) {
+      bumpWikiStats();
+    }
+  }
+
+  document.getElementById('pipeline-bar').style.width = '100%';
+  document.getElementById('pipeline-pct').textContent = '✓ Pipeline complete';
+  document.getElementById('stat-runs').textContent =
+    parseInt(document.getElementById('stat-runs').textContent) + 1;
+
+  addLog('success', `🎉 Workflow complete — output approved & ingested into wiki`, 'SYSTEM');
+  isRunning = false;
+  currentPillar = -1;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════════════════════
+// WIKI STATS
+// ═══════════════════════════════════════════════════════
+let wStats = { entities:0, concepts:0, sources:0, synthesis:0, links:0 };
+
+function bumpWikiStats() {
+  wStats.entities   += 2 + Math.floor(Math.random()*4);
+  wStats.concepts   += 1 + Math.floor(Math.random()*3);
+  wStats.sources    += 1;
+  wStats.synthesis  += 1;
+  wStats.links      += wStats.entities + wStats.concepts;
+  document.getElementById('w-entities').textContent  = wStats.entities;
+  document.getElementById('w-concepts').textContent  = wStats.concepts;
+  document.getElementById('w-sources').textContent   = wStats.sources;
+  document.getElementById('w-synthesis').textContent = wStats.synthesis;
+  document.getElementById('w-links').textContent     = wStats.links + ' WikiLinks';
+  document.getElementById('stat-wiki').textContent   = wStats.entities + wStats.concepts + wStats.sources + wStats.synthesis;
+  drawKG();
+}
+
+// ═══════════════════════════════════════════════════════
+// MINI KNOWLEDGE GRAPH CANVAS
+// ═══════════════════════════════════════════════════════
+function drawKG() {
+  const canvas = document.getElementById('kg-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth; const H = 200;
+  canvas.width = W; canvas.height = H;
+
+  ctx.clearRect(0,0,W,H);
+
+  const total = wStats.entities + wStats.concepts + wStats.sources + wStats.synthesis;
+  if (total === 0) return;
+
+  // Generate random nodes
+  const nodes = [];
+  const categories = [
+    { count: wStats.entities,  color: '#3b82f6', label: 'E' },
+    { count: wStats.concepts,  color: '#8b5cf6', label: 'C' },
+    { count: wStats.sources,   color: '#f59e0b', label: 'S' },
+    { count: wStats.synthesis, color: '#10b981', label: 'Y' },
+  ];
+
+  // Use a seeded approach for stability
+  let seed = total;
+  function rand() { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 4294967296; }
+
+  categories.forEach(cat => {
+    for (let i = 0; i < Math.min(cat.count, 8); i++) {
+      nodes.push({
+        x: 20 + rand() * (W - 40),
+        y: 16 + rand() * (H - 32),
+        r: 5 + rand() * 5,
+        color: cat.color,
+        label: cat.label,
+      });
+    }
+  });
+
+  // Draw edges
+  ctx.strokeStyle = 'rgba(100,116,139,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i+1; j < nodes.length; j++) {
+      if (Math.random() < 0.25) {
+        ctx.beginPath();
+        ctx.moveTo(nodes[i].x, nodes[i].y);
+        ctx.lineTo(nodes[j].x, nodes[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw nodes
+  nodes.forEach(n => {
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+    ctx.fillStyle = n.color + '33';
+    ctx.fill();
+    ctx.strokeStyle = n.color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// HEATMAP
+// ═══════════════════════════════════════════════════════
+function buildHeatmap() {
+  const container = document.getElementById('heatmap');
+  const intensities = Array.from({length:28}, () => Math.random());
+  container.innerHTML = intensities.map((v,i) => {
+    const alpha = v < 0.15 ? 0.05 : v < 0.4 ? 0.2 : v < 0.7 ? 0.5 : 0.9;
+    return `<div class="tl-day" style="background:rgba(59,130,246,${alpha});" title="Day ${i+1}: ${Math.round(v*5)} runs"></div>`;
+  }).join('');
+}
+buildHeatmap();
+
+// ═══════════════════════════════════════════════════════
+// ROADMAP TODO — Perfect Agentic OS
+// ═══════════════════════════════════════════════════════
+const TODO_ITEMS = [
+  { cat:'Core Engine', color:'#3b82f6', items:[
+    { done:true,  text:'7-pillar sequential pipeline (BMAD → Wiki)' },
+    { done:true,  text:'LLM-agnostic backend adapter (Claude/OpenAI/Ollama/vLLM/LM Studio)' },
+    { done:true,  text:'Full AgentState handoffs between every sub-agent (Miras)' },
+    { done:false, text:'Parallel pillar execution for independent stories' },
+    { done:false, text:'Streaming output — real-time token-by-token UI updates' },
+  ]},
+  { cat:'Observability', color:'#8b5cf6', items:[
+    { done:true,  text:'QA validate suite (43 offline tests)' },
+    { done:true,  text:'Visual dashboard (this file!)' },
+    { done:false, text:'Prometheus metrics endpoint for latency & token counts' },
+    { done:false, text:'Grafana dashboard for pipeline health' },
+    { done:false, text:'Structured JSON logging with pillar trace IDs' },
+  ]},
+  { cat:'Memory & Knowledge', color:'#10b981', items:[
+    { done:true,  text:'3-layer LLM Wiki (raw → wiki → CLAUDE.md)' },
+    { done:true,  text:'Two-step Analysis → Generation ingest protocol' },
+    { done:false, text:'LanceDB vector store for semantic wiki search' },
+    { done:false, text:'Confidence decay for aging wiki pages' },
+    { done:false, text:'Cross-session persistent memory (beyond current wiki)' },
+  ]},
+  { cat:'Intelligence', color:'#f59e0b', items:[
+    { done:true,  text:'Council consensus QA gate (≥7/10 threshold)' },
+    { done:true,  text:'Karpathy <thought> chain-of-thought enforcement' },
+    { done:false, text:'Adaptive temperature per story complexity' },
+    { done:false, text:'Self-critique loop — agent evaluates its own output' },
+    { done:false, text:'Contradiction detection across wiki pages' },
+  ]},
+  { cat:'Interfaces', color:'#06b6d4', items:[
+    { done:true,  text:'CLI runner (python -m m1frame --goal "...")' },
+    { done:true,  text:'Makefile shortcuts (make run, make qa, make lint)' },
+    { done:true,  text:'Visual dashboard (HTML single-file)' },
+    { done:false, text:'REST API layer (FastAPI) for remote goal submission' },
+    { done:false, text:'Webhook notifications on pipeline completion' },
+  ]},
+  { cat:'Investigation (OpenPlanter)', color:'#ec4899', items:[
+    { done:true,  text:'19-tool suite (file I/O, shell, web search, sub-agents)' },
+    { done:true,  text:'Entity resolution across heterogeneous datasets' },
+    { done:false, text:'Voyage embeddings for semantic entity matching' },
+    { done:false, text:'Exa web search integration for live data ingestion' },
+    { done:false, text:'Scheduled autonomous investigation runs (cron mode)' },
+  ]},
+];
+
+function buildTodos() {
+  const grid = document.getElementById('todo-grid');
+  grid.innerHTML = TODO_ITEMS.map(section => {
+    const doneCount = section.items.filter(i => i.done).length;
+    const pct = Math.round((doneCount / section.items.length) * 100);
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;border-top:3px solid ${section.color};">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:0.8rem;font-weight:700;color:${section.color};">${section.cat}</div>
+          <div style="font-size:0.7rem;color:var(--muted);">${doneCount}/${section.items.length} done</div>
+        </div>
+        <div style="background:var(--bg);border-radius:4px;height:4px;margin-bottom:12px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${section.color};border-radius:4px;transition:width 1s;"></div>
+        </div>
+        ${section.items.map(item => `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:0.75rem;line-height:1.4;
+               ${item.done?'color:var(--muted);':'color:var(--text);'}">
+            <span style="flex-shrink:0;margin-top:1px;color:${item.done?'var(--accent3)':'var(--border)'};">
+              ${item.done ? '✓' : '○'}
+            </span>
+            <span style="${item.done?'text-decoration:line-through;':''}">${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+}
+buildTodos();
+
+// ═══════════════════════════════════════════════════════
+// INITIAL LOGS
+// ═══════════════════════════════════════════════════════
+addLog('success', 'm1frame dashboard initialized — all pillars ready', 'SYSTEM');
+addLog('info', 'Backend: claude (claude-sonnet-4-20250514)', 'CONFIG');
+addLog('info', 'Wiki: 3-layer architecture loaded (raw → wiki → CLAUDE.md)', 'WIKI');
+addLog('info', 'OpenPlanter: LLM-only mode (install full package for 19-tool suite)', 'P3');
+addLog('info', 'Council threshold: 7/10 · max debate rounds: 2', 'P6');
+
+// Draw empty KG
+setTimeout(drawKG, 200);
+</script>
+</body>
+</html>

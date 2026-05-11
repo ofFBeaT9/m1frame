@@ -1,6 +1,11 @@
 """
 agents/karpathy.py — Karpathy Patterns (The Engine)
 Responsibility: Minimalist, deterministic prompting with forced chain-of-thought via <thought> tags.
+
+New in v1.1:
+  self_critique() — two-pass method where the model first produces an answer,
+    then critiques it and produces a refined version. Surfaces hidden errors that
+    a single-pass generation misses, without needing the full Council.
 """
 
 from __future__ import annotations
@@ -13,7 +18,7 @@ KARPATHY_SYSTEM = """You are a precise, minimalist reasoning engine.
 
 Rules you MUST follow:
 1. Always begin with a <thought> block. Think step-by-step before answering.
-2. Inside <thought>, reason out loud: restate the problem, identify what you know, 
+2. Inside <thought>, reason out loud: restate the problem, identify what you know,
    identify what you don't know, plan your approach.
 3. After </thought>, give your final answer — clear, concise, direct.
 4. Never repeat yourself. Never pad. No filler phrases.
@@ -31,6 +36,19 @@ Format:
 KARPATHY_REFINEMENT_SYSTEM = """You are a strict output refiner.
 Given a draft response, remove all filler, fix logical gaps, and tighten the prose.
 Keep <thought> blocks intact. Return the refined version only.
+"""
+
+SELF_CRITIQUE_SYSTEM = """You are a self-critique agent. You will receive:
+  1. The original task
+  2. A draft answer
+
+Your job:
+  A. Inside <thought>, identify every flaw, gap, or unsupported claim in the draft.
+     Be brutally honest. Note: logic errors, missing edge cases, hallucinations,
+     vague language, unsubstantiated claims.
+  B. After </thought>, write a corrected, improved version that fixes all issues you found.
+
+If the draft is already correct, say so inside <thought> and return it unchanged.
 """
 
 
@@ -51,6 +69,7 @@ class KarpathyEngine:
     - Forced <thought> chain-of-thought
     - Low temperature (deterministic)
     - Optional refinement pass
+    - self_critique(): two-pass critique → refine loop
     """
 
     def __init__(self, llm_client, config: Optional[dict] = None):
@@ -101,6 +120,42 @@ class KarpathyEngine:
             result = self._parse(refined_raw)
 
         return result
+
+    def self_critique(
+        self,
+        prompt: str,
+        extra_system: str = "",
+    ) -> KarpathyResult:
+        """
+        Two-pass critique loop: generate → critique → refine.
+
+        Pass 1: Produce an initial answer via run().
+        Pass 2: The model reads the task + its own draft and produces a
+                critiqued, corrected version.
+
+        This catches errors that single-pass generation consistently misses —
+        especially hallucinations, missing edge cases, and vague claims —
+        without the overhead of a full Council review.
+
+        Returns the refined KarpathyResult. result.thought contains the
+        critique reasoning; result.answer is the corrected output.
+        """
+        initial = self.run(prompt, extra_system=extra_system)
+
+        critique_prompt = (
+            f"Original task:\n{prompt}\n\n"
+            f"Draft answer:\n{initial.answer}"
+        )
+        system = SELF_CRITIQUE_SYSTEM
+        if extra_system:
+            system = f"{system}\n\nContext:\n{extra_system}"
+
+        raw = self.llm.chat(
+            prompt=critique_prompt,
+            system=system,
+            temperature=self.temperature,
+        )
+        return self._parse(raw)
 
     def batch(self, prompts: list[str], **kwargs) -> list[KarpathyResult]:
         """Run multiple prompts sequentially."""
