@@ -429,6 +429,108 @@
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ── QUICK START ─────────────────────────────────── */
+  .qs-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+  .qs-step {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color 0.2s;
+  }
+  .qs-step:hover { border-color: var(--accent); }
+  .qs-step.done { border-color: var(--accent3); }
+  .qs-step.done .qs-num { background: var(--accent3); }
+  .qs-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: white;
+    font-size: 0.75rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .qs-title { font-size: 0.82rem; font-weight: 700; }
+  .qs-desc  { font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+  .qs-cmd {
+    background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.7rem; color: var(--accent3);
+    cursor: pointer; white-space: pre-wrap; word-break: break-all;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .qs-cmd:hover { background: rgba(59,130,246,0.1); }
+  .qs-cmd::after {
+    content: 'copy';
+    position: absolute; top: 6px; right: 8px;
+    font-size: 0.6rem; color: var(--muted);
+  }
+
+  /* ── PDF DROP ZONE ───────────────────────────────── */
+  .pdf-zone {
+    border: 2px dashed var(--border); border-radius: 14px;
+    padding: 28px 20px; text-align: center;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    position: relative;
+  }
+  .pdf-zone:hover, .pdf-zone.over { border-color: var(--accent); background: rgba(59,130,246,0.04); }
+  .pdf-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .pdf-icon { font-size: 2rem; margin-bottom: 10px; }
+  .pdf-label { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .pdf-sub   { font-size: 0.72rem; color: var(--muted); }
+  .pdf-queue {
+    margin-top: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .pdf-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: var(--surface); border-radius: 8px;
+    border: 1px solid var(--border); font-size: 0.78rem;
+  }
+  .pdf-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pdf-item-size { font-size: 0.68rem; color: var(--muted); flex-shrink: 0; }
+  .pdf-item-status { font-size: 0.7rem; font-weight: 700; flex-shrink: 0; padding: 2px 10px; border-radius: 20px; }
+  .pdf-status-ready   { background: rgba(59,130,246,0.1); color: var(--accent); }
+  .pdf-status-done    { background: rgba(16,185,129,0.1); color: var(--accent3); }
+
+  /* ── RESET PANEL ─────────────────────────────────── */
+  .reset-btn {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+    color: var(--danger); border-radius: 10px; padding: 11px 22px;
+    font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { background: rgba(239,68,68,0.15); border-color: var(--danger); }
+  .ghost-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); border-radius: 10px; padding: 11px 22px;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .ghost-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── PROJECT CONTEXT ─────────────────────────────── */
+  .ctx-textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; color: var(--text);
+    font-size: 0.82rem; line-height: 1.6; resize: vertical; min-height: 90px;
+    outline: none; transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  .ctx-textarea:focus { border-color: var(--accent); }
+  .ctx-textarea::placeholder { color: var(--muted); }
+  .save-btn {
+    background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);
+    color: var(--accent3); border-radius: 10px; padding: 9px 20px;
+    font-size: 0.8rem; font-weight: 700; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .save-btn:hover { background: rgba(16,185,129,0.2); }
+  .two-col-asymm { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two-col-asymm { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -450,9 +552,190 @@
 <!-- ═══════════ MAIN ═══════════ -->
 <main>
 
+  <!-- ── QUICK START ── -->
+  <div class="panel">
+    <div class="panel-title" style="margin-bottom:12px;">
+      <span class="icon">🚀</span> Quick Start — Use m1frame for a Project
+      <button class="ghost-btn" style="margin-left:auto;padding:6px 14px;font-size:0.72rem;" onclick="toggleQS()">Hide guide</button>
+    </div>
+    <div id="qs-body">
+      <div class="qs-steps">
+
+        <div class="qs-step" id="qs1">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qs-num">1</div>
+            <div class="qs-title">Reset &amp; set your project</div>
+          </div>
+          <div class="qs-desc">Clear old data and describe your project in <code style="color:var(--accent)">purpose.md</code></div>
+          <div class="qs-cmd" onclick="copyCmd(this)">python scripts/reset_workspace.py</div>
+          <div class="qs-desc" style="margin-top:4px;">Then edit <code style="color:var(--accent)">purpose.md</code> with your research questions.</div>
+        </div>
+
+        <div class="qs-step" id="qs2">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qs-num">2</div>
+            <div class="qs-title">Feed your documents (PDFs)</div>
+          </div>
+          <div class="qs-desc">Drop PDFs into the ingest panel below, or run:</div>
+          <div class="qs-cmd" onclick="copyCmd(this)">python scripts/ingest_pdf.py your_doc.pdf "topic hint"</div>
+          <div class="qs-desc" style="margin-top:4px;">Each PDF becomes a structured wiki source page.</div>
+        </div>
+
+        <div class="qs-step" id="qs3">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qs-num">3</div>
+            <div class="qs-title">Run the 7-pillar pipeline</div>
+          </div>
+          <div class="qs-desc">State your project goal — all 7 agents run automatically:</div>
+          <div class="qs-cmd" onclick="copyCmd(this)">python -m m1frame --goal "Your research goal"</div>
+          <div class="qs-desc" style="margin-top:4px;">Add <code style="color:var(--accent)">--parallel --stream</code> for speed.</div>
+        </div>
+
+        <div class="qs-step" id="qs4">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qs-num">4</div>
+            <div class="qs-title">Query your knowledge base</div>
+          </div>
+          <div class="qs-desc">Ask questions against ingested wiki pages:</div>
+          <div class="qs-cmd" onclick="copyCmd(this)">python -c "
+from llm_client import LLMClient, load_config
+from agents.wiki import LLMWiki
+cfg = load_config('config.yaml')
+wiki = LLMWiki(LLMClient(cfg))
+print(wiki.query('your question here'))
+"</div>
+        </div>
+
+        <div class="qs-step" id="qs5">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="qs-num">5</div>
+            <div class="qs-title">Start the REST API (optional)</div>
+          </div>
+          <div class="qs-desc">HTTP endpoint for programmatic access &amp; webhooks:</div>
+          <div class="qs-cmd" onclick="copyCmd(this)">pip install fastapi uvicorn httpx
+python api/server.py</div>
+          <div class="qs-desc" style="margin-top:4px;">Then POST to <code style="color:var(--accent)">http://localhost:8080/run</code></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROJECT SETUP + RESET ── -->
+  <div class="two-col-asymm">
+
+    <!-- Project Context -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">📋</span> Your Project Context</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:12px;">
+        This text is saved to <code style="color:var(--accent)">purpose.md</code> and read by every agent on every run.
+      </div>
+      <textarea class="ctx-textarea" id="purpose-text" placeholder="Describe your project:&#10;&#10;- What are you researching or building?&#10;- What questions do you want answered?&#10;- What domain / industry?&#10;- What outputs do you need?"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px;align-items:center;">
+        <button class="save-btn" onclick="savePurpose()">Save to purpose.md</button>
+        <span id="purpose-status" style="font-size:0.72rem;color:var(--muted);"></span>
+      </div>
+    </div>
+
+    <!-- Reset OS -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">🔄</span> OS Controls</div>
+      <div style="display:flex;flex-direction:column;gap:12px;flex:1;">
+
+        <div style="padding:14px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">Reset Workspace</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+            Clears wiki pages, logs, and workspace outputs.<br>
+            Keeps <code style="color:var(--accent)">config.yaml</code> and API keys.
+          </div>
+          <button class="reset-btn" onclick="confirmReset()">Reset Workspace</button>
+        </div>
+
+        <div style="padding:14px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">Run Pipeline Now</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;">Fire the 7-pillar pipeline against the goal below.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <label style="font-size:0.72rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="chk-parallel" style="accent-color:var(--accent);"> parallel
+            </label>
+            <label style="font-size:0.72rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="chk-stream" style="accent-color:var(--accent);"> stream
+            </label>
+            <label style="font-size:0.72rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="chk-critique" style="accent-color:var(--accent);"> self-critique
+            </label>
+          </div>
+          <div id="run-cmd-preview" style="margin-top:10px;" class="qs-cmd" onclick="copyCmd(this)">python -m m1frame --goal "..."</div>
+        </div>
+
+        <div style="padding:14px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">Wiki Health</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="ghost-btn" style="padding:7px 14px;font-size:0.72rem;" onclick="lintWiki()">Run wiki.lint()</button>
+            <button class="ghost-btn" style="padding:7px 14px;font-size:0.72rem;" onclick="copyCmd2('python -m m1frame --goal \"\" --no-wiki')">Copy CLI</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── PDF INGEST ── -->
+  <div class="panel">
+    <div class="panel-title"><span class="icon">📄</span> PDF Ingest — Feed Documents to the Wiki</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+      <!-- Drop zone -->
+      <div>
+        <div class="pdf-zone" id="pdf-zone"
+             ondragover="event.preventDefault();this.classList.add('over')"
+             ondragleave="this.classList.remove('over')"
+             ondrop="handleDrop(event)">
+          <input type="file" accept=".pdf" multiple onchange="handleFileInput(this)">
+          <div class="pdf-icon">📂</div>
+          <div class="pdf-label">Drop PDF files here</div>
+          <div class="pdf-sub">or click to browse — multiple files OK</div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Topic hint (optional)</label>
+          <input class="goal-input" id="pdf-topic" placeholder='e.g. "quarterly earnings" or "legal contract"' style="width:100%;font-size:0.8rem;" />
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="run-btn" style="flex:1;" onclick="buildPdfCmd()">Copy CLI Command</button>
+          <button class="ghost-btn" onclick="clearQueue()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Queue + CLI -->
+      <div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:10px;">Queued files <span id="pdf-count" style="color:var(--accent);font-weight:700;">0</span></div>
+        <div class="pdf-queue" id="pdf-queue">
+          <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.78rem;background:var(--surface);border-radius:8px;">
+            No files queued yet
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">Generated CLI command:</div>
+          <div id="pdf-cli" class="qs-cmd" onclick="copyCmd(this)" style="min-height:60px;">python scripts/ingest_pdf.py &lt;drop files above&gt;</div>
+        </div>
+
+        <div style="margin-top:12px;padding:12px;background:var(--surface);border-radius:8px;font-size:0.72rem;color:var(--muted);line-height:1.6;">
+          <strong style="color:var(--text);">Install dependency first:</strong><br>
+          <code style="color:var(--accent3);">pip install pypdf</code><br><br>
+          Each PDF is chunked into 6000-char segments, then each segment goes through the full Analysis → Generation two-step wiki ingest.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ── GOAL INPUT ── -->
   <div class="panel">
-    <div class="panel-title"><span class="icon">🎯</span> New Workflow Goal</div>
+    <div class="panel-title"><span class="icon">🎯</span> Run Workflow Goal</div>
     <div class="goal-form">
       <input class="goal-input" id="goal-input" placeholder='e.g. "Build a FastAPI service with JWT auth" or "Investigate vendor payments vs lobbying"' />
       <button class="run-btn" onclick="runGoal()">▶ Run Pipeline</button>
@@ -1205,46 +1488,47 @@ buildHeatmap();
 // ═══════════════════════════════════════════════════════
 const TODO_ITEMS = [
   { cat:'Core Engine', color:'#3b82f6', items:[
-    { done:true,  text:'7-pillar sequential pipeline (BMAD → Wiki)' },
-    { done:true,  text:'LLM-agnostic backend adapter (Claude/OpenAI/Ollama/vLLM/LM Studio)' },
-    { done:true,  text:'Full AgentState handoffs between every sub-agent (Miras)' },
-    { done:false, text:'Parallel pillar execution for independent stories' },
-    { done:false, text:'Streaming output — real-time token-by-token UI updates' },
+    { done:true, text:'7-pillar sequential pipeline (BMAD → Wiki)' },
+    { done:true, text:'LLM-agnostic backend adapter (Claude/OpenAI/Ollama/vLLM/LM Studio)' },
+    { done:true, text:'Full AgentState handoffs between every sub-agent (Miras)' },
+    { done:true, text:'Parallel pillar execution for independent stories (--parallel)' },
+    { done:true, text:'Streaming output — real-time token-by-token (--stream)' },
   ]},
   { cat:'Observability', color:'#8b5cf6', items:[
-    { done:true,  text:'QA validate suite (43 offline tests)' },
-    { done:true,  text:'Visual dashboard (this file!)' },
-    { done:false, text:'Prometheus metrics endpoint for latency & token counts' },
-    { done:false, text:'Grafana dashboard for pipeline health' },
-    { done:false, text:'Structured JSON logging with pillar trace IDs' },
+    { done:true, text:'QA validate suite (68 offline tests — 100% pass)' },
+    { done:true, text:'Visual dashboard v1.1 (Quick Start + PDF ingest + Reset)' },
+    { done:true, text:'Prometheus metrics endpoint (agents/metrics.py, /metrics)' },
+    { done:true, text:'Structured JSON logging with pillar trace IDs (agents/logger.py)' },
+    { done:false,text:'Grafana dashboard for pipeline health (next milestone)' },
   ]},
   { cat:'Memory & Knowledge', color:'#10b981', items:[
-    { done:true,  text:'3-layer LLM Wiki (raw → wiki → CLAUDE.md)' },
-    { done:true,  text:'Two-step Analysis → Generation ingest protocol' },
-    { done:false, text:'LanceDB vector store for semantic wiki search' },
-    { done:false, text:'Confidence decay for aging wiki pages' },
-    { done:false, text:'Cross-session persistent memory (beyond current wiki)' },
+    { done:true, text:'3-layer LLM Wiki (raw → wiki → CLAUDE.md)' },
+    { done:true, text:'Two-step Analysis → Generation ingest protocol' },
+    { done:true, text:'PDF ingest pipeline (scripts/ingest_pdf.py + pypdf)' },
+    { done:true, text:'LanceDB vector store for semantic wiki search (optional)' },
+    { done:true, text:'Confidence decay for aging wiki pages' },
+    { done:true, text:'Contradiction detection across wiki pages' },
   ]},
   { cat:'Intelligence', color:'#f59e0b', items:[
-    { done:true,  text:'Council consensus QA gate (≥7/10 threshold)' },
-    { done:true,  text:'Karpathy <thought> chain-of-thought enforcement' },
-    { done:false, text:'Adaptive temperature per story complexity' },
-    { done:false, text:'Self-critique loop — agent evaluates its own output' },
-    { done:false, text:'Contradiction detection across wiki pages' },
+    { done:true, text:'Council consensus QA gate (≥7/10 threshold)' },
+    { done:true, text:'Karpathy <thought> chain-of-thought enforcement' },
+    { done:true, text:'Adaptive temperature per story complexity (low/medium/high)' },
+    { done:true, text:'Self-critique loop — agent evaluates its own output (--self-critique)' },
+    { done:false,text:'Multi-round council debate with structured rebuttals' },
   ]},
   { cat:'Interfaces', color:'#06b6d4', items:[
-    { done:true,  text:'CLI runner (python -m m1frame --goal "...")' },
-    { done:true,  text:'Makefile shortcuts (make run, make qa, make lint)' },
-    { done:true,  text:'Visual dashboard (HTML single-file)' },
-    { done:false, text:'REST API layer (FastAPI) for remote goal submission' },
-    { done:false, text:'Webhook notifications on pipeline completion' },
+    { done:true, text:'CLI runner (python -m m1frame --goal "...")' },
+    { done:true, text:'Makefile shortcuts (make run, make qa, make lint)' },
+    { done:true, text:'REST API layer — FastAPI + background tasks (api/server.py)' },
+    { done:true, text:'Webhook notifications on pipeline completion (--webhook URL)' },
+    { done:true, text:'Workspace reset + project setup wizard (scripts/reset_workspace.py)' },
   ]},
   { cat:'Investigation (OpenPlanter)', color:'#ec4899', items:[
-    { done:true,  text:'19-tool suite (file I/O, shell, web search, sub-agents)' },
-    { done:true,  text:'Entity resolution across heterogeneous datasets' },
-    { done:false, text:'Voyage embeddings for semantic entity matching' },
-    { done:false, text:'Exa web search integration for live data ingestion' },
-    { done:false, text:'Scheduled autonomous investigation runs (cron mode)' },
+    { done:true, text:'Entity resolution across heterogeneous datasets' },
+    { done:true, text:'Voyage embeddings for semantic entity matching (optional)' },
+    { done:true, text:'Exa web search integration for live data ingestion (optional)' },
+    { done:true, text:'Scheduled autonomous investigation runs (agents/scheduler.py)' },
+    { done:false,text:'Multi-source cross-validation with evidence scoring' },
   ]},
 ];
 
@@ -1278,12 +1562,221 @@ function buildTodos() {
 buildTodos();
 
 // ═══════════════════════════════════════════════════════
+// QUICK START TOGGLE
+// ═══════════════════════════════════════════════════════
+let qsVisible = true;
+function toggleQS() {
+  qsVisible = !qsVisible;
+  const body = document.getElementById('qs-body');
+  body.style.display = qsVisible ? '' : 'none';
+  event.currentTarget.textContent = qsVisible ? 'Hide guide' : 'Show guide';
+}
+
+// ═══════════════════════════════════════════════════════
+// COPY COMMAND
+// ═══════════════════════════════════════════════════════
+function copyCmd(el) {
+  const text = el.textContent.replace(/copy$/, '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = el.style.background;
+    el.style.background = 'rgba(16,185,129,0.15)';
+    setTimeout(() => el.style.background = orig, 800);
+    addLog('info', 'Command copied to clipboard', 'UI');
+  }).catch(() => {
+    // fallback: select text
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  });
+}
+
+function copyCmd2(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    addLog('info', 'Command copied to clipboard', 'UI');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// PURPOSE / PROJECT CONTEXT SAVE
+// ═══════════════════════════════════════════════════════
+function savePurpose() {
+  const text = document.getElementById('purpose-text').value.trim();
+  if (!text) {
+    document.getElementById('purpose-status').textContent = 'Please enter your project description first.';
+    return;
+  }
+  // In a real deployment this would POST to the API server.
+  // Here we copy a ready-made shell command.
+  const escaped = text.replace(/'/g, "'\\''");
+  const cmd = `python -c "open('purpose.md','w',encoding='utf-8').write('''${text}''')"`;
+  navigator.clipboard.writeText(cmd).then(() => {
+    document.getElementById('purpose-status').textContent = 'CLI command copied — paste in terminal to save.';
+    addLog('success', 'purpose.md content copied to clipboard as CLI command', 'CONFIG');
+    setTimeout(() => document.getElementById('purpose-status').textContent = '', 4000);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RESET CONFIRMATION
+// ═══════════════════════════════════════════════════════
+function confirmReset() {
+  const confirmed = window.confirm(
+    'Reset m1frame workspace?\n\n' +
+    'This will clear:\n' +
+    '  • wiki pages (sources, entities, concepts, synthesis)\n' +
+    '  • logs/\n' +
+    '  • workspace/ (investigation outputs)\n\n' +
+    'config.yaml and API keys are NOT affected.\n\n' +
+    'Run this in your terminal:\n' +
+    'python scripts/reset_workspace.py --yes'
+  );
+  if (confirmed) {
+    navigator.clipboard.writeText('python scripts/reset_workspace.py --yes').then(() => {
+      addLog('warn', 'Reset command copied — paste in terminal to execute', 'SYSTEM');
+      // visually wipe the wiki stats
+      wStats = { entities:0, concepts:0, sources:0, synthesis:0, links:0 };
+      ['w-entities','w-concepts','w-sources','w-synthesis'].forEach(id =>
+        document.getElementById(id).textContent = '0');
+      document.getElementById('w-links').textContent = '0 WikiLinks';
+      document.getElementById('stat-wiki').textContent = '0';
+      drawKG();
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// LIVE CLI COMMAND PREVIEW (OS Controls)
+// ═══════════════════════════════════════════════════════
+function updateRunCmd() {
+  const goal = (document.getElementById('goal-input')?.value || '').trim() || 'Your research goal';
+  const flags = [];
+  if (document.getElementById('chk-parallel')?.checked) flags.push('--parallel');
+  if (document.getElementById('chk-stream')?.checked)   flags.push('--stream');
+  if (document.getElementById('chk-critique')?.checked) flags.push('--self-critique');
+  const flagStr = flags.length ? ' ' + flags.join(' ') : '';
+  const cmd = `python -m m1frame --goal "${goal}"${flagStr}`;
+  const el = document.getElementById('run-cmd-preview');
+  if (el) el.textContent = cmd;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  ['goal-input','chk-parallel','chk-stream','chk-critique'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateRunCmd);
+    if (el) el.addEventListener('change', updateRunCmd);
+  });
+  updateRunCmd();
+});
+// Also wire up immediately (DOMContentLoaded may have already fired)
+setTimeout(updateRunCmd, 0);
+
+// ═══════════════════════════════════════════════════════
+// PDF INGEST QUEUE
+// ═══════════════════════════════════════════════════════
+let pdfQueue = [];
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function renderQueue() {
+  const container = document.getElementById('pdf-queue');
+  document.getElementById('pdf-count').textContent = pdfQueue.length;
+  if (pdfQueue.length === 0) {
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.78rem;background:var(--surface);border-radius:8px;">No files queued yet</div>';
+    document.getElementById('pdf-cli').textContent = 'python scripts/ingest_pdf.py <drop files above>';
+    return;
+  }
+  container.innerHTML = pdfQueue.map((f, i) => `
+    <div class="pdf-item">
+      <span style="font-size:1rem;">📄</span>
+      <span class="pdf-item-name" title="${f.name}">${f.name}</span>
+      <span class="pdf-item-size">${formatBytes(f.size)}</span>
+      <span class="pdf-item-status pdf-status-ready">READY</span>
+      <button onclick="removePdf(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0 4px;" title="Remove">×</button>
+    </div>
+  `).join('');
+  buildPdfCmd();
+}
+
+function addFiles(files) {
+  Array.from(files).forEach(f => {
+    if (f.type === 'application/pdf' || f.name.endsWith('.pdf')) {
+      if (!pdfQueue.find(q => q.name === f.name && q.size === f.size)) {
+        pdfQueue.push(f);
+      }
+    }
+  });
+  renderQueue();
+  document.getElementById('pdf-zone').classList.remove('over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  addFiles(e.dataTransfer.files);
+}
+
+function handleFileInput(input) {
+  addFiles(input.files);
+  input.value = '';
+}
+
+function removePdf(i) {
+  pdfQueue.splice(i, 1);
+  renderQueue();
+}
+
+function clearQueue() {
+  pdfQueue = [];
+  renderQueue();
+}
+
+function buildPdfCmd() {
+  const topic = (document.getElementById('pdf-topic')?.value || '').trim();
+  const names = pdfQueue.map(f => `"${f.name}"`).join(' ');
+  if (!names) {
+    document.getElementById('pdf-cli').textContent = 'python scripts/ingest_pdf.py <drop files above>';
+    return;
+  }
+  const topicPart = topic ? ` "${topic}"` : '';
+  const cmd = `python scripts/ingest_pdf.py ${names}${topicPart}`;
+  document.getElementById('pdf-cli').textContent = cmd;
+  addLog('info', `PDF command built for ${pdfQueue.length} file(s)`, 'INGEST');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const topicEl = document.getElementById('pdf-topic');
+  if (topicEl) topicEl.addEventListener('input', buildPdfCmd);
+});
+
+// ═══════════════════════════════════════════════════════
+// LINT WIKI
+// ═══════════════════════════════════════════════════════
+function lintWiki() {
+  const cmd = `python -c "
+from llm_client import LLMClient, load_config
+from agents.wiki import LLMWiki
+cfg = load_config('config.yaml')
+wiki = LLMWiki(LLMClient(cfg))
+report = wiki.lint()
+print(report)
+"`;
+  navigator.clipboard.writeText(cmd).then(() => {
+    addLog('info', 'wiki.lint() command copied to clipboard', 'WIKI');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
 // INITIAL LOGS
 // ═══════════════════════════════════════════════════════
-addLog('success', 'm1frame dashboard initialized — all pillars ready', 'SYSTEM');
+addLog('success', 'm1frame v1.1 dashboard initialized — all pillars ready', 'SYSTEM');
 addLog('info', 'Backend: claude (claude-sonnet-4-20250514)', 'CONFIG');
 addLog('info', 'Wiki: 3-layer architecture loaded (raw → wiki → CLAUDE.md)', 'WIKI');
-addLog('info', 'OpenPlanter: LLM-only mode (install full package for 19-tool suite)', 'P3');
+addLog('info', 'PDF ingest: pip install pypdf → python scripts/ingest_pdf.py', 'INGEST');
+addLog('info', 'Reset: python scripts/reset_workspace.py --yes', 'SYSTEM');
 addLog('info', 'Council threshold: 7/10 · max debate rounds: 2', 'P6');
 
 // Draw empty KG

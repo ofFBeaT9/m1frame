@@ -6,6 +6,10 @@ python-dotenv==1.0.1
 anthropic==0.40.0          # Claude (backend: claude)
 openai==1.51.0             # OpenAI / Ollama / vLLM / LM Studio (backend: openai|ollama|vllm|lmstudio)
 
+# ── PDF Ingestion (optional but recommended) ──────────────────────────────────
+pypdf>=4.0.0               # PDF text extraction (python scripts/ingest_pdf.py)
+# pdfplumber>=0.11.0       # richer table extraction (alternative to pypdf)
+
 # ── REST API (optional) — pip install fastapi uvicorn httpx ──────────────────
 # fastapi>=0.111.0
 # uvicorn>=0.29.0
