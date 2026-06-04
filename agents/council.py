@@ -86,6 +86,23 @@ Respond ONLY in this JSON (no preamble, no fences):
   "approved_output": "..."
 }"""
 
+RED_TEAM_SYSTEM = """You are the Red-Team — an INDEPENDENT adversary, not a council member.
+The council has just reached a verdict on an output. Your job is to ATTACK that verdict.
+Assume the council was too agreeable. Hunt for: overclaims, hidden assumptions, contradictions,
+unsupported numbers, missing edge cases, and anything a confident-but-wrong council would wave through.
+
+You have VETO power: if the output has a material flaw the council missed, return verdict "fail".
+Only return "pass" if you genuinely cannot break it. Be specific — cite the exact flaw.
+
+Respond ONLY in this JSON (no preamble, no fences):
+{
+  "persona": "Red-Team",
+  "verdict": "pass|fail|conditional",
+  "score": <integer 1-10>,
+  "key_points": ["the specific flaws you found, or why it survives attack"],
+  "recommendation": "the single most important correction"
+}"""
+
 
 # ── Data classes ──────────────────────────────────────────────────────────────
 
@@ -189,35 +206,102 @@ class LLMCouncil:
         self.personas = self.cfg.get("personas", self.DEFAULT_PERSONAS)
         self.threshold = float(self.cfg.get("consensus_threshold", 7.0))
         self.max_rounds = int(self.cfg.get("max_debate_rounds", 2))
+        # An independent red-team runs after the personas in review() and can VETO a pass.
+        self.red_team = bool(self.cfg.get("red_team", True))
 
     # ── Mode 1: Brainstorm ────────────────────────────────────────────────────
 
-    def brainstorm(self, task: str) -> BrainstormResult:
+    def brainstorm(
+        self,
+        task: str,
+        on_persona_start: Optional[callable] = None,
+        on_persona_done: Optional[callable] = None,
+    ) -> BrainstormResult:
         """
         Run council BEFORE generating output (gcpdev pattern).
         Each persona analyses the task independently, then a Synthesiser
         produces one unified implementation plan.
+
+        Optional callbacks let a UI stream the debate persona-by-persona:
+          on_persona_start("brainstorm", name)
+          on_persona_done("brainstorm", name, payload_dict)
+        Both default to None (no behaviour change).
         """
-        perspectives = [self._brainstorm_persona(p, task) for p in self.personas]
+        perspectives = []
+        for p in self.personas:
+            if on_persona_start:
+                on_persona_start("brainstorm", p["name"])
+            persp = self._brainstorm_persona(p, task)
+            if on_persona_done:
+                on_persona_done("brainstorm", p["name"], {
+                    "approach": persp.approach,
+                    "considerations": persp.key_considerations,
+                    "risks": persp.risks,
+                    "opportunities": persp.opportunities,
+                    "direction": persp.recommended_direction,
+                })
+            perspectives.append(persp)
         result = self._synthesise_brainstorm(task, perspectives)
         result.perspectives = perspectives
         return result
 
     # ── Mode 2: Review ────────────────────────────────────────────────────────
 
-    def review(self, task: str, output: str, _round: int = 1) -> CouncilVerdict:
+    def review(
+        self,
+        task: str,
+        output: str,
+        _round: int = 1,
+        on_persona_start: Optional[callable] = None,
+        on_persona_done: Optional[callable] = None,
+    ) -> CouncilVerdict:
         """
         QA gate AFTER generation.
         Returns a CouncilVerdict; verdict.approved_output is the final text to use.
         _round is internal — controls the retry limit.
+
+        Optional callbacks stream each reviewer's verdict to a UI:
+          on_persona_start("review", name)
+          on_persona_done("review", name, payload_dict)
         """
-        assessments = [self._review_persona(p, task, output) for p in self.personas]
+        assessments = []
+        for p in self.personas:
+            if on_persona_start:
+                on_persona_start("review", p["name"])
+            a = self._review_persona(p, task, output)
+            if on_persona_done:
+                on_persona_done("review", p["name"], {
+                    "verdict": a.verdict, "score": a.score,
+                    "key_points": a.key_points, "recommendation": a.recommendation,
+                })
+            assessments.append(a)
         verdict = self._synthesise_review(task, output, assessments)
         verdict.assessments = assessments
 
+        # Independent red-team — attacks the synthesised verdict and can VETO a pass.
+        if self.red_team:
+            if on_persona_start:
+                on_persona_start("review", "Red-Team")
+            rt = self._red_team(task, output, verdict)
+            if on_persona_done:
+                on_persona_done("review", "Red-Team", {
+                    "verdict": rt.verdict, "score": rt.score,
+                    "key_points": rt.key_points, "recommendation": rt.recommendation,
+                })
+            verdict.assessments.append(rt)
+            if rt.verdict == "fail":   # veto overrides a too-agreeable council
+                verdict.verdict = "fail"
+                verdict.passed = False
+                verdict.required_fixes = list(verdict.required_fixes) + [
+                    f"[red-team] {p}" for p in rt.key_points]
+                if rt.recommendation:
+                    verdict.summary += f"  |  RED-TEAM VETO: {rt.recommendation}"
+
         # One optional retry on the corrected output — strictly limited
         if not verdict.passed and _round < self.max_rounds:
-            return self.review(task, verdict.approved_output, _round=_round + 1)
+            return self.review(task, verdict.approved_output, _round=_round + 1,
+                               on_persona_start=on_persona_start,
+                               on_persona_done=on_persona_done)
 
         return verdict
 
@@ -337,6 +421,35 @@ class LLMCouncil:
                 summary="Synthesiser parse error — falling back to score average.",
                 required_fixes=["Re-run council for a structured verdict."],
                 approved_output=output,
+            )
+
+    # ── Independent red-team ──────────────────────────────────────────────────
+
+    def _red_team(self, task: str, output: str, verdict: CouncilVerdict) -> PersonaAssessment:
+        """Adversarial pass that attacks the council's verdict; may veto a pass."""
+        prompt = (
+            f"Task:\n{task}\n\n"
+            f"Output under review (first 2000 chars):\n{output[:2000]}\n\n"
+            f"The council concluded: verdict={verdict.verdict}, "
+            f"score={verdict.consensus_score:.1f}/10, summary={verdict.summary}\n\n"
+            "Attack this verdict. What did the council miss?"
+        )
+        raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3)
+        try:
+            d = _parse_json(raw)
+            return PersonaAssessment(
+                persona="Red-Team",
+                verdict=d.get("verdict", "conditional"),
+                score=int(d.get("score", 5)),
+                key_points=d.get("key_points", []),
+                recommendation=d.get("recommendation", ""),
+                raw=raw,
+            )
+        except (ValueError, KeyError):
+            return PersonaAssessment(
+                persona="Red-Team", verdict="conditional", score=5,
+                key_points=["Red-team parse error — review manually"],
+                recommendation=raw[:300], raw=raw,
             )
 
 

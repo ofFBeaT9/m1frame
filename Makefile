@@ -1,8 +1,10 @@
-.PHONY: help install dev qa lint typecheck clean build run
+.PHONY: help install studio dev qa lint typecheck clean build run demo
 
 help:
 	@echo "m1frame — available commands:"
 	@echo "  make install     Install production dependencies"
+	@echo "  make studio      Install Studio deps + launch the live UI (http://localhost:8080)"
+	@echo "  make demo        Rebuild the demo fixture + static snapshots"
 	@echo "  make dev         Install all dev + prod dependencies"
 	@echo "  make qa          Run full QA suite (no API key needed)"
 	@echo "  make lint        Run ruff linter"
@@ -13,6 +15,14 @@ help:
 
 install:
 	pip install -r requirements.txt
+
+studio:
+	pip install fastapi "uvicorn[standard]" httpx pyyaml
+	python studio/build_demo.py
+	python api/server.py
+
+demo:
+	python studio/build_demo.py
 
 dev:
 	pip install -r requirements.txt

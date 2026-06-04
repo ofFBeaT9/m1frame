@@ -6,10 +6,13 @@ python-dotenv==1.0.1
 anthropic==0.40.0          # Claude (backend: claude)
 openai==1.51.0             # OpenAI / Ollama / vLLM / LM Studio (backend: openai|ollama|vllm|lmstudio)
 
-# ── REST API (optional) — pip install fastapi uvicorn httpx ──────────────────
-# fastapi>=0.111.0
-# uvicorn>=0.29.0
-# httpx>=0.27.0            # webhook delivery
+# ── m1frame Studio — real-time UI + REST/SSE API ─────────────────────────────
+# Powers `python api/server.py` (the live Studio): live runs, SSE streaming,
+# grounded chat, and one-click backend switching. The single-file UI itself is
+# zero-build and also runs key-less in DEMO mode via `python studio/serve.py`.
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0            # webhook delivery + chat streaming client
 
 # ── Observability: LanceDB semantic vector search (optional) ──────────────────
 # lancedb>=0.8.2

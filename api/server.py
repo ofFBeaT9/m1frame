@@ -1,65 +1,86 @@
 """
-api/server.py — FastAPI REST API for m1frame.
+api/server.py — FastAPI backend for m1frame + m1frame Studio.
 
-Endpoints:
-  GET  /health                  → status, uptime, backend
-  POST /run                     → submit a goal; returns run_id (async)
-  GET  /run/{run_id}            → poll status + output
+Classic REST (unchanged):
+  GET  /health                  → status, uptime, backend, can_run_live
+  GET  /run/{run_id}            → poll status + recorded events
   GET  /runs                    → list all runs
-  POST /wiki/ingest             → ingest text into LLM Wiki
-  GET  /wiki/query?q=...        → query the wiki
-  GET  /wiki/pages              → list all wiki pages
+  POST /wiki/ingest             → ingest text into the LLM Wiki
+  GET  /wiki/query?q=...        → query the wiki (LLM, or keyword fallback w/o key)
+  GET  /wiki/pages              → rich page list (title/type/tags/body)
   GET  /metrics                 → Prometheus text metrics
-  GET  /schedule                → list scheduled investigation jobs
-  POST /schedule                → add a scheduled job
-  DELETE /schedule/{job_id}     → remove a job
+  GET/POST/DELETE /schedule     → scheduled investigation jobs
 
-Webhook:
-  Include "webhook_url" in POST /run — the server POSTs the full result dict
-  to that URL when the pipeline finishes (best-effort, non-blocking).
+Studio additions:
+  GET  /                        → serves m1frame-studio.html
+  GET  /studio/demo_run.json    → the bundled demo fixture
+  POST /run                     → start a run; mode=live|demo (auto-demo w/o key)
+  GET  /run/{run_id}/events     → Server-Sent Events stream of pipeline progress
+  POST /chat                    → SSE token stream, grounded in the wiki
+  GET  /wiki/graph              → knowledge-graph nodes + links
+  GET  /memories                → miras memory snapshot
+  GET  /metrics.json            → structured per-pillar metrics
+  GET  /config, PATCH /config   → one-click backend/model switch
 
 Start:
-  python api/server.py
-  # or:
-  uvicorn api.server:app --host 0.0.0.0 --port 8080 --reload
-
-Requires: pip install fastapi uvicorn httpx
+  uvicorn api.server:app --host 0.0.0.0 --port 8080
+  # or: python api/server.py
+Requires: pip install fastapi uvicorn httpx pyyaml
 """
 from __future__ import annotations
 
+import asyncio
+import datetime
+import json
+import os
+import re
 import sys
+import threading
 import time
 import uuid
-import datetime
 from pathlib import Path
 from typing import Optional
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 # ── Optional FastAPI import ───────────────────────────────────────────────────
 try:
-    from fastapi import BackgroundTasks, FastAPI, HTTPException
-    from fastapi.responses import PlainTextResponse
+    from fastapi import FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
     from pydantic import BaseModel
     _FASTAPI = True
 except ImportError:
     _FASTAPI = False
     BaseModel = object  # type: ignore[assignment,misc]
 
-from agents.metrics import get_metrics
+from agents.events import EventBus, make_emitter
 from agents.logger import PillarLogger
+from agents.metrics import get_metrics
 from llm_client import LLMClient, load_config
 
+STUDIO_HTML = ROOT / "m1frame-studio.html"
+DEMO_FIXTURE = ROOT / "studio" / "demo_run.json"
+LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio"}
+ALL_BACKENDS = ["claude", "openai", "ollama", "vllm", "lmstudio"]
+SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
+               "X-Accel-Buffering": "no"}
 
-# ── Request / response models ─────────────────────────────────────────────────
+
+# ── Request models ────────────────────────────────────────────────────────────
 
 if _FASTAPI:
     class RunRequest(BaseModel):
         goal: str
         backend: Optional[str] = None
+        mode: Optional[str] = None          # live | demo (auto-demo without a key)
+        speed: float = 1.0                  # demo replay speed multiplier
         skip_council: bool = False
         skip_wiki: bool = False
         skip_openplanter: bool = False
+        parallel: bool = False
+        self_critique: bool = False
         webhook_url: Optional[str] = None
 
     class WikiIngestRequest(BaseModel):
@@ -72,24 +93,81 @@ if _FASTAPI:
         task: str
         interval_hours: float = 24.0
 
+    class ChatRequest(BaseModel):
+        message: str = ""
+        messages: list[dict] = []           # [{role, content}, ...]
+        ground: bool = True
+
+    class ConfigPatch(BaseModel):
+        backend: Optional[str] = None
+        model: Optional[str] = None
+
 
 # ── In-memory run store ───────────────────────────────────────────────────────
 
 _RUNS: dict[str, dict] = {}
+_MAX_RUNS = 200          # rolling window — bounds memory on long-lived servers
 
 
 def _new_run(goal: str) -> str:
+    # Evict oldest completed runs so _RUNS + their EventBus history stay bounded.
+    while len(_RUNS) >= _MAX_RUNS:
+        oldest = next(iter(_RUNS))
+        _RUNS.pop(oldest, None)
     run_id = str(uuid.uuid4())[:8]
     _RUNS[run_id] = {
-        "run_id": run_id,
-        "goal": goal,
-        "status": "queued",
-        "started_at": None,
-        "finished_at": None,
-        "output": None,
-        "error": None,
+        "run_id": run_id, "goal": goal, "status": "queued", "mode": None,
+        "started_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "finished_at": None, "score": None, "output": None, "error": None,
+        "events": [], "bus": None, "task": None,
     }
     return run_id
+
+
+def _public(run: dict) -> dict:
+    """Run dict safe to JSON-serialize (drops the EventBus / task handles)."""
+    return {k: v for k, v in run.items() if k not in ("bus", "task")}
+
+
+def _can_run_live(cfg: dict, backend: Optional[str] = None) -> bool:
+    b = backend or cfg.get("backend", "claude")
+    if b in LOCAL_BACKENDS:
+        return True
+    env = cfg.get(b, {}).get("api_key_env")
+    return bool(env and os.environ.get(env))
+
+
+_MODEL_RE = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")   # PATCH /config: no ':' (YAML), no spaces/newlines
+
+
+def _persist_config(backend: Optional[str], model: Optional[str]) -> None:
+    """Best-effort update of config.yaml that preserves comments (line walk)."""
+    path = ROOT / "config.yaml"
+    if not path.exists():
+        return
+    if model is not None and not _MODEL_RE.match(model):
+        return  # ignore unsafe model strings — never write them to disk
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    target = backend
+    if backend:
+        for i, ln in enumerate(lines):
+            if re.match(r"^backend:\s*", ln):
+                lines[i] = re.sub(r"^(backend:\s*)\S+", rf"\g<1>{backend}", ln)
+                break
+    if model and target:
+        in_block = False
+        for i, ln in enumerate(lines):
+            if re.match(rf"^{re.escape(target)}:\s*$", ln):
+                in_block = True
+                continue
+            if in_block:
+                if re.match(r"^\S", ln):           # left the block
+                    break
+                if re.match(r"^\s+model:\s*", ln):
+                    indent = ln[:len(ln) - len(ln.lstrip())]
+                    lines[i] = f"{indent}model: {model}\n"
+                    break
+    path.write_text("".join(lines), encoding="utf-8")
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -100,164 +178,347 @@ def create_app() -> "FastAPI":
 
     cfg = load_config()
     metrics = get_metrics()
-    _logger = PillarLogger()
+    logger = PillarLogger()
 
     app = FastAPI(
-        title="m1frame API",
-        description="Portable multi-agent AI OS — REST interface",
-        version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        title="m1frame Studio API",
+        description="Portable multi-agent AI OS — real-time REST + SSE interface",
+        version="1.1.0", docs_url="/docs", redoc_url="/redoc",
+    )
+    app.add_middleware(
+        CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
+        allow_headers=["*"], allow_credentials=False,
     )
 
-    # ── /health ───────────────────────────────────────────────────────────────
+    # ── UI ──────────────────────────────────────────────────────────────────────
+    @app.get("/", include_in_schema=False)
+    async def studio_index():
+        if STUDIO_HTML.exists():
+            return FileResponse(STUDIO_HTML, media_type="text/html")
+        return PlainTextResponse("m1frame-studio.html not found. Build the UI first.", 404)
+
+    @app.get("/studio/demo_run.json", include_in_schema=False)
+    async def demo_fixture():
+        if DEMO_FIXTURE.exists():
+            return FileResponse(DEMO_FIXTURE, media_type="application/json")
+        raise HTTPException(404, "demo_run.json not found — run: python studio/build_demo.py")
+
+    # ── health / config ─────────────────────────────────────────────────────────
     @app.get("/health")
     async def health():
         return {
-            "status": "ok",
-            "version": "1.0.0",
+            "status": "ok", "version": "1.1.0",
             "backend": cfg.get("backend", "claude"),
-            "uptime_s": metrics.uptime_s(),
-            "runs_total": len(_RUNS),
+            "can_run_live": _can_run_live(cfg),
+            "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
             "ts": datetime.datetime.utcnow().isoformat() + "Z",
         }
 
-    # ── POST /run ─────────────────────────────────────────────────────────────
-    @app.post("/run", status_code=202)
-    async def submit_run(req: RunRequest, background_tasks: BackgroundTasks):
-        run_id = _new_run(req.goal)
-        _logger.info("api", "run_queued", run_id=run_id, goal=req.goal[:80])
-        background_tasks.add_task(_execute_run, run_id, req, cfg, metrics, _logger)
-        return {"run_id": run_id, "status": "queued", "poll": f"/run/{run_id}"}
+    @app.get("/config")
+    async def get_config():
+        return {
+            "backend": cfg.get("backend"),
+            "model": cfg.get(cfg.get("backend", "claude"), {}).get("model"),
+            "backends": ALL_BACKENDS,
+            "models": {b: cfg.get(b, {}).get("model") for b in ALL_BACKENDS},
+            "can_run_live": _can_run_live(cfg),
+            "default_mode": "live" if _can_run_live(cfg) else "demo",
+        }
 
-    # ── GET /run/{run_id} ─────────────────────────────────────────────────────
+    @app.patch("/config")
+    async def patch_config(req: "ConfigPatch"):
+        if req.backend:
+            if req.backend not in ALL_BACKENDS:
+                raise HTTPException(400, f"unknown backend '{req.backend}'")
+            cfg["backend"] = req.backend
+        if req.model:
+            if not _MODEL_RE.match(req.model):
+                raise HTTPException(400, "invalid model string")
+            cfg.setdefault(cfg["backend"], {})["model"] = req.model
+        _persist_config(req.backend, req.model)
+        logger.info("api", "config_patched", backend=cfg.get("backend"))
+        return await get_config()
+
+    # ── runs ─────────────────────────────────────────────────────────────────────
+    @app.post("/run", status_code=202)
+    async def submit_run(req: "RunRequest"):
+        run_id = _new_run(req.goal)
+        run = _RUNS[run_id]
+        bus = EventBus()
+        run["bus"] = bus
+        bus.subscribe_sync(lambda ev, r=run: r["events"].append(ev.to_dict()))
+
+        mode = (req.mode or "").lower()
+        want_live = mode == "live" or (mode != "demo" and _can_run_live(cfg, req.backend))
+        if want_live and mode != "demo":
+            run["mode"] = "live"
+            run["task"] = asyncio.create_task(_run_live(run_id, req, bus))
+        else:
+            run["mode"] = "demo"
+            run["task"] = asyncio.create_task(_replay_demo(run_id, bus, req.speed))
+        logger.info("api", "run_started", run_id=run_id, mode=run["mode"], goal=req.goal[:80])
+        return {"run_id": run_id, "mode": run["mode"], "events": f"/run/{run_id}/events"}
+
     @app.get("/run/{run_id}")
     async def get_run(run_id: str):
         if run_id not in _RUNS:
-            raise HTTPException(status_code=404, detail="run_id not found")
-        return _RUNS[run_id]
+            raise HTTPException(404, "run_id not found")
+        return _public(_RUNS[run_id])
 
-    # ── GET /runs ─────────────────────────────────────────────────────────────
     @app.get("/runs")
     async def list_runs():
-        return list(_RUNS.values())
+        return [_public(r) for r in _RUNS.values()]
 
-    # ── POST /wiki/ingest ─────────────────────────────────────────────────────
+    @app.get("/run/{run_id}/events", include_in_schema=False)
+    async def run_events(run_id: str):
+        if run_id not in _RUNS:
+            raise HTTPException(404, "run_id not found")
+        bus: EventBus = _RUNS[run_id]["bus"]
+
+        async def gen():
+            q = bus.subscribe_async()
+            try:
+                yield ": connected\n\n"   # prime the stream
+                while True:
+                    ev = await q.get()
+                    yield f"data: {json.dumps(ev.to_dict())}\n\n"
+                    if ev.type in ("done", "error"):
+                        break
+            finally:
+                bus.unsubscribe_async(q)
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── chat (SSE token stream) ───────────────────────────────────────────────────
+    @app.post("/chat", include_in_schema=False)
+    async def chat(req: "ChatRequest"):
+        user_msg = req.message or (req.messages[-1]["content"] if req.messages else "")
+        history = req.messages[:-1] if req.messages else []
+
+        async def gen():
+            from studio.data import keyword_answer
+            # Ground in the knowledge graph
+            citations, ctx = [], ""
+            if req.ground:
+                ka = keyword_answer(user_msg)
+                ctx, citations = ka["answer"], ka["citations"]
+
+            if not _can_run_live(cfg):
+                # Demo mode: stream the grounded keyword answer with a typewriter feel
+                reply = ctx or "Run a goal first to populate the knowledge graph."
+                for tok in re.findall(r"\S+\s*", reply):
+                    await asyncio.sleep(0.012)
+                    yield f"data: {json.dumps({'type': 'token', 'chunk': tok})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'citations': citations})}\n\n"
+                return
+
+            # Live mode: stream real tokens, bridging the sync generator → async queue
+            loop = asyncio.get_running_loop()
+            q: asyncio.Queue = asyncio.Queue()
+            stop = threading.Event()   # set when the client disconnects → stop producing
+            system = ("You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
+                      "ground claims in the provided knowledge-graph context when present.")
+            prompt = user_msg if not ctx else f"Knowledge-graph context:\n{ctx}\n\nQuestion: {user_msg}"
+
+            def produce():
+                try:
+                    client = LLMClient()
+                    for chunk in client.stream(prompt=prompt, system=system):
+                        if stop.is_set():
+                            return
+                        loop.call_soon_threadsafe(q.put_nowait, ("token", chunk))
+                except Exception as exc:
+                    loop.call_soon_threadsafe(q.put_nowait, ("error", str(exc)))
+                loop.call_soon_threadsafe(q.put_nowait, ("end", None))
+
+            threading.Thread(target=produce, daemon=True).start()
+            try:
+                while True:
+                    kind, val = await q.get()
+                    if kind == "token":
+                        yield f"data: {json.dumps({'type': 'token', 'chunk': val})}\n\n"
+                    elif kind == "error":
+                        yield f"data: {json.dumps({'type': 'error', 'message': val})}\n\n"
+                        break
+                    else:
+                        yield f"data: {json.dumps({'type': 'done', 'citations': citations})}\n\n"
+                        break
+            finally:
+                stop.set()   # client gone or done — let the producer thread exit
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── wiki / graph / memories / metrics ─────────────────────────────────────────
     @app.post("/wiki/ingest")
-    async def wiki_ingest(req: WikiIngestRequest):
+    async def wiki_ingest(req: "WikiIngestRequest"):
         from agents.wiki import LLMWiki
-        client = LLMClient()
-        wiki = LLMWiki(client, config=cfg.get("wiki"))
+        wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
         page = wiki.ingest(req.text, topic_hint=req.topic_hint, source_name=req.source_name)
-        return {
-            "title": page.title,
-            "filename": page.filename,
-            "page_type": page.page_type,
-            "tags": page.tags,
-        }
+        return {"title": page.title, "filename": page.filename,
+                "page_type": page.page_type, "tags": page.tags}
 
-    # ── GET /wiki/query ───────────────────────────────────────────────────────
     @app.get("/wiki/query")
     async def wiki_query(q: str):
+        if not _can_run_live(cfg):
+            from studio.data import keyword_answer
+            ka = keyword_answer(q)
+            return {"question": q, "answer": ka["answer"], "citations": ka["citations"]}
         from agents.wiki import LLMWiki
-        client = LLMClient()
-        wiki = LLMWiki(client, config=cfg.get("wiki"))
-        answer = wiki.query(q)
-        return {"question": q, "answer": answer}
+        wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
+        return {"question": q, "answer": wiki.query(q)}
 
-    # ── GET /wiki/pages ───────────────────────────────────────────────────────
     @app.get("/wiki/pages")
     async def wiki_pages():
-        from agents.wiki import LLMWiki
-        client = LLMClient()
-        wiki = LLMWiki(client, config=cfg.get("wiki"))
-        return {"pages": wiki.list_pages()}
+        from studio.data import wiki_pages as _wp
+        return {"pages": _wp()}
 
-    # ── GET /metrics ──────────────────────────────────────────────────────────
+    @app.get("/wiki/graph")
+    async def wiki_graph():
+        from studio.data import wiki_graph as _wg
+        return _wg()
+
+    @app.get("/memories")
+    async def memories():
+        from studio.data import load_memories
+        return {"memories": load_memories()}
+
     @app.get("/metrics", response_class=PlainTextResponse)
     async def prometheus_metrics():
         return metrics.to_prometheus()
 
-    # ── GET /schedule ─────────────────────────────────────────────────────────
+    @app.get("/metrics.json")
+    async def metrics_json():
+        return {
+            "uptime_s": metrics.uptime_s(),
+            "runs_total": len(_RUNS),
+            "pillars": {name: {"calls": m.calls, "errors": m.errors,
+                               "avg_ms": round(m.avg_ms, 1), "total_ms": round(m.total_ms, 1),
+                               "tokens": m.total_tokens}
+                        for name, m in metrics.all_pillars().items()},
+        }
+
+    # ── scheduler ─────────────────────────────────────────────────────────────────
     @app.get("/schedule")
     async def list_schedule():
         from agents.scheduler import InvestigationScheduler
         from dataclasses import asdict
-        client = LLMClient()
-        sched = InvestigationScheduler(client)
+        sched = InvestigationScheduler(LLMClient())
         return {"jobs": [asdict(j) for j in sched.list_jobs()]}
 
-    # ── POST /schedule ────────────────────────────────────────────────────────
     @app.post("/schedule", status_code=201)
-    async def add_schedule(req: ScheduleJobRequest):
+    async def add_schedule(req: "ScheduleJobRequest"):
         from agents.scheduler import InvestigationScheduler
         from dataclasses import asdict
-        client = LLMClient()
-        sched = InvestigationScheduler(client)
+        sched = InvestigationScheduler(LLMClient())
         job = sched.add(req.job_id, req.task, req.interval_hours)
         return {"job": asdict(job)}
 
-    # ── DELETE /schedule/{job_id} ─────────────────────────────────────────────
     @app.delete("/schedule/{job_id}")
     async def remove_schedule(job_id: str):
         from agents.scheduler import InvestigationScheduler
-        client = LLMClient()
-        sched = InvestigationScheduler(client)
+        sched = InvestigationScheduler(LLMClient())
         if not sched.remove(job_id):
-            raise HTTPException(status_code=404, detail="job_id not found")
+            raise HTTPException(404, "job_id not found")
         return {"removed": job_id}
+
+    # ── run executors (closures capture cfg/metrics/logger) ───────────────────────
+    async def _run_live(run_id: str, req: "RunRequest", bus: EventBus) -> None:
+        from scripts.run_workflow import run_workflow
+        run = _RUNS[run_id]
+        run["status"] = "running"
+        t0 = time.time()
+        emit = make_emitter(bus)
+        loop = asyncio.get_running_loop()
+
+        def work():
+            return run_workflow(
+                goal=req.goal, backend=req.backend,
+                skip_council=req.skip_council, skip_wiki=req.skip_wiki,
+                skip_openplanter=req.skip_openplanter, verbose=False,
+                parallel=req.parallel, self_critique=req.self_critique, emit=emit,
+            )
+
+        try:
+            results = await loop.run_in_executor(None, work)
+            verdict = results.get("verdict")
+            run["output"] = (verdict.approved_output if verdict and verdict.approved_output
+                             else (results["state"].final_output() if results.get("state") else ""))[:8000]
+            run["score"] = verdict.consensus_score if verdict else None
+            run["status"] = "complete"
+            logger.info("api", "run_complete", run_id=run_id)
+        except Exception as exc:
+            run["status"] = "error"
+            run["error"] = str(exc)
+            bus.emit("error", message=str(exc))
+            bus.emit("done")
+            logger.error("api", "run_failed", run_id=run_id, exc=str(exc))
+        finally:
+            run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+            metrics.record("pipeline", ms=(time.time() - t0) * 1000,
+                           error=run["status"] == "error")
+            bus.close()  # idempotent — guarantees the SSE stream terminates
+        if req.webhook_url and run["status"] == "complete":
+            await _fire_webhook(req.webhook_url, _public(run))
+
+    async def _replay_demo(run_id: str, bus: EventBus, speed: float) -> None:
+        run = _RUNS[run_id]
+        run["status"] = "running"
+        speed = max(0.1, min(speed or 1.0, 20.0))
+        try:
+            fixture = json.loads(DEMO_FIXTURE.read_text(encoding="utf-8"))
+            for row in fixture.get("events", []):
+                row = dict(row)
+                await asyncio.sleep(min(row.pop("delay_ms", 0) / 1000.0 / speed, 4.0))
+                etype = row.pop("type")
+                pillar = row.pop("pillar", None)
+                row.pop("seq", None)
+                bus.emit(etype, pillar=pillar, **row)
+                if etype == "final":
+                    run["output"] = row.get("output", "")[:8000]
+                    run["score"] = row.get("score")
+            run["status"] = "complete"
+        except FileNotFoundError:
+            bus.emit("error", message="demo_run.json missing — run python studio/build_demo.py")
+            run["status"] = "error"
+        finally:
+            run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+            bus.close()  # idempotent — terminates the SSE stream on every path
 
     return app
 
 
-# ── Background pipeline execution ─────────────────────────────────────────────
+# ── webhook delivery ──────────────────────────────────────────────────────────
 
-async def _execute_run(
-    run_id: str,
-    req: "RunRequest",
-    cfg: dict,
-    metrics: "MetricsCollector",
-    logger: "PillarLogger",
-) -> None:
-    from scripts.run_workflow import run_workflow
-    _RUNS[run_id]["status"] = "running"
-    _RUNS[run_id]["started_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-    t0 = time.time()
+def _safe_webhook(url: str) -> bool:
+    """Block SSRF: require http(s) and reject loopback / private / link-local / metadata.
 
+    Note: IP *literals* are checked here. A hostname that resolves to a private IP via
+    DNS is not re-resolved (no blocking DNS in the hot path) — documented limitation.
+    """
     try:
-        results = run_workflow(
-            goal=req.goal,
-            backend=req.backend,
-            skip_council=req.skip_council,
-            skip_wiki=req.skip_wiki,
-            skip_openplanter=req.skip_openplanter,
-            verbose=False,
-        )
-        output = ""
-        verdict = results.get("verdict")
-        if verdict and getattr(verdict, "approved_output", ""):
-            output = verdict.approved_output
-        elif results.get("state"):
-            output = results["state"].final_output()
-
-        _RUNS[run_id]["status"] = "complete"
-        _RUNS[run_id]["output"] = output[:8000]
-        logger.info("api", "run_complete", run_id=run_id)
-    except Exception as exc:
-        _RUNS[run_id]["status"] = "error"
-        _RUNS[run_id]["error"] = str(exc)
-        logger.error("api", "run_failed", run_id=run_id, exc=str(exc))
-    finally:
-        _RUNS[run_id]["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-        ms = (time.time() - t0) * 1000
-        metrics.record("pipeline", ms=ms, error=_RUNS[run_id]["status"] == "error")
-
-    if req.webhook_url and _RUNS[run_id]["status"] == "complete":
-        await _fire_webhook(req.webhook_url, _RUNS[run_id])
+        import ipaddress
+        from urllib.parse import urlparse
+        u = urlparse(url)
+        if u.scheme not in ("http", "https") or not u.hostname:
+            return False
+        host = u.hostname
+        if host.lower() in ("localhost", "metadata.google.internal"):
+            return False
+        try:
+            ip = ipaddress.ip_address(host)
+            if (ip.is_private or ip.is_loopback or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                return False
+        except ValueError:
+            pass  # not an IP literal — a regular hostname
+        return True
+    except Exception:
+        return False
 
 
 async def _fire_webhook(url: str, payload: dict) -> None:
-    """POST run result to a webhook URL — non-fatal on any error."""
+    if not _safe_webhook(url):
+        return
     try:
         import httpx
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -266,18 +527,20 @@ async def _fire_webhook(url: str, payload: dict) -> None:
         pass
 
 
-# ── Create the module-level app instance ──────────────────────────────────────
-# Imported by uvicorn: `uvicorn api.server:app`
+# ── Module-level app (uvicorn: api.server:app) ────────────────────────────────
 if _FASTAPI:
     app = create_app()
 else:
     app = None  # type: ignore[assignment]
 
 
-# ── CLI launcher ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     try:
         import uvicorn
-        uvicorn.run("api.server:app", host="0.0.0.0", port=8080, reload=False, log_level="info")
+        port = int(os.environ.get("PORT", load_config().get("api", {}).get("port", 8080)))
+        # Bind localhost by default (the Studio is a local dev tool with an
+        # unauthenticated config-write endpoint). Override with HOST=0.0.0.0.
+        host = os.environ.get("HOST", "127.0.0.1")
+        uvicorn.run("api.server:app", host=host, port=port, reload=False, log_level="info")
     except ImportError:
         print("Run: pip install fastapi uvicorn httpx")

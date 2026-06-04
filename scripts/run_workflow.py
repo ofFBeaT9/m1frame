@@ -28,6 +28,7 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -75,12 +76,26 @@ def run_workflow(
     self_critique: bool = False,
     webhook_url: str | None = None,
     metrics_port: int | None = None,
+    emit: Optional[Callable[..., None]] = None,
 ) -> dict:
+    # `emit(type, pillar=..., **data)` streams progress to the Studio UI.
+    # Default no-op ⇒ byte-identical CLI behaviour and the QA suite is unaffected.
+    if emit is None:
+        def emit(*_a, **_k):  # type: ignore[misc]
+            return None
+
     cfg = load_config()
     client = LLMClient(override_backend=backend)
     purpose = Path("purpose.md").read_text() if Path("purpose.md").exists() else ""
     logger = PillarLogger()
     metrics = get_metrics()
+    emit("run_start", goal=goal, options={
+        "backend": backend or cfg.get("backend"),
+        "parallel": parallel, "self_critique": self_critique,
+        "skip_council": skip_council, "skip_wiki": skip_wiki,
+        "skip_openplanter": skip_openplanter,
+    })
+    _t_run = time.perf_counter()
 
     if metrics_port:
         metrics.expose_http(port=metrics_port)
@@ -93,6 +108,7 @@ def run_workflow(
 
     # ── 1. BMAD — Story Backlog ───────────────────────────────────────────────
     _bar("PILLAR 1 · BMAD  —  Story Backlog")
+    emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
     blueprint = bmad.plan(goal, extra_context=purpose[:500])
@@ -101,20 +117,43 @@ def run_workflow(
     if verbose:
         print(blueprint.summary())
     results["blueprint"] = blueprint
+    emit("bmad_blueprint", pillar="bmad",
+         project=blueprint.project_name, domain=blueprint.domain,
+         mvp=blueprint.mvp_scope, issues=issues,
+         stories=[{"id": s.id, "title": s.title, "role": s.role,
+                   "complexity": s.complexity, "depends_on": s.depends_on,
+                   "acceptance_criteria": s.acceptance_criteria[:3]}
+                  for s in blueprint.stories])
     ms = (time.perf_counter() - t0) * 1000
     metrics.record("bmad", ms=ms)
     logger.timing("bmad", ms=ms, stories=len(blueprint.stories))
+    emit("pillar_done", pillar="bmad", ms=round(ms))
+
+    # Stream the council debate persona-by-persona to the Studio.
+    def _on_persona_start(mode, persona):
+        emit("council_persona_start", pillar="council", mode=mode, persona=persona)
+
+    def _on_persona_done(mode, persona, payload):
+        emit("council_persona", pillar="council", mode=mode, persona=persona, **payload)
 
     # ── 2. Council Brainstorm ─────────────────────────────────────────────────
     brainstorm_context = ""
     council = None
     if not skip_council:
         _bar("PILLAR 2 · COUNCIL BRAINSTORM  —  Pre-Generation")
+        emit("pillar_start", pillar="council", idx=2, label="Council · Brainstorm")
         t0 = time.perf_counter()
         council = LLMCouncil(client, config=cfg.get("council"))
-        brainstorm = council.brainstorm(task=goal)
+        brainstorm = council.brainstorm(
+            task=goal, on_persona_start=_on_persona_start, on_persona_done=_on_persona_done,
+        )
         print(brainstorm.summary())
         results["brainstorm"] = brainstorm
+        emit("council_brainstorm", pillar="council",
+             plan=brainstorm.recommended_plan,
+             steps=brainstorm.implementation_steps,
+             risks=brainstorm.risks_to_mitigate,
+             confidence=brainstorm.confidence)
         brainstorm_context = (
             f"Council plan: {brainstorm.recommended_plan}\n"
             + "\n".join(f"- {s}" for s in brainstorm.implementation_steps)
@@ -123,6 +162,7 @@ def run_workflow(
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("council_brainstorm", ms=ms)
         logger.timing("council", ms=ms, mode="brainstorm", confidence=brainstorm.confidence)
+        emit("pillar_done", pillar="council", ms=round(ms), phase="brainstorm")
 
     # ── 3. OpenPlanter — Investigation Pass ───────────────────────────────────
     investigation_context = ""
@@ -131,6 +171,7 @@ def run_workflow(
     )
     if not skip_openplanter and has_investigator_stories:
         _bar("PILLAR 3 · OPENPLANTER  —  Investigation")
+        emit("pillar_start", pillar="openplanter", idx=3, label="OpenPlanter · Investigation")
         t0 = time.perf_counter()
         op_cfg = cfg.get("openplanter", {})
         planter = OpenPlanterAgent(
@@ -146,17 +187,27 @@ def run_workflow(
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("openplanter", ms=ms)
         logger.timing("openplanter", ms=ms, web_results=len(inv_result.web_results))
+        emit("openplanter_result", pillar="openplanter", mode=planter.mode,
+             summary=inv_result.summary[:600], web_results=len(inv_result.web_results))
+        emit("pillar_done", pillar="openplanter", ms=round(ms))
     elif not skip_openplanter:
         _bar("PILLAR 3 · OPENPLANTER  —  Skipped (no investigator stories)")
+        emit("pillar_skipped", pillar="openplanter", idx=3,
+             reason="no investigator stories")
 
     # ── 4. Miras — Execute Stories ────────────────────────────────────────────
     _bar("PILLAR 4 · MIRAS  —  Multi-Agent Execution" + (" (parallel)" if parallel else ""))
+    emit("pillar_start", pillar="miras", idx=4,
+         label="Miras · Multi-Agent Execution" + (" (parallel)" if parallel else ""))
 
     def on_start(story):
         _step(f"[{story.role.upper()}] Story {story.id}: {story.title}")
+        emit("story_start", pillar="miras", id=story.id, role=story.role, title=story.title)
 
     def on_done(story, result):
         print(f"     ✓  {result[:100].replace(chr(10),' ')}...")
+        emit("story_done", pillar="miras", id=story.id, role=story.role,
+             preview=result[:200].replace(chr(10), " "))
 
     t0 = time.perf_counter()
     miras = MirasOrchestrator(
@@ -169,9 +220,12 @@ def run_workflow(
     ms = (time.perf_counter() - t0) * 1000
     metrics.record("miras", ms=ms)
     logger.timing("miras", ms=ms, parallel=parallel, stories_done=len(state.outputs))
+    emit("pillar_done", pillar="miras", ms=round(ms), stories_done=len(state.outputs))
 
     # ── 5. Karpathy — Refinement ──────────────────────────────────────────────
     _bar("PILLAR 5 · KARPATHY  —  Chain-of-Thought Refinement" + (" + Self-Critique" if self_critique else ""))
+    emit("pillar_start", pillar="karpathy", idx=5,
+         label="Karpathy · Chain-of-Thought Refinement")
     t0 = time.perf_counter()
     engine = KarpathyEngine(client, config=cfg.get("karpathy"))
     synthesis_prompt = (
@@ -191,6 +245,7 @@ def run_workflow(
         ):
             print(chunk, end="", flush=True)
             chunks.append(chunk)
+            emit("karpathy_token", pillar="karpathy", chunk=chunk)
         print()
         full_raw = "".join(chunks)
         refined = engine._parse(full_raw)
@@ -210,23 +265,40 @@ def run_workflow(
     ms = (time.perf_counter() - t0) * 1000
     metrics.record("karpathy", ms=ms)
     logger.timing("karpathy", ms=ms, had_cot=refined.had_thought_tag, self_critique=self_critique)
+    emit("karpathy_done", pillar="karpathy", had_cot=refined.had_thought_tag,
+         thought=refined.thought[:1200], answer_preview=refined.answer[:400])
+    emit("pillar_done", pillar="karpathy", ms=round(ms))
 
     # ── 6. Council Review ─────────────────────────────────────────────────────
     final_output = refined.answer
     if not skip_council and council:
         _bar("PILLAR 6 · COUNCIL REVIEW  —  QA Gate")
+        emit("pillar_start", pillar="council", idx=6, label="Council · QA Gate Review")
         t0 = time.perf_counter()
-        verdict = council.review(task=goal, output=refined.answer)
+        verdict = council.review(
+            task=goal, output=refined.answer,
+            on_persona_start=_on_persona_start, on_persona_done=_on_persona_done,
+        )
         print(verdict.report())
         results["verdict"] = verdict
         final_output = verdict.approved_output
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("council_review", ms=ms, score=verdict.consensus_score, passed=verdict.passed)
         logger.timing("council", ms=ms, mode="review", score=verdict.consensus_score, passed=verdict.passed)
+        emit("council_verdict", pillar="council",
+             score=verdict.consensus_score, verdict=verdict.verdict,
+             passed=verdict.passed, summary=verdict.summary,
+             required_fixes=verdict.required_fixes)
+        emit("qa_gate", pillar="council", gate="results-review",
+             status="PASS" if verdict.passed else "CONCERNS",
+             score=verdict.consensus_score)
+        emit("pillar_done", pillar="council", ms=round(ms), phase="review")
 
     # ── 7. LLM Wiki ──────────────────────────────────────────────────────────
+    page = None
     if not skip_wiki:
         _bar("PILLAR 7 · LLM WIKI  —  Knowledge Graph Ingest")
+        emit("pillar_start", pillar="wiki", idx=7, label="LLM Wiki · Knowledge Graph Ingest")
         t0 = time.perf_counter()
         wiki = LLMWiki(client, config=cfg.get("wiki"))
         page = wiki.ingest(raw_text=final_output, topic_hint=goal[:100])
@@ -235,11 +307,21 @@ def run_workflow(
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("wiki", ms=ms)
         logger.timing("wiki", ms=ms, page_type=page.page_type)
+        emit("wiki_page", pillar="wiki", title=page.title, page_type=page.page_type,
+             filename=page.filename, tags=page.tags)
+        emit("graph_delta", pillar="wiki",
+             nodes=[{"id": page.title, "type": page.page_type}], links=[])
+        emit("pillar_done", pillar="wiki", ms=round(ms))
 
     _bar("FINAL OUTPUT")
     print(final_output)
 
     logger.info("system", "workflow_complete", goal=goal[:80])
+    emit("final", output=final_output[:8000],
+         score=results["verdict"].consensus_score if results.get("verdict") else None,
+         passed=results["verdict"].passed if results.get("verdict") else None,
+         wiki_page=page.filename if page else None)
+    emit("done", ms=round((time.perf_counter() - _t_run) * 1000))
 
     # Webhook delivery
     if webhook_url:

@@ -8,6 +8,11 @@
 Works with Claude, OpenAI, Ollama, vLLM, and LM Studio. Switch backends in one line.  
 Fully offline-capable. Git-versionable. Zero lock-in.
 
+> **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
+> *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
+> final answer; m1frame shows you the **reasoning** — the debate, the red-team, the grounding. Run it with no API
+> key (gorgeous demo mode) or wire a key for live runs.
+
 ---
 
 ## Source Repositories
@@ -38,6 +43,50 @@ Or with Make:
 make install && make qa
 make run GOAL="Investigate vendor payments against lobbying disclosures"
 ```
+
+---
+
+## m1frame Studio — watch the council think
+
+A premium, **zero-build** single-file UI (`m1frame-studio.html`) that turns the batch pipeline into a live,
+interactive **deliberation theatre**. No npm, no bundler, no CDN — it opens offline and renders a bespoke
+"deep-observatory" interface.
+
+```bash
+pip install fastapi "uvicorn[standard]" httpx      # or: make studio
+python studio/build_demo.py                         # build the demo fixture (once)
+python api/server.py                                # → open http://localhost:8080
+```
+
+Six surfaces, one renderer:
+
+| Surface | What you get |
+|---|---|
+| **Studio** | Type a goal and watch all 7 pillars work **live** — BMAD stories appear, the Council debates persona-by-persona (Critic · Advocate · Domain Expert + **red-team**) with animated consensus scores, Karpathy streams its `<thought>`, the knowledge graph grows node-by-node, and the miras memory feed pulses. |
+| **Chat** | Talk to m1frame — answers stream token-by-token, **grounded** in the wiki with clickable citations. |
+| **Graph** | The full force-directed knowledge-graph constellation; click any node to read its page. |
+| **Runs** | Every run, fully **replayable** from its recorded event trace. |
+| **Wiki** | Search and read the knowledge base with rendered Markdown, types, and confidence. |
+| **Settings** | One-click backend/model switch, scheduler, live metrics, demo/live toggle, accent theming. |
+
+**Three tiers, always works:**
+1. **FastAPI + API key** → full live runs (real SSE streaming of the pipeline + live chat).
+2. **FastAPI, no key** → the server replays a real recorded deliberation over SSE; chat falls back to keyword-grounded retrieval.
+3. **No pip at all** → `python studio/serve.py` (stdlib only) serves the UI and the bundled demo replays entirely client-side.
+
+It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
+`GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
+`emit=None` by default, so the CLI and the **68/68** QA suite are byte-for-byte unaffected.
+
+### Why m1frame is the most *auditable* multi-agent workspace
+
+This is not a claim that m1frame out-features every agent — Hermes Agent, for one, leads on gateways, tool
+breadth, model count, and maturity (see the honest parity matrix in
+[`studies/m1frame-studio/ROADMAP.md`](studies/m1frame-studio/ROADMAP.md)). It's a claim about **one axis we lead
+on decisively: transparency you can trust.** Most agents show you an answer; m1frame shows you **how it got
+there** — **deliberation** you can watch (a multi-persona council + an independent red-team that can *veto* a
+pass, both real in `agents/council.py`, not just the UI), **grounding** you can click (a living knowledge graph +
+cited chat), and **memory** you can watch accumulate (miras) — all 100% portable, offline-capable, zero-lock-in.
 
 ---
 
@@ -178,17 +227,26 @@ m1frame/
 │   ├── workflows/ci.yml    ← Matrix CI: Ubuntu/macOS/Windows × Py 3.10-3.12
 │   ├── ISSUE_TEMPLATE/     ← Bug report + Feature request templates
 │   └── pull_request_template.md
+├── m1frame-studio.html     ← ⭐ the Studio UI — one zero-build file, six surfaces
 ├── agents/
 │   ├── bmad.py             ← BMADAgent, Blueprint, Story, BMAD_ROLES
 │   ├── miras.py            ← MirasOrchestrator, AgentState, ROLE_MAP
 │   ├── karpathy.py         ← KarpathyEngine, KarpathyResult
-│   ├── council.py          ← LLMCouncil, BrainstormResult, CouncilVerdict
+│   ├── council.py          ← LLMCouncil (+ optional persona-stream callbacks)
 │   ├── wiki.py             ← LLMWiki, WikiPage, LintReport
-│   └── openplanter.py      ← OpenPlanterAgent, InvestigationResult, Entity
+│   ├── openplanter.py      ← OpenPlanterAgent, InvestigationResult, Entity
+│   └── events.py           ← EventBus — thread-safe progress stream for Studio
+├── api/
+│   └── server.py           ← FastAPI: REST + SSE (/run/{id}/events, /chat, /wiki/graph…)
+├── studio/
+│   ├── build_demo.py       ← generates the demo fixture + static snapshots
+│   ├── data.py             ← read-only wiki/graph/memory views (no LLM)
+│   ├── serve.py            ← stdlib static server (zero-pip demo)
+│   └── demo_run.json       ← bundled recorded deliberation
 ├── wiki/                   ← Auto-created knowledge graph
 └── scripts/
-    ├── run_workflow.py     ← 7-pillar runner
-    └── qa_validate.py      ← 43-test offline QA suite
+    ├── run_workflow.py     ← 7-pillar runner (now emits live progress events)
+    └── qa_validate.py      ← 68-test offline QA suite
 ```
 
 ---
@@ -199,4 +257,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.0.0 — Mahdad Shakiba, May 2026*
+*m1frame v1.1.0 "Studio" — Mahdad Shakiba, June 2026*

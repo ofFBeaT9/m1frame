@@ -1,0 +1,222 @@
+[
+  {
+    "title": "Analog Derivative Fragility",
+    "type": "concept",
+    "tags": [
+      "analog",
+      "noise",
+      "derivatives",
+      "pinn",
+      "gradients"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/analog-derivative-fragility.md",
+    "body": "# Analog Derivative Fragility\n\nThe finding that **analog noise corrupts a network's derivatives far more than its values** \u2014 decisive for a\nPhysics-Informed Neural Network, whose usefulness depends on `d(output)/d(input)`.\n\n## Evidence ([[OPU Feasibility Verdict]])\n- Output **values** of [[Tritone]]'s PINN stay within the 19.4 % ternary budget down to ~18 dB/layer optical\n  SNR.\n- **Derivatives** do not: a fixed 2 % photonic weight defect (zero shot noise) gives 8.1 % value error but\n  **51.9 % derivative error** \u2014 an \u03b5-stable ~6\u00d7 gap, not a numerical artifact.\n\n## Consequence\n- Analog substrates can do **inference** of values but cannot support **training / gradients / sensitivity**.\n- Therefore training stays in the cloud (exact gradients) and only frozen inference is deployed \u2014 and even\n  inference loses [[Bit-Exact Determinism]]. This is the physics half of why the [[Chip Manufacturing Decision]]\n  rejects the [[Optical Processing Unit]] (the regulatory half is [[FDA SaMD Determinism]]).\n\n## Method caveat\nMeasured via finite-difference Jacobians; the *absolute* amplification scales ~1/\u03b5, so the robust evidence is\nthe \u03b5-stable static-defect gap, not the bare factor (a QA sub-agent caught and corrected the original metric)."
+  },
+  {
+    "title": "Bit-Exact Determinism",
+    "type": "concept",
+    "tags": [
+      "determinism",
+      "reproducibility",
+      "integer",
+      "verification"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/bit-exact-determinism.md",
+    "body": "# Bit-Exact Determinism\n\nThe property that the **same input produces exactly the same output**, bit-for-bit, on every chip, at every\ntemperature, on every run. [[Tritone]] has it by construction (integer [[Ternary Computing]] arithmetic,\nverified at 0.00000 error).\n\n## Why it is the crown jewel\n- It is the prerequisite for [[FDA SaMD Determinism]] (a locked, auditable algorithm).\n- It enables golden-vector verification and a reproducible SBOM.\n- It is exactly what **analog** substrates forfeit: the [[Optical Processing Unit]] has a ~7.8 % irreducible\n  noise floor, and even \"high-efficiency\" charge-domain CIM is analog/ADC-based. This single property is why\n  the [[Chip Manufacturing Decision]] picks **fully-digital** silicon ([[Digital Ternary CIM]]) over every\n  analog option, despite analog's headline TOPS/W.\n\n**Trade:** adopting analog buys efficiency at the cost of determinism \u2014 an unacceptable trade for a regulated\nmedical workload, an acceptable one only in a non-regulated, inference-only, very-large-N pivot."
+  },
+  {
+    "title": "FDA SaMD Determinism",
+    "type": "concept",
+    "tags": [
+      "regulatory",
+      "fda",
+      "samd",
+      "510k",
+      "medical"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/fda-samd-determinism.md",
+    "body": "# FDA SaMD Determinism\n\nWhy reproducible inference is a **regulatory prerequisite**, not a nicety, for the clinical\n[[ENS-GI Digital Twin]].\n\n## The requirement\nFDA AI/ML Software-as-a-Medical-Device doctrine (Jan 2025 draft; Aug 2025 PCCP final) requires:\n- a **locked algorithm** at submission with documented performance,\n- **reproducible, auditable** inference \u2014 same input \u2192 same output, every device/run,\n- **SBOM** traceability to specific weights + inference code,\n- a **Predetermined Change Control Plan**; any weight update \u2192 documented re-validation.\n\n## Why it decides the chip\nAnalog non-determinism (thermal noise, aging, fab variation; the [[Optical Processing Unit]]'s ~7.8 % floor)\n**fails 510(k)** \u2014 you cannot file \"outputs are approximately correct.\" This functionally disqualifies optics,\ncharge-domain CIM, and ReRAM for [[Tritone]], and mandates [[Bit-Exact Determinism]] \u2192 a fully-digital\n[[Digital Ternary CIM]] in the [[Chip Manufacturing Decision]].\n\n## Engineering implication\nWeights must load via an auditable boot chain \u2014 on-chip OTP or **SHA-256-verified** flash \u2014 to preserve the\nlock (red-team finding F4)."
+  },
+  {
+    "title": "Ternary Computing",
+    "type": "concept",
+    "tags": [
+      "ternary",
+      "quantization",
+      "sparsity",
+      "efficiency"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/ternary-computing.md",
+    "body": "# Ternary Computing\n\nNeural-network weights constrained to **{\u22121, 0, +1}**. Two consequences drive every hardware choice for\n[[Tritone]]:\n\n1. **Multiplier-free.** A \"multiply\" is just pass / negate / skip; accumulation is add/subtract. \u2192 zero DSPs,\n   tiny PEs (~20\u201330 gates), low power, and trivially [[Bit-Exact Determinism|bit-exact]] integer arithmetic.\n2. **Sparse.** A \u03c4=0.7 threshold zeros ~42\u201384 % of weights. A `0` costs nothing to compute and (in\n   [[Digital Ternary CIM]]) nothing to read; in the [[Optical Processing Unit]] it is literally *no light path*.\n\n## Why it matters across substrates\n- **Digital:** ternary PEs are among the most ASIC-friendly primitives that exist (CUTIE-class designs reach\n  PetaOp/s/W on ternary).\n- **Analog:** 3 well-separated levels sidestep analog computing's #1 weakness (holding high-precision weights)\n  \u2014 but, per [[Analog Derivative Fragility]], robustness of *values* does not rescue *derivatives*.\n\nTernary is the through-line: it's why Tritone is cheap and deterministic, and why it's the recommended\nsubstrate in the [[Chip Manufacturing Decision]]."
+  },
+  {
+    "title": "Digital Ternary CIM",
+    "type": "entity",
+    "tags": [
+      "cim",
+      "compute-in-memory",
+      "digital",
+      "ternary",
+      "asic"
+    ],
+    "confidence": "medium",
+    "file": "wiki/entities/digital-ternary-cim.md",
+    "body": "# Digital Ternary CIM\n\nThe recommended **production** compute style for [[Tritone]]: a **fully-digital** ternary compute-in-memory\nmacro (bit-serial/parallel accumulation in/near SRAM, **no ADC**). It keeps [[Bit-Exact Determinism]] while\ngetting much of the efficiency of in-memory compute.\n\n## Why digital, not analog CIM\nThe council's analog member proposed *charge-domain* SRAM CIM at ~1000\u20132941 TOPS/W, but the red-team showed\ncharge-domain CIM accumulates analog charge and reads via ADC \u2192 **not bit-exact** \u2192 fails\n[[FDA SaMD Determinism]] just like the [[Optical Processing Unit]]. Only fully-digital CIM qualifies for the\nregulated path.\n\n## Realistic numbers\nDigital ternary CIM lands at **~30\u2013150 TOPS/W** (vs the analog ~2941 figure that does *not* apply here) \u2014 far\nbetter than the FPGA, fully deterministic, and 510(k)-compatible. Targeted for TSMC 22/28 nm in Phase 2 of the\n[[Chip Manufacturing Decision]]. A simpler scaled systolic array is the conservative alternative."
+  },
+  {
+    "title": "ENS-GI Digital Twin",
+    "type": "entity",
+    "tags": [
+      "workload",
+      "clinical",
+      "pinn",
+      "physics",
+      "ens"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/ens-gi-digital-twin.md",
+    "body": "# ENS-GI Digital Twin\n\nThe workload [[Tritone]] serves: a multiscale physics-based model of the **Enteric Nervous System** and GI\nmotility. The PINN is an **inverse model** \u2014 110 features \u2192 5 ion-channel conductances (g_Na, g_K, g_Ca,\nomega, coupling) of a FitzHugh-Nagumo / Hodgkin-Huxley tissue model (`dv/dt = v \u2212 v\u00b3/3 \u2212 w`).\n\n## Why it shapes the chip decision\n- **Tiny compute** (~500k MACs/inference) and **intermittent** inference rate \u2192 the value of custom silicon is\n  power/cost/integration, not throughput.\n- **Clinical applications** (IBS diagnosis, virtual drug trials, patient-specific prediction) \u2192 an **edge**,\n  low-power, and crucially **certifiable** deployment, invoking [[FDA SaMD Determinism]].\n- Training needs exact gradients (the physics residual) \u2192 kept in the cloud; only frozen inference ships,\n  reinforcing [[Bit-Exact Determinism]] on the edge device."
+  },
+  {
+    "title": "m1frame",
+    "type": "entity",
+    "tags": [
+      "framework",
+      "multi-agent",
+      "bmad",
+      "council",
+      "miras",
+      "wiki"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/m1frame.md",
+    "body": "# m1frame\n\nA **portable, offline-capable multi-agent framework** that doesn't just *act* \u2014 it **deliberates, grounds, and\nremembers**. Seven pillars run as one pipeline: BMAD (story backlog) \u2192 Council brainstorm \u2192 OpenPlanter\n(investigation) \u2192 Miras (multi-agent execution) \u2192 Karpathy (`<thought>` refinement) \u2192 Council review (a QA gate\nwith an **independent red-team**) \u2192 LLM-wiki (this knowledge graph). Memory is held in miras; LLM backends switch\nin one line (Claude / OpenAI / Ollama / vLLM / LM Studio). Zero lock-in, git-versionable.\n\nThis is the engine that produced the [[Chip Manufacturing Decision]] for [[Tritone]] \u2014 a 3-member council plus a\nred-team, grounded in this very wiki. [[m1frame Studio]] is the real-time UI that makes that deliberation\nvisible, watchable, and replayable."
+  },
+  {
+    "title": "Optical Processing Unit",
+    "type": "entity",
+    "tags": [
+      "optical",
+      "photonic",
+      "analog",
+      "mvm",
+      "accelerator"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/optical-processing-unit.md",
+    "body": "# Optical Processing Unit\n\nA proposed **analog photonic** matrix-vector-multiply (MVM) layer for [[Tritone]] \u2014 MZI mesh or microring\nweight bank doing the linear algebra at the speed of light. Ternary is a natural optical fit: +1 \u2192 0-phase,\n\u22121 \u2192 \u03c0-phase, 0 \u2192 blocked (no light path = free sparsity), see [[Ternary Computing]].\n\n## What the study found ([[OPU Feasibility Verdict]])\n- **Values survive:** added error stays within the 19.4 % ternary budget down to ~18 dB/layer SNR, but a\n  **~7.8 % static-defect floor** remains.\n- **Derivatives don't:** a fixed 2 % weight defect \u2192 8.1 % value vs 51.9 % derivative error\n  ([[Analog Derivative Fragility]]). Optical **training** is impossible.\n- **Verdict:** viable only as an **inference-only** accelerator for a frozen network \u2014 and even then loses\n  [[Bit-Exact Determinism]]. The [[Chip Manufacturing Decision]] rejects it for this regulated workload.\n\n## Scale caveat\nAt Tritone's widest layer (512), a 512\u00d7512 MZI mesh would need ~262 W of thermo-optic tuning; the photonic\nenergy win only appears above N\u22484096."
+  },
+  {
+    "title": "SkyWater SKY130 MPW",
+    "type": "entity",
+    "tags": [
+      "fab",
+      "mpw",
+      "open-pdk",
+      "130nm",
+      "prototype"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/skywater-sky130-mpw.md",
+    "body": "# SkyWater SKY130 MPW\n\nThe low-cost, **open-PDK** 130 nm multi-project-wafer shuttle (via Efabless/Google/Cadence) recommended for\n**Phase 1** of the [[Chip Manufacturing Decision]].\n\n## Role: prototype / validation vehicle only\n- NRE ~**$10\u201312k**, ~10 mm\u00b2 slot, ~July 2026 delivery, 20\u201340 packaged samples.\n- Purpose: validate the ternary datapath, the **bit-exact MAC chain** ([[Bit-Exact Determinism]]), and the\n  golden-vector test rig for [[Tritone]].\n- **Not a production proxy** (red-team F3): 130 nm @ ~200 MHz, ~5 mm\u00b2 die \u2014 power/area/timing do **not**\n  transfer to the 28 nm Phase-2 [[Digital Ternary CIM]]. Don't extrapolate its 40 mW / 8 GOPS estimates.\n\nA 64\u00d764 digital ternary systolic array fits comfortably in one slot."
+  },
+  {
+    "title": "Tritone",
+    "type": "entity",
+    "tags": [
+      "accelerator",
+      "ternary",
+      "fpga",
+      "pinn",
+      "hardware"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/tritone.md",
+    "body": "# Tritone\n\nA **multiplier-free ternary** neural-network inference accelerator. Weights \u2208 {\u22121,0,+1}, so a MAC is just\na mux + conditional add \u2014 **zero hardware multipliers, zero DSP blocks** (see [[Ternary Computing]]). It runs\na 7-layer Physics-Informed Neural Network (PINN) for the [[ENS-GI Digital Twin]].\n\n## Current implementation\n- Board: Tang Nano 9K FPGA (Gowin GW1NR-9C, 27 MHz), ~$20.\n- 16\u00d716 systolic processing-element array, 0 DSP, 5088 LUT, **~105 mW**, runs the PINN **bit-exact**\n  (0.00000 error) \u2014 its defining property, [[Bit-Exact Determinism]].\n- PINN: 110 inputs \u2192 512\u2192512\u2192512\u2192128\u2192128\u2192128 (with residual/skip) \u2192 5 sigmoid outputs (ion-channel\n  conductances). ~42 % of weights are zero; ternarization already costs 19.4 % mean rel error.\n\n## Strategic position\n- The [[Optical Processing Unit]] study showed analog substrates can't replace it for training (see\n  [[Analog Derivative Fragility]]).\n- The [[Chip Manufacturing Decision]] recommends taking Tritone to a fully-digital ternary ASIC\n  ([[Digital Ternary CIM]]) \u2014 prototyped on [[SkyWater SKY130 MPW]] \u2014 rather than any analog path."
+  },
+  {
+    "title": "What Chip Should We Manufacture",
+    "type": "query",
+    "tags": [
+      "query",
+      "decision",
+      "chip"
+    ],
+    "confidence": "high",
+    "file": "wiki/queries/what-chip-should-we-manufacture.md",
+    "body": "# Query: What chip should we manufacture? What is the ultimate computing system?\n\n## Answer\nManufacture a **fully-digital, multiplier-free ternary ASIC** \u2014 [[SkyWater SKY130 MPW]] prototype (validation\nvehicle) \u2192 TSMC 28 nm **[[Digital Ternary CIM]]** production + Cortex-M33 host \u2014 preserving\n[[Bit-Exact Determinism]]. **Don't tape out until** clinical volume (>~500 units), a sub-5 mW need, or a\ncertified-BOM regulatory submission triggers it; until then the $20 FPGA + an MCU is correct.\n\n**The ultimate system is a lifecycle:** cloud-train (exact gradients) \u2192 freeze + certify (golden vectors,\nSHA-256 weight lock, SBOM) \u2192 edge bit-exact ternary inference (sub-10 mW, 510(k)-certifiable).\n\n**Why not analog:** photonics, charge-domain CIM, and ReRAM all forfeit determinism (see\n[[Analog Derivative Fragility]] + [[FDA SaMD Determinism]]); for this regulated, edge, small-N workload\n**determinism dominates efficiency**. Full reasoning in [[Chip Manufacturing Decision]].\n\n## One-line\nThe best computing system here isn't the highest TOPS/W \u2014 it's the cheapest **deterministic** one that clears\nthe medical bar, and that is digital ternary silicon."
+  },
+  {
+    "title": "Chip Architecture Council",
+    "type": "source",
+    "tags": [
+      "source",
+      "council",
+      "redteam",
+      "chip_decision"
+    ],
+    "confidence": "high",
+    "file": "wiki/sources/chip-architecture-council.md",
+    "body": "# Chip Architecture Council (source)\n\nSummary of an ingested source. Raw artifacts in `chip_decision/council/` (immutable from the wiki's view).\n\n## What it is\nFour specialist position papers produced to answer *\"what chip should we manufacture?\"* for [[Tritone]]:\n1. **Digital ASIC architect** \u2014 SKY130 64\u00d764 ternary systolic array (see [[SkyWater SKY130 MPW]]).\n2. **Analog / photonic / in-memory architect** \u2014 rejects photonics (7.8 % floor, 262 W tuning) & ReRAM\n   (immature); proposed charge-domain SRAM CIM.\n3. **Systems / regulatory architect** \u2014 edge + cloud-train + frozen inference; [[FDA SaMD Determinism]] anchor.\n4. **Red-team QA gate** \u2014 caught that charge-domain CIM is analog/ADC (not bit-exact) \u2192 corrected to\n   [[Digital Ternary CIM]]; gated tape-out behind explicit triggers; SHA-256 weight lock.\n\n## Net effect\nThree lenses (silicon, physics, regulation) converged on a deterministic digital ternary chip; the one analog\ndissent was self-disqualified. Synthesized in [[Chip Manufacturing Decision]] / `chip_decision/DECISION.md`."
+  },
+  {
+    "title": "OPU Feasibility Study",
+    "type": "source",
+    "tags": [
+      "source",
+      "simulation",
+      "optical",
+      "opu_study"
+    ],
+    "confidence": "high",
+    "file": "wiki/sources/opu-feasibility-study.md",
+    "body": "# OPU Feasibility Study (source)\n\nSummary of an ingested source. Raw artifacts live in `opu_study/` (immutable from the wiki's view).\n\n## What it is\nA self-contained software study (numpy, ~29 s) testing whether an analog optical MVM could replace\n[[Tritone]]'s ternary MAC: a **bit-exact** integer ternary baseline + a physically-motivated optical-noise\nmodel (additive readout noise by SNR, static weight/phase error, extinction-ratio leakage, crosstalk), swept\nover optical SNR, measuring output **value** error and **derivative** (Jacobian) error.\n\n## Key files\n- `opu_study/optical_mvm.py` \u2014 baseline MAC + `OpticalMVM` model.\n- `opu_study/pinn_opu_sim.py` \u2014 faithful 7-layer ternary PINN + metrics (INT8 vs smooth-analog path).\n- `opu_study/run_study.py` \u2014 SNR sweep \u2192 `results/{snr_sweep.csv,png,summary.json}`.\n- `opu_study/tests/` \u2014 11 passing correctness tests; `FINAL_REPORT.md`, `ROADMAP.md`, `QA_GATE.md`.\n\n## Headline numbers\nSparsity 42.4 %; value error crosses the 19.4 % budget at SNR \u2248 18.2 dB; static-defect floor \u2248 7.8 %;\nstatic 2 % weight defect \u2192 value 8.1 % / derivative 51.9 %. Conclusions captured in [[OPU Feasibility Verdict]]."
+  },
+  {
+    "title": "Chip Manufacturing Decision",
+    "type": "synthesis",
+    "tags": [
+      "decision",
+      "asic",
+      "manufacturing",
+      "ternary",
+      "bmad"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/chip-manufacturing-decision.md",
+    "body": "# Chip Manufacturing Decision\n\n**The cross-source conclusion** of BMAD cycle 2 (a 3-member [[Chip Architecture Council]] + red-team),\ninformed by the [[OPU Feasibility Verdict]].\n\n## Decision\nManufacture a **fully-digital, multiplier-free ternary ASIC** ([[Digital Ternary CIM]] or scaled systolic\narray) that preserves [[Tritone]]'s [[Bit-Exact Determinism]]. **Not** analog, photonic, or charge-domain CIM.\n\n| Phase | What | Where | Trigger |\n|---|---|---|---|\n| 0 (now) | stay on FPGA + Cortex-M33 | Tang Nano 9K | \u2014 (default) |\n| 1 | 64\u00d764 digital ternary systolic array (validation vehicle) | [[SkyWater SKY130 MPW]] (~$10\u201312k) | a tape-out trigger fires |\n| 2 | fully-digital ternary CIM + Cortex-M33 host | TSMC 22/28 nm (~30\u2013150 TOPS/W) | clinical production |\n\n**Tape-out triggers (need \u22651):** >~500 clinical units, **or** a <5 mW envelope the FPGA can't meet, **or** a\nregulatory submission requiring a certified silicon BOM. Until then, do not spend NRE.\n\n## The ultimate architecture\nA **lifecycle**, not a single chip: *cloud-train (exact gradients, the physics residual) \u2192 freeze + certify\n(golden vectors, SHA-256 weight lock, SBOM, 510(k)) \u2192 edge bit-exact ternary inference (sub-10 mW)*. This split\nis forced by [[Analog Derivative Fragility]] (gradients can't live on noisy hardware) and\n[[FDA SaMD Determinism]] (inference must be reproducible).\n\n## Why (the contradiction it resolves)\nAnalog promises higher TOPS/W, but every analog option forfeits [[Bit-Exact Determinism]]: the\n[[Optical Processing Unit]] has a 7.8 % floor; charge-domain CIM is ADC-based (red-team F1); ReRAM is immature.\nFor a **regulated, edge, small-N** workload, *determinism dominates efficiency* \u2014 so digital ternary is the\nglobal optimum. Full reasoning: `chip_decision/DECISION.md`."
+  },
+  {
+    "title": "m1frame Studio",
+    "type": "synthesis",
+    "tags": [
+      "ui",
+      "studio",
+      "real-time",
+      "sse",
+      "deliberation",
+      "hermes"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/m1frame-studio.md",
+    "body": "# m1frame Studio\n\nThe **real-time UI** for [[m1frame]] \u2014 a zero-build, offline, single-file web app that turns the batch pipeline\ninto a watchable **deliberation theatre**. Type a goal and see all seven pillars work live: BMAD stories appear,\nthe Council debates persona-by-persona with an **independent red-team that can veto a pass**, the knowledge graph\ngrows node-by-node, and the miras memory feed pulses.\n\n## What it is\nSix surfaces over one event stream (`agents/events.py` \u2192 Server-Sent Events): **Studio** (live deliberation),\n**Chat** (grounded, cited), **Graph** (the knowledge constellation), **Runs** (replayable event traces),\n**Wiki** (this graph), **Settings** (one-click backend switch, scheduler, metrics). Three tiers so it always\nruns: live (FastAPI + key), server-replay (no key), pure-static (no pip). Hand-built CSS, no CDN \u2014 a \"deep\nobservatory\" aesthetic.\n\n## Why it matters (the honest positioning)\nBenchmarked against **Hermes Agent**, m1frame does **not** out-feature it on gateways, tool breadth, model count,\nor maturity. It leads decisively on **one axis \u2014 transparency you can trust**: visible multi-agent deliberation,\na red-team that overrides an overconfident pass (real in `agents/council.py`, not just the UI), click-through\ngrounding in a live knowledge graph, and visible memory. The honest headline: *\"the most auditable multi-agent\nworkspace there is.\"*\n\n## Proof\nThe bundled demo replays the real [[Chip Manufacturing Decision]] deliberation for [[Tritone]] \u2014 the council\ndebate, the red-team's charge-domain-CIM correction, and the final verdict \u2014 with zero API key. Built and\nhardened across two BMAD cycles with a 3-member council + red-team fact-check; all blocker/major findings folded\nin (accessibility, SSRF, contrast, claim honesty). Full record: `studies/m1frame-studio/`."
+  },
+  {
+    "title": "OPU Feasibility Verdict",
+    "type": "synthesis",
+    "tags": [
+      "optical",
+      "verdict",
+      "inference-only",
+      "pinn",
+      "bmad"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/opu-feasibility-verdict.md",
+    "body": "# OPU Feasibility Verdict\n\n**Cross-source conclusion** of BMAD cycle 1 (the [[OPU Feasibility Study]]).\n\n## Verdict\nAn [[Optical Processing Unit]] for [[Tritone]] is **GO only as an inference-only accelerator** for a frozen,\npre-trained ternary PINN; **NO-GO** for optical training / gradients / sensitivity.\n\n## Evidence\n- **Values survive:** added value error stays within the 19.4 % ternary budget down to **~18 dB/layer** optical\n  SNR (within ONN literature 15\u201325 dB), with a **~7.8 % static-defect floor** more power can't remove.\n- **Derivatives die:** a fixed 2 % weight defect \u2192 8.1 % value vs 51.9 % derivative error\n  ([[Analog Derivative Fragility]]); derivative error never reaches the budget.\n\n## Consequence for hardware\nKeep training electronic/cloud; deploy only frozen inference. And since even optical inference loses\n[[Bit-Exact Determinism]], the [[Chip Manufacturing Decision]] keeps the compute **digital**. Optics would\nonly be worth revisiting in a non-regulated, inference-only, N\u226b4096 pivot.\n\n## Provenance note\nAn independent QA sub-agent caught an INT8-quantization-staircase artifact inflating the original derivative\nmetric; it was fixed (smooth analog path; clean-Jacobian \u03b5-stability 189 %\u21923.3 %), strengthening rather than\nweakening the verdict."
+  }
+]

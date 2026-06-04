@@ -1,0 +1,318 @@
+{
+  "nodes": [
+    {
+      "id": "Analog Derivative Fragility",
+      "type": "concept",
+      "file": "wiki/concepts/analog-derivative-fragility.md"
+    },
+    {
+      "id": "Bit-Exact Determinism",
+      "type": "concept",
+      "file": "wiki/concepts/bit-exact-determinism.md"
+    },
+    {
+      "id": "FDA SaMD Determinism",
+      "type": "concept",
+      "file": "wiki/concepts/fda-samd-determinism.md"
+    },
+    {
+      "id": "Ternary Computing",
+      "type": "concept",
+      "file": "wiki/concepts/ternary-computing.md"
+    },
+    {
+      "id": "Digital Ternary CIM",
+      "type": "entity",
+      "file": "wiki/entities/digital-ternary-cim.md"
+    },
+    {
+      "id": "ENS-GI Digital Twin",
+      "type": "entity",
+      "file": "wiki/entities/ens-gi-digital-twin.md"
+    },
+    {
+      "id": "m1frame",
+      "type": "entity",
+      "file": "wiki/entities/m1frame.md"
+    },
+    {
+      "id": "Optical Processing Unit",
+      "type": "entity",
+      "file": "wiki/entities/optical-processing-unit.md"
+    },
+    {
+      "id": "SkyWater SKY130 MPW",
+      "type": "entity",
+      "file": "wiki/entities/skywater-sky130-mpw.md"
+    },
+    {
+      "id": "Tritone",
+      "type": "entity",
+      "file": "wiki/entities/tritone.md"
+    },
+    {
+      "id": "What Chip Should We Manufacture",
+      "type": "query",
+      "file": "wiki/queries/what-chip-should-we-manufacture.md"
+    },
+    {
+      "id": "Chip Architecture Council",
+      "type": "source",
+      "file": "wiki/sources/chip-architecture-council.md"
+    },
+    {
+      "id": "OPU Feasibility Study",
+      "type": "source",
+      "file": "wiki/sources/opu-feasibility-study.md"
+    },
+    {
+      "id": "Chip Manufacturing Decision",
+      "type": "synthesis",
+      "file": "wiki/synthesis/chip-manufacturing-decision.md"
+    },
+    {
+      "id": "m1frame Studio",
+      "type": "synthesis",
+      "file": "wiki/synthesis/m1frame-studio.md"
+    },
+    {
+      "id": "OPU Feasibility Verdict",
+      "type": "synthesis",
+      "file": "wiki/synthesis/opu-feasibility-verdict.md"
+    }
+  ],
+  "links": [
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "OPU Feasibility Verdict"
+    },
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "Bit-Exact Determinism"
+    },
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "Tritone"
+    },
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "Analog Derivative Fragility",
+      "target": "FDA SaMD Determinism"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "Tritone"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "FDA SaMD Determinism"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "Digital Ternary CIM"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "Ternary Computing"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "Bit-Exact Determinism",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "FDA SaMD Determinism",
+      "target": "ENS-GI Digital Twin"
+    },
+    {
+      "source": "FDA SaMD Determinism",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "FDA SaMD Determinism",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "FDA SaMD Determinism",
+      "target": "Tritone"
+    },
+    {
+      "source": "FDA SaMD Determinism",
+      "target": "Digital Ternary CIM"
+    },
+    {
+      "source": "Ternary Computing",
+      "target": "Tritone"
+    },
+    {
+      "source": "Ternary Computing",
+      "target": "Digital Ternary CIM"
+    },
+    {
+      "source": "Ternary Computing",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "Ternary Computing",
+      "target": "Analog Derivative Fragility"
+    },
+    {
+      "source": "Ternary Computing",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "Digital Ternary CIM",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "Digital Ternary CIM",
+      "target": "SkyWater SKY130 MPW"
+    },
+    {
+      "source": "Digital Ternary CIM",
+      "target": "Tritone"
+    },
+    {
+      "source": "Digital Ternary CIM",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "ENS-GI Digital Twin",
+      "target": "Tritone"
+    },
+    {
+      "source": "ENS-GI Digital Twin",
+      "target": "Bit-Exact Determinism"
+    },
+    {
+      "source": "m1frame",
+      "target": "m1frame Studio"
+    },
+    {
+      "source": "m1frame",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "m1frame",
+      "target": "Tritone"
+    },
+    {
+      "source": "Optical Processing Unit",
+      "target": "Tritone"
+    },
+    {
+      "source": "Optical Processing Unit",
+      "target": "OPU Feasibility Verdict"
+    },
+    {
+      "source": "Optical Processing Unit",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "SkyWater SKY130 MPW",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "SkyWater SKY130 MPW",
+      "target": "Tritone"
+    },
+    {
+      "source": "SkyWater SKY130 MPW",
+      "target": "Bit-Exact Determinism"
+    },
+    {
+      "source": "Tritone",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "Digital Ternary CIM"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "Bit-Exact Determinism"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "SkyWater SKY130 MPW"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "Analog Derivative Fragility"
+    },
+    {
+      "source": "What Chip Should We Manufacture",
+      "target": "FDA SaMD Determinism"
+    },
+    {
+      "source": "Chip Architecture Council",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "Chip Architecture Council",
+      "target": "Digital Ternary CIM"
+    },
+    {
+      "source": "Chip Architecture Council",
+      "target": "SkyWater SKY130 MPW"
+    },
+    {
+      "source": "Chip Architecture Council",
+      "target": "FDA SaMD Determinism"
+    },
+    {
+      "source": "Chip Architecture Council",
+      "target": "Tritone"
+    },
+    {
+      "source": "OPU Feasibility Study",
+      "target": "OPU Feasibility Verdict"
+    },
+    {
+      "source": "OPU Feasibility Study",
+      "target": "Optical Processing Unit"
+    },
+    {
+      "source": "OPU Feasibility Study",
+      "target": "Analog Derivative Fragility"
+    },
+    {
+      "source": "OPU Feasibility Study",
+      "target": "Tritone"
+    },
+    {
+      "source": "Chip Manufacturing Decision",
+      "target": "OPU Feasibility Verdict"
+    },
+    {
+      "source": "m1frame Studio",
+      "target": "Chip Manufacturing Decision"
+    },
+    {
+      "source": "m1frame Studio",
+      "target": "Tritone"
+    },
+    {
+      "source": "OPU Feasibility Verdict",
+      "target": "Tritone"
+    },
+    {
+      "source": "OPU Feasibility Verdict",
+      "target": "Bit-Exact Determinism"
+    }
+  ]
+}

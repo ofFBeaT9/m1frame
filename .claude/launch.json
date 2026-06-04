@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "autoPort": true,
+  "configurations": [
+    {
+      "name": "m1frame-studio",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["api/server.py"],
+      "autoPort": true
+    },
+    {
+      "name": "m1frame-studio-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["studio/serve.py"],
+      "autoPort": true
+    }
+  ]
+}

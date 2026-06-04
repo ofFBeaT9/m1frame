@@ -9,6 +9,25 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.1.0] — 2026-06-03 — "Studio"
+### Added
+- **m1frame Studio** (`m1frame-studio.html`) — a zero-build, offline, single-file real-time UI with six
+  surfaces: live Studio deliberation, grounded Chat, the knowledge-graph constellation, replayable Runs,
+  a Wiki reader, and Settings (backend switch, scheduler, metrics, theming).
+- **Streaming engine** — `agents/events.py` `EventBus` (thread-safe fan-out) + new FastAPI SSE endpoints
+  `GET /run/{id}/events`, `POST /chat`, plus `GET /wiki/graph`, `GET /memories`, `GET /metrics.json`,
+  and `GET|PATCH /config`. The UI is served from `GET /`.
+- **Demo/replay mode** — `studio/build_demo.py` records a real deliberation to `studio/demo_run.json`
+  (+ static snapshots) so the UI is fully alive with **no API key and no pip** (`studio/serve.py`).
+- Pipeline progress instrumentation in `scripts/run_workflow.py` + optional persona-stream callbacks in
+  `agents/council.py` — all additive (`emit=None` default), so existing behaviour is unchanged.
+
+### Changed
+- `requirements.txt` installs the Studio API deps; `Makefile` adds `make studio` / `make demo`.
+
+### Notes
+- The 68/68 offline QA suite passes unchanged — instrumentation is byte-for-byte transparent when unwatched.
+
 ---
 
 ## [1.0.0] — 2026-05-06

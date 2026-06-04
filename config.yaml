@@ -21,7 +21,7 @@ openai:
   base_url: https://api.openai.com/v1
 
 ollama:
-  model: llama3.2         # any model from `ollama pull`
+  model: llama3.2
   base_url: http://localhost:11434/v1
   max_tokens: 8096
   temperature: 0.2
@@ -119,3 +119,11 @@ scheduler:
   # - job_id: daily_vendors
   #   task: "Cross-reference vendor payments vs lobbying disclosures"
   #   interval_hours: 24
+
+# ── m1frame Studio (real-time UI) ────────────────────────────────
+studio:
+  # Launch: python api/server.py  → open http://localhost:8080
+  # No API key? The UI runs in beautiful DEMO/replay mode automatically.
+  default_mode: auto         # auto | live | demo  (auto = live if a key is set)
+  accent: "#34e7e4"          # signal colour (overridable in Settings)
+  demo_speed: 1.0            # demo replay speed multiplier

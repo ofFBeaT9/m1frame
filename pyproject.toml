@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "m1frame"
-version = "1.0.0"
-description = "Portable multi-agent AI framework: BMAD · Council · Miras · Karpathy · LLM Wiki"
+version = "1.1.0"
+description = "Portable multi-agent AI framework with a real-time Studio UI: BMAD · Council · Miras · Karpathy · LLM Wiki"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}

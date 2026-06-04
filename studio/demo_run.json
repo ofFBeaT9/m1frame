@@ -1,0 +1,1214 @@
+{
+  "version": 1,
+  "goal": "What chip should we manufacture for the Tritone medical accelerator \u2014 an analog optical processor, or a digital ternary ASIC?",
+  "generated": "2026-06-03 23:25",
+  "duration_ms": 28700,
+  "events": [
+    {
+      "delay_ms": 0,
+      "type": "run_start",
+      "seq": 1,
+      "goal": "What chip should we manufacture for the Tritone medical accelerator \u2014 an analog optical processor, or a digital ternary ASIC?",
+      "options": {
+        "backend": "claude (demo replay)",
+        "parallel": false,
+        "self_critique": true
+      }
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_start",
+      "seq": 2,
+      "pillar": "bmad",
+      "idx": 1,
+      "label": "BMAD \u00b7 Story Backlog"
+    },
+    {
+      "delay_ms": 700,
+      "type": "bmad_blueprint",
+      "seq": 3,
+      "pillar": "bmad",
+      "project": "Tritone Chip Decision",
+      "domain": "medical edge AI / silicon",
+      "mvp": "Pick a manufacturable compute substrate that clears the FDA bar",
+      "issues": [],
+      "stories": [
+        {
+          "id": 1,
+          "title": "Frame the determinism-vs-efficiency tradeoff",
+          "role": "analyst",
+          "complexity": "medium",
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Bit-exactness defined as FDA prerequisite"
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Investigate photonic MVM noise floor",
+          "role": "investigator",
+          "complexity": "high",
+          "depends_on": [
+            1
+          ],
+          "acceptance_criteria": [
+            "Static-defect floor quantified from OPU study"
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Design digital ternary datapath",
+          "role": "architect",
+          "complexity": "high",
+          "depends_on": [
+            1
+          ],
+          "acceptance_criteria": [
+            "Multiplier-free {-1,0,+1}; 42% zeros skipped"
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Cross-check regulatory path (510k)",
+          "role": "architect",
+          "complexity": "medium",
+          "depends_on": [
+            1
+          ],
+          "acceptance_criteria": [
+            "Determinism maps to SaMD locked-algorithm rule"
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Red-team the analog 'win'",
+          "role": "qa",
+          "complexity": "high",
+          "depends_on": [
+            2,
+            3
+          ],
+          "acceptance_criteria": [
+            "Classify each CIM macro analog vs digital"
+          ]
+        }
+      ]
+    },
+    {
+      "delay_ms": 500,
+      "type": "pillar_done",
+      "seq": 4,
+      "pillar": "bmad",
+      "ms": 1180
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 5,
+      "pillar": "council",
+      "idx": 2,
+      "label": "Council \u00b7 Brainstorm"
+    },
+    {
+      "delay_ms": 450,
+      "type": "council_persona_start",
+      "seq": 6,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Critic"
+    },
+    {
+      "delay_ms": 900,
+      "type": "council_persona",
+      "seq": 7,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Critic",
+      "approach": "Attack the premise that efficiency is the objective.",
+      "considerations": [
+        "TOPS/W is the wrong metric for N\u22484 regulated inference"
+      ],
+      "risks": [
+        "Chasing analog efficiency forfeits bit-exactness"
+      ],
+      "opportunities": [
+        "Determinism is a structural moat, not a tuning knob"
+      ],
+      "direction": "Optimize for the cheapest bit-exact design that clears FDA, not peak TOPS/W."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 8,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Advocate"
+    },
+    {
+      "delay_ms": 850,
+      "type": "council_persona",
+      "seq": 9,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Advocate",
+      "approach": "Steelman a small digital ternary ASIC.",
+      "considerations": [
+        "SKY130 open MPW ~ $10-12k NRE",
+        "Cortex-M33 host for weight load"
+      ],
+      "risks": [
+        "Tape-out before clinical volume wastes NRE"
+      ],
+      "opportunities": [
+        "Frozen-model edge inference at sub-10 mW"
+      ],
+      "direction": "Build digital ternary; gate the tape-out behind real triggers."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 10,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Domain Expert"
+    },
+    {
+      "delay_ms": 950,
+      "type": "council_persona",
+      "seq": 11,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Domain Expert",
+      "approach": "Bound the photonics physics from the OPU study.",
+      "considerations": [
+        "7.8% static-defect value floor more SNR cannot remove",
+        "~262 W tuning for a 512x512 MZI mesh; E/O-O/E overhead below N\u22484096"
+      ],
+      "risks": [
+        "Derivatives ~6x more fragile than values under analog noise"
+      ],
+      "opportunities": [
+        "Optics OK only as inference-only accelerator for a frozen PINN"
+      ],
+      "direction": "Reject optical training/gradients; analog cannot meet the accuracy budget."
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_brainstorm",
+      "seq": 12,
+      "pillar": "council",
+      "plan": "Converge on a deterministic digital ternary chip; treat optics as inference-only at best.",
+      "steps": [
+        "Quantify analog floor",
+        "Design digital datapath",
+        "Map to 510(k)",
+        "Red-team analog CIM"
+      ],
+      "risks": [
+        "An analog CIM 'win' may hide an ADC that breaks determinism"
+      ],
+      "confidence": "high"
+    },
+    {
+      "delay_ms": 400,
+      "type": "pillar_done",
+      "seq": 13,
+      "pillar": "council",
+      "ms": 4250,
+      "phase": "brainstorm"
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 14,
+      "pillar": "openplanter",
+      "idx": 3,
+      "label": "OpenPlanter \u00b7 Investigation"
+    },
+    {
+      "delay_ms": 1100,
+      "type": "openplanter_result",
+      "seq": 15,
+      "pillar": "openplanter",
+      "mode": "llm+grounded",
+      "summary": "OPU feasibility sim (ternary PINN, bit-exact baseline + optical-noise model, sparsity 42.4%): VALUES survive analog optics but DERIVATIVES do not. Value error crosses the 19.4% ternary budget at optical SNR ~18.2 dB/layer with a static-defect floor ~7.8%. A 2% photonic weight defect with zero readout noise already gives 8.1% value error but 51.9% derivative error (~6x fragility gap).",
+      "web_results": 3
+    },
+    {
+      "delay_ms": 450,
+      "type": "pillar_done",
+      "seq": 16,
+      "pillar": "openplanter",
+      "ms": 1400
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 17,
+      "pillar": "miras",
+      "idx": 4,
+      "label": "Miras \u00b7 Multi-Agent Execution"
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 18,
+      "pillar": "miras",
+      "id": 1,
+      "role": "analyst",
+      "title": "Frame determinism-vs-efficiency"
+    },
+    {
+      "delay_ms": 800,
+      "type": "story_done",
+      "seq": 19,
+      "pillar": "miras",
+      "id": 1,
+      "role": "analyst",
+      "preview": "For a regulated, edge, small-N medical workload, determinism dominates efficiency."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 20,
+      "pillar": "miras",
+      "id": 2,
+      "role": "investigator",
+      "title": "Photonic MVM noise floor"
+    },
+    {
+      "delay_ms": 850,
+      "type": "story_done",
+      "seq": 21,
+      "pillar": "miras",
+      "id": 2,
+      "role": "investigator",
+      "preview": "Static-defect floor ~7.8% value error; derivatives never reach the budget at any SNR."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 22,
+      "pillar": "miras",
+      "id": 3,
+      "role": "architect",
+      "title": "Digital ternary datapath"
+    },
+    {
+      "delay_ms": 900,
+      "type": "story_done",
+      "seq": 23,
+      "pillar": "miras",
+      "id": 3,
+      "role": "architect",
+      "preview": "Weights \u2208 {-1,0,+1} \u2192 mux + conditional add; 42% zeros skipped; bit-exact integer path."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 24,
+      "pillar": "miras",
+      "id": 4,
+      "role": "architect",
+      "title": "Regulatory path"
+    },
+    {
+      "delay_ms": 800,
+      "type": "story_done",
+      "seq": 25,
+      "pillar": "miras",
+      "id": 4,
+      "role": "architect",
+      "preview": "Bit-exact inference maps to the SaMD locked-algorithm rule; analog non-determinism fails 510(k)."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 26,
+      "pillar": "miras",
+      "id": 5,
+      "role": "qa",
+      "title": "Red-team the analog win"
+    },
+    {
+      "delay_ms": 900,
+      "type": "story_done",
+      "seq": 27,
+      "pillar": "miras",
+      "id": 5,
+      "role": "qa",
+      "preview": "Charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM qualifies."
+    },
+    {
+      "delay_ms": 400,
+      "type": "pillar_done",
+      "seq": 28,
+      "pillar": "miras",
+      "ms": 5600,
+      "stories_done": 5
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 29,
+      "pillar": "karpathy",
+      "idx": 5,
+      "label": "Karpathy \u00b7 CoT Refinement"
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 30,
+      "pillar": "karpathy",
+      "chunk": "Manufacture "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 31,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 32,
+      "pillar": "karpathy",
+      "chunk": "fully-digital, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 33,
+      "pillar": "karpathy",
+      "chunk": "multiplier-free "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 34,
+      "pillar": "karpathy",
+      "chunk": "ternary "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 35,
+      "pillar": "karpathy",
+      "chunk": "ASIC. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 36,
+      "pillar": "karpathy",
+      "chunk": "Determinism "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 37,
+      "pillar": "karpathy",
+      "chunk": "is "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 38,
+      "pillar": "karpathy",
+      "chunk": "the "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 39,
+      "pillar": "karpathy",
+      "chunk": "product, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 40,
+      "pillar": "karpathy",
+      "chunk": "not "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 41,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 42,
+      "pillar": "karpathy",
+      "chunk": "side "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 43,
+      "pillar": "karpathy",
+      "chunk": "effect. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 44,
+      "pillar": "karpathy",
+      "chunk": "Two "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 45,
+      "pillar": "karpathy",
+      "chunk": "phases, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 46,
+      "pillar": "karpathy",
+      "chunk": "trigger-gated: "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 47,
+      "pillar": "karpathy",
+      "chunk": "SKY130 "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 48,
+      "pillar": "karpathy",
+      "chunk": "open-MPW "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 49,
+      "pillar": "karpathy",
+      "chunk": "prototype "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 50,
+      "pillar": "karpathy",
+      "chunk": "as "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 51,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 52,
+      "pillar": "karpathy",
+      "chunk": "golden-vector "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 53,
+      "pillar": "karpathy",
+      "chunk": "vehicle, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 54,
+      "pillar": "karpathy",
+      "chunk": "then "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 55,
+      "pillar": "karpathy",
+      "chunk": "TSMC "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 56,
+      "pillar": "karpathy",
+      "chunk": "22/28 "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 57,
+      "pillar": "karpathy",
+      "chunk": "nm "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 58,
+      "pillar": "karpathy",
+      "chunk": "production "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 59,
+      "pillar": "karpathy",
+      "chunk": "with "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 60,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 61,
+      "pillar": "karpathy",
+      "chunk": "Cortex-M33 "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 62,
+      "pillar": "karpathy",
+      "chunk": "host "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 63,
+      "pillar": "karpathy",
+      "chunk": "and "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 64,
+      "pillar": "karpathy",
+      "chunk": "SHA-256-verified "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 65,
+      "pillar": "karpathy",
+      "chunk": "weight "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 66,
+      "pillar": "karpathy",
+      "chunk": "load. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 67,
+      "pillar": "karpathy",
+      "chunk": " "
+    },
+    {
+      "delay_ms": 300,
+      "type": "karpathy_done",
+      "seq": 68,
+      "pillar": "karpathy",
+      "had_cot": true,
+      "thought": "Restate: pick a compute substrate. Known: optics fails the derivative budget and has a 7.8% floor; digital ternary is bit-exact. FDA needs determinism. Therefore digital wins; optics is at most inference-only. Gate the tape-out behind triggers.",
+      "answer_preview": "Manufacture a fully-digital ternary ASIC, trigger-gated, SKY130 \u2192 28 nm."
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 69,
+      "pillar": "karpathy",
+      "ms": 3900
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 70,
+      "pillar": "council",
+      "idx": 6,
+      "label": "Council \u00b7 QA Gate Review"
+    },
+    {
+      "delay_ms": 450,
+      "type": "council_persona_start",
+      "seq": 71,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Critic"
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_persona",
+      "seq": 72,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Critic",
+      "verdict": "conditional",
+      "score": 8,
+      "key_points": [
+        "Strong, but name the explicit tape-out triggers"
+      ],
+      "recommendation": "Add the >500-unit / sub-5mW / 510(k) trigger gate explicitly."
+    },
+    {
+      "delay_ms": 300,
+      "type": "council_persona_start",
+      "seq": 73,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Advocate"
+    },
+    {
+      "delay_ms": 750,
+      "type": "council_persona",
+      "seq": 74,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Advocate",
+      "verdict": "pass",
+      "score": 9,
+      "key_points": [
+        "Three independent lenses converge on the same answer"
+      ],
+      "recommendation": "Ship the decision; the convergence is the signal."
+    },
+    {
+      "delay_ms": 300,
+      "type": "council_persona_start",
+      "seq": 75,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Domain Expert"
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_persona",
+      "seq": 76,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Domain Expert",
+      "verdict": "pass",
+      "score": 8,
+      "key_points": [
+        "Photonics correctly bounded to inference-only"
+      ],
+      "recommendation": "Keep optics on the roadmap only for frozen linear layers."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 77,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Red-Team"
+    },
+    {
+      "delay_ms": 950,
+      "type": "council_persona",
+      "seq": 78,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Red-Team",
+      "verdict": "conditional",
+      "score": 7,
+      "key_points": [
+        "A council member called charge-domain CIM 'fully deterministic' \u2014 FALSE",
+        "It accumulates analog charge and reads via ADC (PVT, offset, coupling)"
+      ],
+      "recommendation": "Drop charge-domain CIM from the deterministic set; only digital ternary CIM is bit-exact."
+    },
+    {
+      "delay_ms": 900,
+      "type": "council_verdict",
+      "seq": 79,
+      "pillar": "council",
+      "score": 8.0,
+      "verdict": "pass",
+      "passed": true,
+      "summary": "Build a fully-digital ternary ASIC, trigger-gated (SKY130 \u2192 28 nm). The single analog 'win' was an internal contradiction the red-team removed.",
+      "required_fixes": [
+        "State tape-out triggers explicitly",
+        "Remove charge-domain CIM from the bit-exact set"
+      ]
+    },
+    {
+      "delay_ms": 300,
+      "type": "qa_gate",
+      "seq": 80,
+      "pillar": "council",
+      "gate": "results-review",
+      "status": "PASS",
+      "score": 8.0
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 81,
+      "pillar": "council",
+      "ms": 6100,
+      "phase": "review"
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 82,
+      "pillar": "wiki",
+      "idx": 7,
+      "label": "LLM Wiki \u00b7 Knowledge Graph Ingest"
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 83,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "Analog Derivative Fragility",
+          "type": "concept"
+        },
+        {
+          "id": "Bit-Exact Determinism",
+          "type": "concept"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 84,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "FDA SaMD Determinism",
+          "type": "concept"
+        },
+        {
+          "id": "Ternary Computing",
+          "type": "concept"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 85,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "Digital Ternary CIM",
+          "type": "entity"
+        },
+        {
+          "id": "ENS-GI Digital Twin",
+          "type": "entity"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 86,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "m1frame",
+          "type": "entity"
+        },
+        {
+          "id": "Optical Processing Unit",
+          "type": "entity"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 87,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "SkyWater SKY130 MPW",
+          "type": "entity"
+        },
+        {
+          "id": "Tritone",
+          "type": "entity"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 88,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "What Chip Should We Manufacture",
+          "type": "query"
+        },
+        {
+          "id": "Chip Architecture Council",
+          "type": "source"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 89,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "OPU Feasibility Study",
+          "type": "source"
+        },
+        {
+          "id": "Chip Manufacturing Decision",
+          "type": "synthesis"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 90,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "m1frame Studio",
+          "type": "synthesis"
+        },
+        {
+          "id": "OPU Feasibility Verdict",
+          "type": "synthesis"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 220,
+      "type": "graph_delta",
+      "seq": 91,
+      "pillar": "wiki",
+      "nodes": [],
+      "links": [
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "OPU Feasibility Verdict"
+        },
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "Bit-Exact Determinism"
+        },
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "Tritone"
+        },
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "Analog Derivative Fragility",
+          "target": "FDA SaMD Determinism"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "Tritone"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "FDA SaMD Determinism"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "Digital Ternary CIM"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "Ternary Computing"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "Bit-Exact Determinism",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "FDA SaMD Determinism",
+          "target": "ENS-GI Digital Twin"
+        },
+        {
+          "source": "FDA SaMD Determinism",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "FDA SaMD Determinism",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "FDA SaMD Determinism",
+          "target": "Tritone"
+        },
+        {
+          "source": "FDA SaMD Determinism",
+          "target": "Digital Ternary CIM"
+        },
+        {
+          "source": "Ternary Computing",
+          "target": "Tritone"
+        },
+        {
+          "source": "Ternary Computing",
+          "target": "Digital Ternary CIM"
+        },
+        {
+          "source": "Ternary Computing",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "Ternary Computing",
+          "target": "Analog Derivative Fragility"
+        },
+        {
+          "source": "Ternary Computing",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "Digital Ternary CIM",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "Digital Ternary CIM",
+          "target": "SkyWater SKY130 MPW"
+        },
+        {
+          "source": "Digital Ternary CIM",
+          "target": "Tritone"
+        },
+        {
+          "source": "Digital Ternary CIM",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "ENS-GI Digital Twin",
+          "target": "Tritone"
+        },
+        {
+          "source": "ENS-GI Digital Twin",
+          "target": "Bit-Exact Determinism"
+        },
+        {
+          "source": "m1frame",
+          "target": "m1frame Studio"
+        },
+        {
+          "source": "m1frame",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "m1frame",
+          "target": "Tritone"
+        },
+        {
+          "source": "Optical Processing Unit",
+          "target": "Tritone"
+        },
+        {
+          "source": "Optical Processing Unit",
+          "target": "OPU Feasibility Verdict"
+        },
+        {
+          "source": "Optical Processing Unit",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "SkyWater SKY130 MPW",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "SkyWater SKY130 MPW",
+          "target": "Tritone"
+        },
+        {
+          "source": "SkyWater SKY130 MPW",
+          "target": "Bit-Exact Determinism"
+        },
+        {
+          "source": "Tritone",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "Digital Ternary CIM"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "Bit-Exact Determinism"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "SkyWater SKY130 MPW"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "Analog Derivative Fragility"
+        },
+        {
+          "source": "What Chip Should We Manufacture",
+          "target": "FDA SaMD Determinism"
+        },
+        {
+          "source": "Chip Architecture Council",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "Chip Architecture Council",
+          "target": "Digital Ternary CIM"
+        },
+        {
+          "source": "Chip Architecture Council",
+          "target": "SkyWater SKY130 MPW"
+        },
+        {
+          "source": "Chip Architecture Council",
+          "target": "FDA SaMD Determinism"
+        },
+        {
+          "source": "Chip Architecture Council",
+          "target": "Tritone"
+        },
+        {
+          "source": "OPU Feasibility Study",
+          "target": "OPU Feasibility Verdict"
+        },
+        {
+          "source": "OPU Feasibility Study",
+          "target": "Optical Processing Unit"
+        },
+        {
+          "source": "OPU Feasibility Study",
+          "target": "Analog Derivative Fragility"
+        },
+        {
+          "source": "OPU Feasibility Study",
+          "target": "Tritone"
+        },
+        {
+          "source": "Chip Manufacturing Decision",
+          "target": "OPU Feasibility Verdict"
+        },
+        {
+          "source": "m1frame Studio",
+          "target": "Chip Manufacturing Decision"
+        },
+        {
+          "source": "m1frame Studio",
+          "target": "Tritone"
+        },
+        {
+          "source": "OPU Feasibility Verdict",
+          "target": "Tritone"
+        },
+        {
+          "source": "OPU Feasibility Verdict",
+          "target": "Bit-Exact Determinism"
+        }
+      ]
+    },
+    {
+      "delay_ms": 300,
+      "type": "wiki_page",
+      "seq": 92,
+      "pillar": "wiki",
+      "title": "Chip Manufacturing Decision",
+      "page_type": "synthesis",
+      "filename": "synthesis/chip-manufacturing-decision.md",
+      "tags": [
+        "tritone",
+        "chip",
+        "decision"
+      ]
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 93,
+      "pillar": "wiki",
+      "ms": 2100
+    },
+    {
+      "delay_ms": 300,
+      "type": "memory_added",
+      "seq": 94,
+      "type_": "decision",
+      "agent": "architect",
+      "text": "MANUFACTURE A FULLY-DIGITAL multiplier-free TERNARY ASIC (bit-exact). Two phases, trigger-gated."
+    },
+    {
+      "delay_ms": 260,
+      "type": "memory_added",
+      "seq": 95,
+      "type_": "constraint",
+      "agent": "qa",
+      "text": "RED-TEAM LESSON: charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM is."
+    },
+    {
+      "delay_ms": 260,
+      "type": "memory_added",
+      "seq": 96,
+      "type_": "decision",
+      "agent": "analyst",
+      "text": "KEY PRINCIPLE: for a regulated, edge, small-N medical workload, determinism dominates efficiency."
+    },
+    {
+      "delay_ms": 500,
+      "type": "final",
+      "seq": 97,
+      "output": "# Decision: build a fully-digital ternary ASIC\n\n**Not analog. Not photonic. Not charge-domain CIM.**\n\n1. **Two phases, trigger-gated:** SKY130 open-MPW prototype (golden-vector vehicle) \u2192 TSMC 22/28 nm production (digital ternary CIM or scaled systolic) + Cortex-M33 host, SHA-256-verified weight load.\n2. **Don't tape out yet.** Triggers: >~500 clinical units, a sub-5 mW envelope the FPGA can't meet, or a 510(k) needing certified silicon. Until then the $20 FPGA + MCU is right.\n3. **The ultimate system is a lifecycle:** cloud-train (exact gradients) \u2192 freeze + certify (golden vectors, SHA-256 weight lock, SBOM) \u2192 edge bit-exact digital-ternary inference.\n4. **Why digital wins:** for a regulated medical workload, **determinism dominates efficiency** \u2014 bit-exactness is an FDA prerequisite, and analog forfeits it.\n\n*Three independent lenses \u2014 silicon, physics, regulation \u2014 converged on the same answer. The lone analog dissent was self-disqualified by its own determinism rule.*",
+      "score": 8.0,
+      "passed": true,
+      "wiki_page": "synthesis/chip-manufacturing-decision.md"
+    },
+    {
+      "delay_ms": 200,
+      "type": "done",
+      "seq": 98,
+      "ms": 38240
+    }
+  ]
+}
