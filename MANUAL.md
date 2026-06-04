@@ -3,7 +3,7 @@
 *A portable, offline-capable multi-agent framework that doesn't just act — it **deliberates, grounds, and
 remembers** — with a real-time UI (Studio) that lets you watch it think.*
 
-> **Version 1.5 "Full Toolbelt"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
+> **Version 1.6 "Claude Code Native"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
 > Ollama, vLLM, LM Studio · reachable from Telegram / Slack / Discord / webhook / CLI · tool surface + MCP ·
 > persistent runs · one-command Docker.
 
@@ -66,7 +66,7 @@ Then open **http://localhost:8080**. No key? The Studio drops into a gorgeous **
 
 ```bash
 make studio          # installs Studio deps, builds the demo, launches the server
-make qa              # 97 offline tests, no key needed
+make qa              # 99 offline tests, no key needed
 make run GOAL="Build a FastAPI service with JWT auth"   # headless CLI run
 ```
 
@@ -138,12 +138,33 @@ backend: claude     # claude | openai | openrouter | ollama | vllm | lmstudio
 | Backend | Models | Key |
 |---|---|---|
 | `claude` | Claude family | `ANTHROPIC_API_KEY` |
+| **`claudecli`** | **runs on your Claude Code login — no API key** | none |
 | `openai` | GPT family | `OPENAI_API_KEY` |
 | **`openrouter`** | **200+ models** (Anthropic, OpenAI, Google, Meta, Mistral, …) through one endpoint | `OPENROUTER_API_KEY` |
+| `nous` / `novita` / `nvidia_nim` | provider presets (OpenAI-compatible) | provider key |
 | `ollama` / `vllm` / `lmstudio` | any local model | none (fully offline) |
 
 OpenRouter gives you 200+ models without code changes — set `openrouter.model` to e.g.
 `google/gemini-2.0-flash`, `meta-llama/llama-3.3-70b-instruct`, or `openai/gpt-4o`.
+
+### Claude Code integration (native)
+
+m1frame is built to drop straight into **Claude Code**, both directions:
+
+**1. Run m1frame *on* Claude Code (no API key).** Set `backend: claudecli` — every agent call shells out to your
+`claude` CLI headlessly, so the whole pipeline runs on your existing Claude Code login with zero key setup.
+
+**2. Give Claude Code m1frame *as tools* (MCP).** An MCP server (`mcp_server.py`) exposes the framework so Claude
+Code's agent can call it. Open this project in Claude Code and `.mcp.json` is picked up automatically — or register
+it anywhere with:
+
+```bash
+claude mcp add m1frame -- python mcp_server.py     # needs: pip install mcp
+```
+
+It surfaces six tools: `m1frame_run` (full 7-pillar deliberation), `m1frame_ask` (grounded, cited recall),
+`m1frame_call_tool` (any of the 40 tools), `m1frame_list_tools`, `m1frame_list_skills`, and `m1frame_open_studio`
+(launch the interactive UI). Slash commands: **`/m1frame`** runs the pipeline, **`/m1-studio`** launches the UI.
 
 ---
 

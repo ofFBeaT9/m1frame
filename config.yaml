@@ -5,7 +5,12 @@
 # All other settings are backend-specific.
 
 # ── LLM Backend ──────────────────────────────────────────────────
-backend: claude          # claude | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
+backend: claude          # claude | claudecli | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
+
+claudecli:                # run on the Claude Code CLI — NO API key needed (uses your `claude` login)
+  model: null             # null = Claude Code's current default model; or e.g. claude-sonnet-4-20250514
+  timeout: 300
+  api_key_env: null
 
 claude:
   model: claude-sonnet-4-20250514

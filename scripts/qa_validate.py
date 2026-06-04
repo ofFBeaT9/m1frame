@@ -790,7 +790,7 @@ def t_backends_api(m):
     from api.server import create_app
     c=TestClient(create_app())
     b=c.get("/backends").json()
-    assert len(b["backends"])==9 and all("ready" in x for x in b["backends"]) and b["active"]
+    assert len(b["backends"])==10 and all("ready" in x for x in b["backends"]) and b["active"]
 def t_tool_extra(m):
     from tools.builtin import default_registry
     r=default_registry()
@@ -868,6 +868,19 @@ def t_provider_presets(m):
         assert b in c and c[b].get("base_url","").startswith("http") and b in S.ALL_BACKENDS
 def t_docker_files(m):
     assert Path("Dockerfile").exists() and Path("docker-compose.yml").exists()
+def t_claudecli_backend(m):
+    from llm_client import load_config, LLMClient
+    import api.server as S
+    c=load_config()
+    assert "claudecli" in c and "claudecli" in S.ALL_BACKENDS and "claudecli" in S.LOCAL_BACKENDS
+    assert S._can_run_live(c,"claudecli") is True            # uses Claude Code login, no API key
+    cli=LLMClient(override_backend="claudecli"); assert cli.backend=="claudecli" and cli._client is None
+def t_mcp_server(m):
+    import py_compile
+    py_compile.compile("mcp_server.py", doraise=True)        # FastMCP server is syntactically sound
+    import json
+    j=json.load(open(".mcp.json")); assert "m1frame" in j["mcpServers"]
+    assert Path(".claude/commands/m1-studio.md").exists()
 
 
 # ══ Registry ══════════════════════════════════════════════════════════════════
@@ -968,6 +981,8 @@ ALL: dict[str,list] = {
                  ("Runs search API",          t_run_search_api)],
     "deploy":   [("Provider presets",         t_provider_presets),
                  ("Docker files present",     t_docker_files)],
+    "claudecode":[("Claude Code CLI backend", t_claudecli_backend),
+                 ("MCP server + .mcp.json",   t_mcp_server)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 

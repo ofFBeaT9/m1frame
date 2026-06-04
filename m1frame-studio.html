@@ -491,7 +491,7 @@ async function loadData(){
     S.pages=await get("wiki_pages.json")||[];
     S.memories=await get("memories.json")||[];
     S.skills=await get("skills.json")||[];
-    S.config={backend:"static",model:"—",backends:["claude","openai","openrouter","ollama","vllm","lmstudio"],models:{},can_run_live:false,default_mode:"demo"};
+    S.config={backend:"static",model:"—",backends:["claude","claudecli","openai","openrouter","nous","novita","nvidia_nim","ollama","vllm","lmstudio"],models:{},can_run_live:false,default_mode:"demo"};
   }
 }
 

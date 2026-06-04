@@ -9,6 +9,18 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.6.0] — 2026-06-04 — "Claude Code Native"
+### Added
+- **Claude Code CLI backend** (`claudecli`): m1frame runs on your `claude` login with **no API key** — each
+  agent call shells out to `claude -p` headlessly. Added to `config.yaml`, `LOCAL_BACKENDS`, `ALL_BACKENDS`
+  (→ 10 backends; `can_run_live` true with no key).
+- **MCP server** (`mcp_server.py`, FastMCP/stdio) exposing m1frame to Claude Code: `m1frame_run`, `m1frame_ask`,
+  `m1frame_call_tool`, `m1frame_list_tools`, `m1frame_list_skills`, `m1frame_open_studio`. Auto-registered via
+  `.mcp.json`; `mcp` dependency is optional (import-guarded).
+- **Slash command** `/m1-studio` to launch the UI (alongside the existing `/m1frame` pipeline command).
+### Notes
+- **99/99** offline QA (added Claude Code backend + MCP server tests). `mcp_server.py` passes `py_compile`.
+
 ## [1.5.0] — 2026-06-04 — "Full Toolbelt"
 ### Added
 - **Tool surface 16 → 40** (`tools/extra.py`): encoding/crypto (`md5`, `hex_encode/decode`, `url_encode/decode`,

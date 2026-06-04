@@ -62,8 +62,8 @@ from llm_client import LLMClient, load_config
 
 STUDIO_HTML = ROOT / "m1frame-studio.html"
 DEMO_FIXTURE = ROOT / "studio" / "demo_run.json"
-LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio"}
-ALL_BACKENDS = ["claude", "openai", "openrouter", "nous", "novita", "nvidia_nim",
+LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio", "claudecli"}  # need no API key
+ALL_BACKENDS = ["claude", "claudecli", "openai", "openrouter", "nous", "novita", "nvidia_nim",
                 "ollama", "vllm", "lmstudio"]
 SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
                "X-Accel-Buffering": "no"}
@@ -231,7 +231,7 @@ def create_app() -> "FastAPI":
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.5.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.6.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -256,7 +256,7 @@ def create_app() -> "FastAPI":
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.5.0",
+            "status": "ok", "version": "1.6.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),

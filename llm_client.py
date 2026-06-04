@@ -41,6 +41,8 @@ class LLMClient:
         """Send a chat message and return the assistant reply as a string."""
         if self.backend == "claude":
             return self._claude_chat(prompt, system, temperature, max_tokens, history)
+        elif self.backend == "claudecli":
+            return self._claudecli_chat(prompt, system, history)
         else:
             return self._openai_chat(prompt, system, temperature, max_tokens, history)
 
@@ -48,12 +50,16 @@ class LLMClient:
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
         if self.backend == "claude":
             yield from self._claude_stream(prompt, system, temperature)
+        elif self.backend == "claudecli":
+            yield self._claudecli_chat(prompt, system, None)   # CLI returns whole reply
         else:
             yield from self._openai_stream(prompt, system, temperature)
 
     # ── Private builders ──────────────────────────────────────────────────────
 
     def _build_client(self):
+        if self.backend == "claudecli":
+            return None  # no SDK client — we shell out to the Claude Code CLI
         if self.backend == "claude":
             try:
                 import anthropic
@@ -106,6 +112,31 @@ class LLMClient:
         with self._client.messages.stream(**kwargs) as stream:
             for text in stream.text_stream:
                 yield text
+
+    # ── Claude Code CLI (no API key — uses your `claude` auth) ────────────────
+    def _claudecli_chat(self, prompt, system, history) -> str:
+        """Run the prompt through the Claude Code CLI headlessly (`claude -p`).
+        Lets m1frame run with zero API key by reusing your Claude Code login."""
+        import subprocess
+        bcfg = self.cfg.get("claudecli", {}) or {}
+        full = prompt
+        if history:
+            convo = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
+            full = convo + "\nuser: " + prompt
+        args = ["claude", "-p", "--output-format", "text"]
+        if bcfg.get("model"):
+            args += ["--model", str(bcfg["model"])]
+        if system:
+            args += ["--append-system-prompt", system]
+        try:
+            res = subprocess.run(args, input=full, capture_output=True, text=True,
+                                 timeout=bcfg.get("timeout", 300))
+        except FileNotFoundError:
+            raise RuntimeError("Claude Code CLI ('claude') not found on PATH. "
+                               "Install Claude Code, or set backend to 'claude' with an API key.")
+        if res.returncode != 0:
+            raise RuntimeError(f"claude CLI error: {(res.stderr or '').strip()[:300]}")
+        return (res.stdout or "").strip()
 
     # ── OpenAI-compatible ────────────────────────────────────────────────────
 

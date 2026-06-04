@@ -15,8 +15,11 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > key (gorgeous demo mode) or wire a key for live runs.
 >
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), an **agent tool surface**, and
-> **persistent run history** — deployable with one `docker compose up`. 📖 **Full guide: [MANUAL.md](MANUAL.md).**
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **40-tool** agent surface, and
+> **persistent run history** — deployable with one `docker compose up`.
+>
+> **Claude Code native** 🤝 — run m1frame on your Claude Code login with **no API key** (`backend: claudecli`),
+> and an **MCP server** (`mcp_server.py` + `.mcp.json`) gives Claude Code m1frame as tools. 📖 **Full guide: [MANUAL.md](MANUAL.md).**
 
 ---
 
@@ -39,7 +42,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
-python scripts/qa_validate.py  # 90 tests, no key needed
+python scripts/qa_validate.py  # 99 tests, no key needed
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
@@ -82,7 +85,7 @@ Seven surfaces, one renderer:
 
 It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
-`emit=None` by default, so the CLI and the **90/90** QA suite are byte-for-byte unaffected.
+`emit=None` by default, so the CLI and the **99/99** QA suite are byte-for-byte unaffected.
 
 ### Why m1frame is the most *auditable* multi-agent workspace
 
@@ -266,4 +269,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.5.0 "Full Toolbelt" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.6.0 "Claude Code Native" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
