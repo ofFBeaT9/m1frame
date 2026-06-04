@@ -33,6 +33,26 @@ except Exception:  # noqa: BLE001
 
 mcp = FastMCP("m1frame")
 
+# ── Studio (UI) helpers — auto-start + a reachable URL for phones ──────────────
+_STUDIO_BIND = os.environ.get("M1_STUDIO_BIND", "127.0.0.1")
+
+
+def _studio_url(port: int = 8080) -> str:
+    host = os.environ.get("M1_STUDIO_HOST") or (
+        "localhost" if _STUDIO_BIND in ("127.0.0.1", "0.0.0.0") else _STUDIO_BIND)
+    return f"http://{host}:{int(port)}"
+
+
+def _start_studio(port: int = 8080) -> None:
+    """Start the Studio web server in the background so the UI loads automatically."""
+    import subprocess
+    env = {**os.environ, "PORT": str(int(port)), "HOST": _STUDIO_BIND}
+    try:
+        subprocess.Popen([sys.executable, str(ROOT / "api" / "server.py")],
+                         env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=str(ROOT))
+    except Exception:  # noqa: BLE001
+        pass
+
 
 @mcp.tool()
 def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) -> str:
@@ -136,16 +156,49 @@ def m1frame_open_studio(port: int = 8080) -> str:
     Args:
         port: Port to serve on (default 8080).
     """
-    import subprocess
-    env = {**os.environ, "PORT": str(int(port))}
-    try:
-        subprocess.Popen([sys.executable, str(ROOT / "api" / "server.py")],
-                         env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         cwd=str(ROOT))
-    except Exception as e:  # noqa: BLE001
-        return f"could not start Studio: {e}"
-    return f"m1frame Studio starting → http://localhost:{port}  (open it in a browser)"
+    _start_studio(port)
+    url = _studio_url(port)
+    return (f"m1frame Studio is starting → {url}\n"
+            "Open it in a browser — on a phone, just tap the link. It's a mobile-responsive "
+            "deliberation theatre: watch runs, browse the knowledge graph, chat, and inspect skills.")
+
+
+def main(argv: list[str] | None = None) -> None:
+    """stdio by default; `--http` serves MCP over HTTP so a phone's Claude app can
+    connect by URL, and auto-starts the mobile-responsive Studio UI."""
+    import argparse
+    p = argparse.ArgumentParser(description="m1frame MCP server (Claude Code / mobile)")
+    p.add_argument("--http", action="store_true",
+                   help="Serve MCP over HTTP (mobile/remote clients connect by URL)")
+    p.add_argument("--host", default="0.0.0.0", help="HTTP bind host (default 0.0.0.0)")
+    p.add_argument("--port", type=int, default=8765, help="MCP HTTP port (default 8765)")
+    p.add_argument("--studio-port", type=int, default=8080, help="Studio UI port (default 8080)")
+    p.add_argument("--no-studio", action="store_true", help="Do not auto-start the Studio UI")
+    args = p.parse_args(argv)
+
+    if args.http:
+        global _STUDIO_BIND
+        _STUDIO_BIND = args.host
+        os.environ["M1_STUDIO_BIND"] = args.host
+        if not args.no_studio:
+            _start_studio(args.studio_port)
+        mcp.settings.host, mcp.settings.port = args.host, args.port
+        bar = "-" * 60
+        print(bar)
+        print("  m1frame -- mobile / remote access")
+        print(bar)
+        print(f"  MCP endpoint : http://{args.host}:{args.port}/mcp")
+        print(f"  Studio UI    : {_studio_url(args.studio_port)}")
+        print(f"  Add to Claude: claude mcp add --transport http m1frame http://<this-host>:{args.port}/mcp")
+        print("  On a phone   : Claude app -> Settings -> Connectors/MCP -> add that URL,")
+        print("                 then ask m1frame anything and tap the Studio link to watch.")
+        print(bar)
+        mcp.run(transport="streamable-http")
+    else:
+        if os.environ.get("M1_AUTOSTART_STUDIO") and not args.no_studio:
+            _start_studio(args.studio_port)
+        mcp.run()   # stdio (Claude Code picks this up from .mcp.json)
 
 
 if __name__ == "__main__":
-    mcp.run()
+    main()

@@ -9,6 +9,20 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.7.0] — 2026-06-04 — "Pocket Studio" (use m1frame from your phone)
+### Added
+- **Mobile-responsive Studio**: a phone layout for `m1frame-studio.html` — the left nav rail becomes a
+  **bottom tab bar**, the 7-pillar timeline scrolls horizontally, everything goes single-column, the composer
+  stacks the RUN button, and it's notch-safe (`env(safe-area-inset-*)`). Verified at 375×812.
+- **MCP over HTTP + auto-Studio** (`python mcp_server.py --http` / `make mobile`): serves the MCP server over
+  streamable-HTTP so the **Claude app on iPhone/Android** can connect by URL, and **auto-starts the Studio UI**
+  (bound to `0.0.0.0`) so the interface loads automatically. Prints both URLs + the exact `claude mcp add` line.
+- `m1frame_open_studio` now returns a phone-reachable URL; `M1_STUDIO_BIND` / `M1_STUDIO_HOST` env knobs.
+### Notes
+- **101/101** offline QA (+2 mobile tests). The MCP HTTP code is import-guarded; `mcp` stays optional.
+- ⚠️ `--http` binds `0.0.0.0` with an unauthenticated config-write endpoint — expose only on a trusted network
+  or behind an authenticating tunnel.
+
 ## [1.6.1] — 2026-06-04 — "Green CI"
 ### Fixed (CI / lint)
 - Made the **CI lint + type-check job green**: applied ~837 safe Ruff autofixes (import sorting, `Optional`→

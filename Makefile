@@ -1,9 +1,10 @@
-.PHONY: help install studio dev qa lint typecheck clean build run demo
+.PHONY: help install studio mobile dev qa lint typecheck clean build run demo
 
 help:
 	@echo "m1frame — available commands:"
 	@echo "  make install     Install production dependencies"
 	@echo "  make studio      Install Studio deps + launch the live UI (http://localhost:8080)"
+	@echo "  make mobile      Phone access: MCP over HTTP + auto-start the mobile Studio UI"
 	@echo "  make demo        Rebuild the demo fixture + static snapshots"
 	@echo "  make dev         Install all dev + prod dependencies"
 	@echo "  make qa          Run full QA suite (no API key needed)"
@@ -20,6 +21,11 @@ studio:
 	pip install fastapi "uvicorn[standard]" httpx pyyaml
 	python studio/build_demo.py
 	python api/server.py
+
+mobile:
+	pip install fastapi "uvicorn[standard]" httpx pyyaml mcp
+	python studio/build_demo.py
+	python mcp_server.py --http
 
 demo:
 	python studio/build_demo.py

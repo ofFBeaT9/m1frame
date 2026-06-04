@@ -907,6 +907,18 @@ def t_mcp_server(m):
     import json
     j=json.load(open(".mcp.json")); assert "m1frame" in j["mcpServers"]
     assert Path(".claude/commands/m1-studio.md").exists()
+def t_mobile_studio(m):
+    # mobile-responsive UI (phone layout) — text checks, no browser needed
+    html=Path("m1frame-studio.html").read_text(encoding="utf-8")
+    assert "@media (max-width:680px)" in html
+    assert "env(safe-area-inset-bottom)" in html          # notch-safe bottom tab bar
+    assert "<meta name=\"viewport\"" in html
+def t_mobile_mcp_http(m):
+    # MCP HTTP mode + auto-Studio for phone access (don't import — mcp is optional)
+    src=Path("mcp_server.py").read_text(encoding="utf-8")
+    for token in ("--http", "streamable-http", "_start_studio", "def main(", "_studio_url"):
+        assert token in src, token
+    assert "mobile:" in Path("Makefile").read_text(encoding="utf-8")
 
 
 # ══ Registry ══════════════════════════════════════════════════════════════════
@@ -1007,6 +1019,8 @@ ALL: dict[str,list] = {
                  ("Runs search API",          t_run_search_api)],
     "deploy":   [("Provider presets",         t_provider_presets),
                  ("Docker files present",     t_docker_files)],
+    "mobile":   [("Responsive Studio (phone)", t_mobile_studio),
+                 ("MCP HTTP + auto-Studio",    t_mobile_mcp_http)],
     "claudecode":[("Claude Code CLI backend", t_claudecli_backend),
                  ("MCP server + .mcp.json",   t_mcp_server)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],

@@ -374,6 +374,44 @@ input:focus-visible, [tabindex]:focus-visible, .pagecard:focus-visible, .runcard
   .aurora{transition:none}
   #stars{opacity:.35}
 }
+
+/* ── mobile / phone layout (use m1frame from Claude Code on a phone) ─────── */
+@media (max-width:680px){
+  #app{grid-template-columns:1fr; height:100dvh}
+  /* left rail → bottom tab bar */
+  nav{position:fixed; left:0; right:0; bottom:0; top:auto; height:58px; flex-direction:row;
+    align-items:stretch; justify-content:space-around; gap:0; border-right:0; border-top:1px solid var(--line);
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom)); z-index:50;
+    background:linear-gradient(0deg,#070a12,#0a0d17f2); backdrop-filter:blur(10px)}
+  nav::before{display:none}
+  .brand,.navspacer{display:none}
+  nav>.navbtn:last-child{display:none}            /* hide ⌘K palette btn on phones */
+  .navbtn{width:auto; flex:1; height:100%; border-radius:9px}
+  .navbtn .tip{display:none}
+  .navbtn.on::before{left:50%; right:auto; top:-5px; bottom:auto; transform:translateX(-50%); width:22px; height:3px}
+  /* header */
+  header{padding:10px 14px; gap:10px; flex-wrap:wrap}
+  .word{font-size:17px}.word .st,header .tag,.kbd{display:none}
+  /* scrollable content clears the bottom bar */
+  .view{padding:16px 14px calc(76px + env(safe-area-inset-bottom)); scroll-padding-bottom:90px}
+  /* pillar rail → horizontal scroll */
+  .rail{display:flex; gap:14px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px; scroll-snap-type:x proximity}
+  .rail::before{display:none}
+  .stage{min-width:76px; scroll-snap-align:start}
+  /* one column everywhere */
+  .studiogrid{grid-template-columns:1fr; gap:14px}
+  .rightcol{position:static}
+  .gview{grid-template-columns:1fr; height:auto}
+  #fullGraphWrap{height:56vh}
+  .chatwrap{height:auto; min-height:calc(100dvh - 160px)}
+  /* composer stacks the RUN button under the input */
+  .composer{flex-wrap:wrap; padding:10px 12px}
+  .composer .lead{display:none}
+  .composer input{flex-basis:100%; font-size:16px; padding:11px 2px}
+  .runbtn{flex:1; justify-content:center}
+  .suggest{flex-direction:column}.suggest button{width:100%}
+  .metricgrid{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>

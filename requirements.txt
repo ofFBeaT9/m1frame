@@ -14,6 +14,11 @@ fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 httpx>=0.27.0            # webhook delivery + chat streaming client
 
+# ── MCP server (use m1frame from Claude Code, incl. phones) — optional ───────
+# Powers `python mcp_server.py` (stdio, auto-registered via .mcp.json) and
+# `python mcp_server.py --http` / `make mobile` (phone/remote access by URL).
+# mcp>=1.2.0
+
 # ── Observability: LanceDB semantic vector search (optional) ──────────────────
 # lancedb>=0.8.2
 # sentence-transformers>=3.0.1

@@ -3,7 +3,7 @@
 *A portable, offline-capable multi-agent framework that doesn't just act — it **deliberates, grounds, and
 remembers** — with a real-time UI (Studio) that lets you watch it think.*
 
-> **Version 1.6 "Claude Code Native"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
+> **Version 1.7 "Pocket Studio"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
 > Ollama, vLLM, LM Studio · reachable from Telegram / Slack / Discord / webhook / CLI · tool surface + MCP ·
 > persistent runs · one-command Docker.
 
@@ -165,6 +165,25 @@ claude mcp add m1frame -- python mcp_server.py     # needs: pip install mcp
 It surfaces six tools: `m1frame_run` (full 7-pillar deliberation), `m1frame_ask` (grounded, cited recall),
 `m1frame_call_tool` (any of the 40 tools), `m1frame_list_tools`, `m1frame_list_skills`, and `m1frame_open_studio`
 (launch the interactive UI). Slash commands: **`/m1frame`** runs the pipeline, **`/m1-studio`** launches the UI.
+
+**3. Use m1frame from your phone (Claude Code on iPhone / Android).** One command turns m1frame into a remote
+server the Claude mobile app can connect to by URL, and **auto-starts the mobile-responsive Studio** so the UI
+loads automatically:
+
+```bash
+make mobile                 # or:  python mcp_server.py --http
+```
+
+It prints two URLs and the exact registration line:
+- **MCP endpoint** `http://<host>:8765/mcp` — add it once in the Claude app (**Settings → Connectors / MCP →
+  add server URL**), or run `claude mcp add --transport http m1frame http://<host>:8765/mcp`.
+- **Studio UI** `http://<host>:8080` — the same UI, now phone-first (the left rail becomes a bottom tab bar, the
+  pillar timeline scrolls, everything is single-column and notch-safe). Ask m1frame anything on your phone, then
+  tap the Studio link to *watch* the council deliberate.
+
+Host it on your laptop (same Wi-Fi), a small VPS, or behind a tunnel (`cloudflared` / `ngrok`) to reach it from
+anywhere. ⚠️ `--http` binds `0.0.0.0` and the config-write endpoint is unauthenticated — only expose it on a
+trusted network or behind an authenticating tunnel.
 
 ---
 
