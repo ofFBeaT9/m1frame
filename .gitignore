@@ -30,3 +30,6 @@ figs/
 .claude/worktrees/
 dist/
 .cloudflared/
+
+# Personal local Claude Code settings (never commit)
+.claude/settings.local.json

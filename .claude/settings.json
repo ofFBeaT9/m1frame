@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(python scripts/run_workflow.py:*)",
+      "Bash(python scripts/qa_validate.py:*)",
+      "Bash(python studio/build_demo.py:*)",
+      "Bash(python mcp_server.py:*)",
+      "Bash(python api/server.py:*)",
+      "Bash(python -m m1frame:*)",
+      "Bash(make studio)",
+      "Bash(make mobile)",
+      "Bash(make qa)",
+      "mcp__m1frame__m1frame_run",
+      "mcp__m1frame__m1frame_ask",
+      "mcp__m1frame__m1frame_call_tool",
+      "mcp__m1frame__m1frame_list_tools",
+      "mcp__m1frame__m1frame_list_skills",
+      "mcp__m1frame__m1frame_open_studio"
+    ]
+  }
+}
