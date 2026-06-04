@@ -7,6 +7,9 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ---
 
 ## [Unreleased]
+_No unreleased changes yet._
+
+## [1.6.1] — 2026-06-04 — "Green CI"
 ### Fixed (CI / lint)
 - Made the **CI lint + type-check job green**: applied ~837 safe Ruff autofixes (import sorting, `Optional`→
   `X | None`, unused imports) and hand-fixed the rest (B904 `raise ... from`, E741 `l`→`ln`, B005, UP028/UP038).

@@ -269,4 +269,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.6.0 "Claude Code Native" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.6.1 "Claude Code Native" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
