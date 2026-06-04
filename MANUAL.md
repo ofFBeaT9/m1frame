@@ -3,7 +3,7 @@
 *A portable, offline-capable multi-agent framework that doesn't just act — it **deliberates, grounds, and
 remembers** — with a real-time UI (Studio) that lets you watch it think.*
 
-> **Version 1.4 "Toolbelt"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
+> **Version 1.5 "Full Toolbelt"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
 > Ollama, vLLM, LM Studio · reachable from Telegram / Slack / Discord / webhook / CLI · tool surface + MCP ·
 > persistent runs · one-command Docker.
 
@@ -39,9 +39,10 @@ box — you *watch* the council debate, *watch* the red-team override an overcon
 in a live knowledge graph, and *see* memory and skills accumulate. All offline-capable, git-versionable, zero
 lock-in.
 
-**What it is not:** it is not (yet) a broad replacement for a mature agent *product*. v1.3–1.4 added messaging
-gateways, a tool surface (16 tools + MCP), persistent runs, and Docker — but it still doesn't match Hermes' 40+
-tool *breadth* or ~10k-commit *maturity*. See [§11](#11-m1frame-vs-hermes-agent-honest) for the honest comparison.
+**What it is not:** it is not (yet) a broad replacement for a mature agent *product*. v1.3–1.5 added messaging
+gateways, a **40-tool** surface + MCP, persistent runs, and Docker — so it's on par with Hermes by tool *count*,
+but Hermes still ships **heavier capabilities** (arbitrary shell, cloud browser, image/TTS) we deliberately omit
+for safety/auditability, plus ~10k-commit *maturity*. See [§11](#11-m1frame-vs-hermes-agent-honest) for the honest comparison.
 
 ---
 
@@ -65,7 +66,7 @@ Then open **http://localhost:8080**. No key? The Studio drops into a gorgeous **
 
 ```bash
 make studio          # installs Studio deps, builds the demo, launches the server
-make qa              # 95 offline tests, no key needed
+make qa              # 97 offline tests, no key needed
 make run GOAL="Build a FastAPI service with JWT auth"   # headless CLI run
 ```
 
@@ -221,7 +222,7 @@ We benchmark against Nous Research's **Hermes Agent**. The truthful read:
 | Council-**vetted** skill learning (auditable) | **m1frame** (Hermes' loop is broader but black-box) |
 | Portability / offline / zero-lock-in | **m1frame** |
 | Messaging gateways | **m1frame has them (Telegram/Slack/Discord/webhook/CLI)** · Hermes has more platforms + maturity |
-| Tool surface + MCP client | m1frame (small, *auditable* core + MCP) · Hermes (40+ breadth) |
+| Tool surface + MCP client | **par by count** (40 auditable tools + approval gate + MCP) · Hermes ships heavier shell/browser/image tools |
 | Model count (200+) | par (OpenRouter + Nous/Novita/NIM presets) |
 | Deploy | par on **Docker** · Hermes also SSH/Modal/Daytona/Singularity |
 | Persistent run history | **m1frame** (disk-backed, searchable, replayable) |
@@ -246,9 +247,20 @@ chat) — identically on every channel. Outbound replies are SSRF-guarded. Slack
 
 ### Tools & MCP
 
-m1frame ships a small, **auditable** tool set rather than a black box of 40+: `calculator` (AST-safe, no `eval`),
-`wiki_search`, `datetime_now`, `word_count`, and an SSRF-guarded `http_get`. List with `GET /tools`; invoke with
-`POST /tools/call {"name","args"}`. Add your own by registering a `Tool`, or attach an **external MCP server**:
+m1frame ships **40 auditable tools** — breadth without a black box. Every one is small, pure, and readable:
+- **compute/data:** `calculator` (AST-safe, no `eval`), `json_query`, `json_format`, `csv_to_json`, `yaml_to_json`,
+  `stats_summary`, `base_convert`, `regex_extract`, `convert_temp`
+- **text:** `slugify`, `title_case`, `sort_lines`, `dedupe_lines`, `diff_text`, `template_render`,
+  `markdown_to_text`, `extract_urls`, `word_count`
+- **encoding/crypto:** `base64_encode/decode`, `hex_encode/decode`, `url_encode/decode`, `sha256`, `md5`,
+  `uuid4`, `random_string`
+- **time:** `datetime_now`, `timestamp`, `time_delta` · **web:** `http_get` (SSRF-guarded), `url_parse`
+- **knowledge:** `wiki_search` · **files (sandboxed to the workspace):** `read_file`, `head_file`, `list_dir`,
+  `file_stat`, `grep_files`, and `write_file` (**dangerous → needs `approve: true`**)
+
+A tool can be marked **`dangerous`**; `POST /tools/call` returns **403** for it unless you pass `approve: true` —
+Hermes-style command approval, but auditable. List with `GET /tools`; invoke with `POST /tools/call {"name","args"}`.
+Add your own by registering a `Tool`, or attach an **external MCP server**:
 
 ```python
 from tools import default_registry

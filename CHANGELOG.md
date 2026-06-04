@@ -9,6 +9,20 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.5.0] — 2026-06-04 — "Full Toolbelt"
+### Added
+- **Tool surface 16 → 40** (`tools/extra.py`): encoding/crypto (`md5`, `hex_encode/decode`, `url_encode/decode`,
+  `random_string`, `base_convert`), text (`slugify`, `title_case`, `sort_lines`, `dedupe_lines`, `diff_text`,
+  `template_render`, `markdown_to_text`, `extract_urls`), data (`json_format`, `csv_to_json`, `yaml_to_json`,
+  `stats_summary`), time (`timestamp`, `time_delta`), and sandboxed files (`file_stat`, `head_file`, `grep_files`).
+  On par with Hermes by count; still deliberately omits heavier shell/browser/image tools for auditability.
+- **Gateway end-to-end validation harness**: a test drives **every** platform webhook (telegram/slack/discord/
+  webhook) through the API and asserts the parsed reply + per-platform outbound payload — the full
+  inbound→router→outbound loop, proven without real credentials.
+### Notes
+- **97/97** offline QA (added the 40-tool spot suite + the gateway e2e test). Every tool is pure, offline, and
+  workspace-sandboxed; nothing reads or writes outside the repo.
+
 ## [1.4.0] — 2026-06-04 — "Toolbelt" (tool breadth + clean public release)
 ### Added
 - **Tool surface 5 → 16**: sandboxed `read_file`/`write_file`/`list_dir` (workspace-jailed), `json_query`,

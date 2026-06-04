@@ -231,7 +231,7 @@ def create_app() -> "FastAPI":
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.4.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.5.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -256,7 +256,7 @@ def create_app() -> "FastAPI":
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.4.0",
+            "status": "ok", "version": "1.5.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),

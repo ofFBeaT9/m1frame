@@ -742,9 +742,12 @@ def t_tool_builtins_present(m):
     names=default_registry().names()
     for n in ("calculator","wiki_search","datetime_now","word_count","http_get",
               "read_file","write_file","list_dir","json_query","regex_extract",
-              "base64_encode","base64_decode","sha256","uuid4","url_parse","convert_temp"):
+              "base64_encode","base64_decode","sha256","uuid4","url_parse","convert_temp",
+              "md5","hex_encode","url_encode","slugify","diff_text","template_render",
+              "json_format","csv_to_json","stats_summary","base_convert","time_delta",
+              "grep_files","file_stat","head_file","extract_urls"):
         assert n in names, n
-    assert len(names) >= 16
+    assert len(names) >= 40
 def t_tool_encoding(m):
     from tools.builtin import default_registry
     r=default_registry()
@@ -788,6 +791,37 @@ def t_backends_api(m):
     c=TestClient(create_app())
     b=c.get("/backends").json()
     assert len(b["backends"])==9 and all("ready" in x for x in b["backends"]) and b["active"]
+def t_tool_extra(m):
+    from tools.builtin import default_registry
+    r=default_registry()
+    assert r.call("slugify",{"text":"Hello, World!"})=="hello-world"
+    assert r.call("base_convert",{"value":"255","from_base":10,"to_base":16})=="ff"
+    assert r.call("hex_decode",{"hexstr":r.call("hex_encode",{"text":"hi"})})=="hi"
+    assert r.call("url_decode",{"text":r.call("url_encode",{"text":"a b&c"})})=="a b&c"
+    assert r.call("stats_summary",{"numbers":[1,2,3,4]})["mean"]==2.5
+    assert r.call("time_delta",{"start":"2026-01-01T00:00:00","end":"2026-01-02T00:00:00"})["days"]==1.0
+    assert r.call("dedupe_lines",{"text":"a\na\nb"})=="a\nb"
+    assert r.call("template_render",{"template":"hi {{x}}","values":{"x":"m1"}})=="hi m1"
+    assert r.call("csv_to_json",{"text":"a,b\n1,2"})==[{"a":"1","b":"2"}]
+    assert "m1frame" in r.call("json_format",{"data":{"name":"m1frame"}})
+def t_gw_e2e(m):
+    # Full inbound -> router -> outbound loop through the API for EVERY platform.
+    from fastapi.testclient import TestClient
+    from api.server import create_app
+    c=TestClient(create_app())
+    cases={
+      "telegram":{"message":{"text":"/ping","chat":{"id":7},"from":{"username":"u"}}},
+      "slack":{"event":{"text":"/ping","user":"u","channel":"C1"}},
+      "discord":{"content":"/ping","author":{"username":"u"},"channel_id":"9"},
+      "webhook":{"text":"/ping","user":"u","channel":"d"},
+    }
+    for plat,payload in cases.items():
+        r=c.post(f"/gateway/{plat}/webhook",json=payload).json()
+        assert "pong" in r["reply"].lower(), plat
+        assert isinstance(r["payload"],dict), plat       # outbound payload shaped per-platform
+    # telegram outbound carries chat_id; slack/discord their own fields
+    tg=c.post("/gateway/telegram/webhook",json=cases["telegram"]).json()["payload"]
+    assert "chat_id" in tg
 def t_tool_wiki_search(m):
     from tools.builtin import default_registry
     assert isinstance(default_registry().call("wiki_search",{"query":"chip ternary decision","k":2}), list)
@@ -916,7 +950,8 @@ ALL: dict[str,list] = {
                  ("Handler never crashes",    t_gw_handler_never_crashes),
                  ("/run mode tag",            t_gw_run_mode),
                  ("Platform adapters",        t_gw_adapters),
-                 ("API webhook + status",     t_gw_api)],
+                 ("API webhook + status",     t_gw_api),
+                 ("E2E all platforms",        t_gw_e2e)],
     "tools":    [("Registry register/call",   t_tool_registry),
                  ("Safe calculator",          t_tool_calculator),
                  ("Built-ins present (16)",   t_tool_builtins_present),
@@ -927,7 +962,8 @@ ALL: dict[str,list] = {
                  ("wiki_search tool",         t_tool_wiki_search),
                  ("http_get SSRF guard",      t_tool_http_ssrf),
                  ("Tools API",                t_tool_api),
-                 ("Backends registry API",    t_backends_api)],
+                 ("Backends registry API",    t_backends_api),
+                 ("Extra toolbelt (40+)",     t_tool_extra)],
     "runstore": [("Persist + reload run",     t_run_persist),
                  ("Runs search API",          t_run_search_api)],
     "deploy":   [("Provider presets",         t_provider_presets),

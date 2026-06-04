@@ -266,4 +266,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.4.0 "Toolbelt" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.5.0 "Full Toolbelt" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
