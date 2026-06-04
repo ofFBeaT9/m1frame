@@ -1044,6 +1044,10 @@ function viewSettings(v){v.innerHTML="";
   v.append(el("div",{class:"eyebrow",style:{margin:"22px 0 8px"}},"SCHEDULER"),
     el("div",{id:"schedwrap",style:{color:"var(--mute)",fontSize:"13px"}},"loading…"));
   loadSchedule();
+  // tools + gateways (v1.3)
+  v.append(el("div",{class:"eyebrow",style:{margin:"22px 0 8px"}},"TOOLS & GATEWAYS"),
+    el("div",{id:"toolgate",style:{color:"var(--mute)",fontSize:"13px"}},"loading…"));
+  loadToolsGateways();
   // about
   v.append(el("div",{class:"eyebrow",style:{margin:"22px 0 8px"}},"ABOUT"),
     el("div",{class:"setrow"}, el("div",{}, el("div",{class:"k"},"m1frame Studio"),
@@ -1071,6 +1075,24 @@ async function loadSchedule(){const w=$("#schedwrap"); if(!w)return;
         await fetch(API+"/schedule",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({job_id:idIn.value,task:taskIn.value,interval_hours:24})});loadSchedule();}},"add")));
   }catch(e){w.textContent="Scheduler unavailable.";}}
+async function loadToolsGateways(){const w=$("#toolgate"); if(!w)return;
+  if(!S.server){w.innerHTML='<span style="color:var(--mute)">Tools &amp; gateways come alive with the API server (python api/server.py).</span>';return;}
+  try{
+    const [t,g]=await Promise.all([fetch(API+"/tools").then(r=>r.json()),fetch(API+"/gateway/status").then(r=>r.json())]);
+    w.innerHTML="";
+    w.append(el("div",{class:"setrow"},
+      el("div",{}, el("div",{class:"k"},"Agent tools · "+((t.tools||[]).length)),
+        el("div",{class:"d"},(t.tools||[]).map(x=>x.name).join("  ·  ")||"none")),
+      el("button",{class:"btn ghost",onclick:async()=>{
+        const r=await fetch(API+"/tools/call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"calculator",args:{expression:"6*7"}})}).then(x=>x.json());
+        toast("calculator(6*7) = "+r.result);}},"test")));
+    w.append(el("div",{class:"setrow"},
+      el("div",{}, el("div",{class:"k"},"Gateways"),
+        el("div",{class:"d"},"reachable from: "+((g.platforms||[]).join("  ·  ")))),
+      el("button",{class:"btn ghost",onclick:async()=>{
+        const r=await fetch(API+"/gateway/cli/webhook",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"/ping"})}).then(x=>x.json());
+        toast("gateway → "+r.reply);}},"ping")));
+  }catch(e){w.textContent="Tools/gateways unavailable.";}}
 
 /* ══════════════ command palette ══════════════ */
 function togglePalette(open){const p=$("#palette"); p.classList.toggle("open",open);

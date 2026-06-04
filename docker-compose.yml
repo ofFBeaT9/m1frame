@@ -1,0 +1,26 @@
+# m1frame Studio — one-command deploy.
+#   docker compose up --build       → http://localhost:8080
+# Drop your keys in .env (ANTHROPIC_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY …);
+# without a key the Studio runs in demo mode. Volumes persist the knowledge graph,
+# learned skills, and run history across container restarts.
+services:
+  m1frame:
+    build: .
+    image: m1frame:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Messaging gateways (optional):
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - ./wiki:/app/wiki
+      - ./skills:/app/skills
+      - ./runs:/app/runs
+    restart: unless-stopped

@@ -9,6 +9,29 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.3.0] — 2026-06-04 — "Constellation" (close the Hermes gap)
+### Added
+- **Messaging gateways** (`gateways/`): one transport-agnostic `GatewayRouter` (local `/help` `/status`
+  `/ping` commands; `/run` → full deliberation; plain text → grounded chat) behind **Telegram / Slack /
+  Discord / generic-webhook / CLI** adapters (pure parse/format fns + real delivery). API:
+  `POST /gateway/{platform}/webhook` (SSRF-guarded, Slack URL-verification), `GET /gateway/status`.
+  Run a local gateway with `python -m gateways` or a Telegram bot with `python -m gateways --telegram`.
+- **Agent tool surface** (`tools/`): `ToolRegistry` + auditable built-ins (safe AST `calculator`,
+  `wiki_search`, `datetime_now`, `word_count`, SSRF-guarded `http_get`) + an MCP-client connector for
+  external MCP servers. API: `GET /tools`, `POST /tools/call`.
+- **Persistent run store**: completed runs are written atomically to `runs/<id>.json`, reloaded on
+  startup, and searchable via `GET /runs/search?q=` — Runs history now survives restarts.
+- **More providers**: `nous`, `novita`, `nvidia_nim` presets (OpenAI-compatible) alongside `openrouter`.
+- **Docker deploy**: `Dockerfile` + `docker-compose.yml` (+ `.dockerignore`) — `docker compose up` serves
+  the Studio on :8080 with volumes for `wiki/`, `skills/`, `runs/`.
+- Shared SSRF guard factored into `agents/net.py` (one policy for the API + gateways).
+
+### Notes
+- **90/90** offline QA (added 16 tests: gateways ×6, tools ×6, run store ×2, deploy ×2). All new subsystems
+  are additive and best-effort — a gateway/tool/persistence error can never break a pipeline run.
+- Honest positioning unchanged: m1frame now **closes the gateway/tool/deploy gaps in code**, but Hermes still
+  leads on tool *breadth* and production maturity. See MANUAL §11.
+
 ## [1.2.0] — 2026-06-04 — "Studio + Skills"
 ### Added
 - **Council-vetted skill-learning loop** (`agents/skills.py`): runs that pass the QA gate (score ≥ threshold)

@@ -5,7 +5,7 @@
 # All other settings are backend-specific.
 
 # ── LLM Backend ──────────────────────────────────────────────────
-backend: claude          # claude | openai | openrouter | ollama | vllm | lmstudio
+backend: claude          # claude | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
 
 claude:
   model: claude-sonnet-4-20250514
@@ -47,6 +47,27 @@ openrouter:               # 200+ models through one OpenAI-compatible endpoint
   max_tokens: 8096
   temperature: 0.2
   api_key_env: OPENROUTER_API_KEY
+
+nous:                     # Nous Portal (OpenAI-compatible) — set base_url per your portal
+  model: Hermes-4-405B
+  base_url: https://inference-api.nousresearch.com/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NOUS_API_KEY
+
+novita:                   # Novita AI
+  model: meta-llama/llama-3.3-70b-instruct
+  base_url: https://api.novita.ai/v3/openai
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NOVITA_API_KEY
+
+nvidia_nim:               # NVIDIA NIM / Nemotron
+  model: nvidia/llama-3.1-nemotron-70b-instruct
+  base_url: https://integrate.api.nvidia.com/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NVIDIA_API_KEY
 
 # ── Pillar: BMAD ─────────────────────────────────────────────────
 bmad:

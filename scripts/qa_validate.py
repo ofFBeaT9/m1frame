@@ -686,6 +686,109 @@ def t_skill_tolerates_partial(m):
     assert s.uses==0 and s.score==0.0 and s.roles==[]
 
 
+# ── Gateways (messaging) ──────────────────────────────────────────────────────
+def t_gw_commands(m):
+    from gateways.router import GatewayRouter, InboundMessage
+    r=GatewayRouter()
+    assert "m1frame" in r.handle(InboundMessage(text="/help")).text
+    assert "pong" in r.handle(InboundMessage(text="/ping")).text.lower()
+    assert "uptime" in r.handle(InboundMessage(text="/status")).text.lower()
+def t_gw_routes_to_handler(m):
+    from gateways.router import GatewayRouter, InboundMessage
+    r=GatewayRouter(handler=lambda msg:"ECHO:"+msg.text)
+    assert r.handle(InboundMessage(text="hello world")).text=="ECHO:hello world"
+def t_gw_handler_never_crashes(m):
+    from gateways.router import GatewayRouter, InboundMessage
+    def boom(msg): raise RuntimeError("kaboom")
+    assert "error" in GatewayRouter(handler=boom).handle(InboundMessage(text="hi")).text.lower()
+def t_gw_run_mode(m):
+    from gateways.router import GatewayRouter, InboundMessage
+    seen={}
+    GatewayRouter(handler=lambda msg:seen.update(mode=msg.meta.get("mode")) or "ok").handle(InboundMessage(text="/run build an api"))
+    assert seen["mode"]=="run"
+def t_gw_adapters(m):
+    from gateways import adapters
+    from gateways.router import OutboundMessage
+    tg=adapters.telegram_parse({"update_id":5,"message":{"text":"hi","chat":{"id":42},"from":{"username":"bob"}}})
+    assert tg.text=="hi" and tg.channel=="42" and tg.user=="bob" and tg.platform=="telegram"
+    assert adapters.telegram_format(OutboundMessage(text="yo",channel="42"))["chat_id"]=="42"
+    assert adapters.slack_parse({"event":{"text":"hey","user":"u","channel":"C1"}}).channel=="C1"
+    assert adapters.discord_parse({"content":"sup","author":{"username":"d"},"channel_id":"9"}).platform=="discord"
+    gen=adapters.parse("homeassistant",{"text":"q","user":"x"}); assert gen.text=="q" and gen.platform=="homeassistant"
+    assert adapters.telegram_parse({"message":{"chat":{"id":1}}}) is None   # no text -> skip
+def t_gw_api(m):
+    from fastapi.testclient import TestClient
+    from api.server import create_app
+    c=TestClient(create_app())
+    assert "pong" in c.post("/gateway/cli/webhook", json={"text":"/ping"}).json()["reply"].lower()
+    assert c.post("/gateway/slack/webhook", json={"type":"url_verification","challenge":"abc"}).json()["challenge"]=="abc"
+    assert "telegram" in c.get("/gateway/status").json()["platforms"]
+
+
+# ── Tools (agent tool surface) ────────────────────────────────────────────────
+def t_tool_registry(m):
+    from tools import ToolRegistry, Tool
+    r=ToolRegistry(); r.register(Tool("echo","e",lambda x:x,{"x":"any"}))
+    assert "echo" in r and len(r)==1 and r.call("echo",{"x":7})==7 and r.list()[0]["name"]=="echo"
+def t_tool_calculator(m):
+    from tools.builtin import calculator
+    assert calculator("2*(3+4)")==14 and calculator("2**10")==1024 and calculator("-5+3")==-2
+    raised=False
+    try: calculator("__import__('os').system('x')")
+    except Exception: raised=True
+    assert raised   # names/calls rejected by the AST evaluator
+def t_tool_builtins_present(m):
+    from tools.builtin import default_registry
+    names=default_registry().names()
+    for n in ("calculator","wiki_search","datetime_now","word_count","http_get"): assert n in names
+def t_tool_wiki_search(m):
+    from tools.builtin import default_registry
+    assert isinstance(default_registry().call("wiki_search",{"query":"chip ternary decision","k":2}), list)
+def t_tool_http_ssrf(m):
+    from tools.builtin import http_get
+    assert "error" in http_get("http://127.0.0.1:8080/")   # loopback blocked, no network hit
+    assert "error" in http_get("file:///etc/passwd")        # non-http blocked
+def t_tool_api(m):
+    from fastapi.testclient import TestClient
+    from api.server import create_app
+    c=TestClient(create_app())
+    assert any(t["name"]=="calculator" for t in c.get("/tools").json()["tools"])
+    assert c.post("/tools/call",json={"name":"calculator","args":{"expression":"6*7"}}).json()["result"]==42
+    assert c.post("/tools/call",json={"name":"nope","args":{}}).status_code==404
+
+
+# ── Run store (disk persistence + search) ─────────────────────────────────────
+def t_run_persist(m):
+    import api.server as S, tempfile
+    from pathlib import Path
+    old=S._RUNS_DIR
+    S._RUNS_DIR=Path(tempfile.mkdtemp())/"runs"
+    try:
+        S._RUNS.clear()
+        S._persist_run({"run_id":"abc123","goal":"persist me","status":"complete","score":8.0,"output":"x","events":[{"type":"final"}]})
+        assert (S._RUNS_DIR/"abc123.json").exists()
+        S._RUNS.clear()
+        n=S._load_persisted_runs()
+        assert n>=1 and S._RUNS.get("abc123",{}).get("goal")=="persist me"
+    finally:
+        S._RUNS_DIR=old; S._RUNS.clear()
+def t_run_search_api(m):
+    from fastapi.testclient import TestClient
+    import api.server as S
+    from api.server import create_app
+    c=TestClient(create_app())
+    S._RUNS["zz999"]={"run_id":"zz999","goal":"unique-quokka-objective","status":"complete","score":7.5,"output":"","events":[]}
+    assert any(x["run_id"]=="zz999" for x in c.get("/runs/search",params={"q":"quokka"}).json())
+def t_provider_presets(m):
+    from llm_client import load_config
+    import api.server as S
+    c=load_config()
+    for b in ("openrouter","nous","novita","nvidia_nim"):
+        assert b in c and c[b].get("base_url","").startswith("http") and b in S.ALL_BACKENDS
+def t_docker_files(m):
+    assert Path("Dockerfile").exists() and Path("docker-compose.yml").exists()
+
+
 # ══ Registry ══════════════════════════════════════════════════════════════════
 ALL: dict[str,list] = {
     "config":   [("Config keys",              t_config),
@@ -761,6 +864,22 @@ ALL: dict[str,list] = {
                  ("reinforce + dedup",        t_skill_reinforce_dedup),
                  ("persists to disk",         t_skill_persist),
                  ("tolerates partial json",   t_skill_tolerates_partial)],
+    "gateways": [("Local commands",           t_gw_commands),
+                 ("Routes to handler",        t_gw_routes_to_handler),
+                 ("Handler never crashes",    t_gw_handler_never_crashes),
+                 ("/run mode tag",            t_gw_run_mode),
+                 ("Platform adapters",        t_gw_adapters),
+                 ("API webhook + status",     t_gw_api)],
+    "tools":    [("Registry register/call",   t_tool_registry),
+                 ("Safe calculator",          t_tool_calculator),
+                 ("Built-ins present",        t_tool_builtins_present),
+                 ("wiki_search tool",         t_tool_wiki_search),
+                 ("http_get SSRF guard",      t_tool_http_ssrf),
+                 ("Tools API",                t_tool_api)],
+    "runstore": [("Persist + reload run",     t_run_persist),
+                 ("Runs search API",          t_run_search_api)],
+    "deploy":   [("Provider presets",         t_provider_presets),
+                 ("Docker files present",     t_docker_files)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 

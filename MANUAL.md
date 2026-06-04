@@ -3,7 +3,9 @@
 *A portable, offline-capable multi-agent framework that doesn't just act — it **deliberates, grounds, and
 remembers** — with a real-time UI (Studio) that lets you watch it think.*
 
-> **Version 1.2 "Studio + Skills"** · works with Claude, OpenAI, OpenRouter (200+ models), Ollama, vLLM, LM Studio.
+> **Version 1.3 "Constellation"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
+> Ollama, vLLM, LM Studio · reachable from Telegram / Slack / Discord / webhook / CLI · tool surface + MCP ·
+> persistent runs · one-command Docker.
 
 ---
 
@@ -218,16 +220,49 @@ We benchmark against Nous Research's **Hermes Agent**. The truthful read:
 | Run replay / auditability (within a session) | **m1frame** |
 | Council-**vetted** skill learning (auditable) | **m1frame** (Hermes' loop is broader but black-box) |
 | Portability / offline / zero-lock-in | **m1frame** |
-| Multi-platform gateways (Telegram/Discord/…) | Hermes |
-| Built-in tool breadth (40+) / MCP | Hermes |
-| Model count (200+) | par (via OpenRouter) |
-| Deploy backends (Docker/SSH/Modal/Daytona) | Hermes |
+| Messaging gateways | **m1frame has them (Telegram/Slack/Discord/webhook/CLI)** · Hermes has more platforms + maturity |
+| Tool surface + MCP client | m1frame (small, *auditable* core + MCP) · Hermes (40+ breadth) |
+| Model count (200+) | par (OpenRouter + Nous/Novita/NIM presets) |
+| Deploy | par on **Docker** · Hermes also SSH/Modal/Daytona/Singularity |
+| Persistent run history | **m1frame** (disk-backed, searchable, replayable) |
 | Maturity (~10k commits) | Hermes |
 
 **Honest headline:** *m1frame is the most **auditable** multi-agent workspace there is.* It is **not** broadly
 superior to Hermes across all surface area — and we don't claim "10000×". We lead decisively on transparency you
-can trust. **Roadmap to close the gap:** messaging gateways, an MCP tool surface, a persistent run store, and a
-model-registry UI — each additive, the way the Studio and the skill loop were.
+can trust. **v1.3 closed most of the roadmap in code** — messaging gateways, a tool surface + MCP client, a
+persistent run store, more providers, and Docker. What Hermes still owns: raw **tool breadth** (40+ vs our small
+auditable set), more **deploy targets** (SSH/Modal/Daytona), more **gateway platforms**, and ~10k commits of
+production **maturity**. Those are breadth-and-time gaps, not architecture gaps.
+
+### Gateways — talk to m1frame from anywhere
+
+```bash
+python -m gateways                 # local stdin gateway (offline)
+python -m gateways --telegram      # Telegram bot (needs TELEGRAM_BOT_TOKEN)
+```
+Or point any platform's webhook at the API: `POST /gateway/{telegram|slack|discord|webhook}/webhook`. One
+`GatewayRouter` handles `/help`, `/status`, `/ping`, `/run <goal>` (full deliberation), and plain text (grounded
+chat) — identically on every channel. Outbound replies are SSRF-guarded. Slack URL-verification is handled.
+
+### Tools & MCP
+
+m1frame ships a small, **auditable** tool set rather than a black box of 40+: `calculator` (AST-safe, no `eval`),
+`wiki_search`, `datetime_now`, `word_count`, and an SSRF-guarded `http_get`. List with `GET /tools`; invoke with
+`POST /tools/call {"name","args"}`. Add your own by registering a `Tool`, or attach an **external MCP server**:
+
+```python
+from tools import default_registry
+from tools.mcp_client import MCPClient
+MCPClient().connect_stdio(["python", "my_mcp_server.py"]).register_into(default_registry())  # needs: pip install mcp
+```
+
+### Deploy with Docker
+
+```bash
+docker compose up --build          # → http://localhost:8080 (demo mode with no key)
+```
+Volumes persist `wiki/`, `skills/`, and `runs/`. Set keys in `.env`. For a bare host: `python api/server.py`
+(bind `HOST=0.0.0.0` only behind auth/network rules — the config-write endpoint is unauthenticated).
 
 ---
 

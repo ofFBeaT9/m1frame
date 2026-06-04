@@ -10,3 +10,6 @@ build/
 *.egg-info/
 .venv/
 venv/
+
+# runtime run store (disk-backed runs)
+runs/

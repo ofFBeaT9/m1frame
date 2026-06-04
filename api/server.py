@@ -46,7 +46,7 @@ sys.path.insert(0, str(ROOT))
 
 # ── Optional FastAPI import ───────────────────────────────────────────────────
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, Body
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
     from pydantic import BaseModel
@@ -63,7 +63,8 @@ from llm_client import LLMClient, load_config
 STUDIO_HTML = ROOT / "m1frame-studio.html"
 DEMO_FIXTURE = ROOT / "studio" / "demo_run.json"
 LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio"}
-ALL_BACKENDS = ["claude", "openai", "openrouter", "ollama", "vllm", "lmstudio"]
+ALL_BACKENDS = ["claude", "openai", "openrouter", "nous", "novita", "nvidia_nim",
+                "ollama", "vllm", "lmstudio"]
 SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
                "X-Accel-Buffering": "no"}
 
@@ -86,6 +87,10 @@ if _FASTAPI:
 
     class SkillSuggestRequest(BaseModel):
         goal: str
+
+    class ToolCallRequest(BaseModel):
+        name: str
+        args: dict = {}
 
     class WikiIngestRequest(BaseModel):
         text: str
@@ -131,6 +136,44 @@ def _new_run(goal: str) -> str:
 def _public(run: dict) -> dict:
     """Run dict safe to JSON-serialize (drops the EventBus / task handles)."""
     return {k: v for k, v in run.items() if k not in ("bus", "task")}
+
+
+# ── Disk-backed run store (survives restarts; replayable in Studio) ────────────
+_RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
+
+
+def _persist_run(run: dict) -> None:
+    """Atomically write a completed run's full event trace to runs/<id>.json."""
+    import json as _json
+    import os as _os
+    try:
+        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        path = _RUNS_DIR / f"{run['run_id']}.json"
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(_json.dumps(_public(run)), encoding="utf-8")
+        _os.replace(tmp, path)
+    except Exception:  # noqa: BLE001 — persistence is best-effort, never fatal to a run
+        pass
+
+
+def _load_persisted_runs(limit: int = 50) -> int:
+    """Load the most recent persisted runs into memory on startup."""
+    import json as _json
+    if not _RUNS_DIR.exists():
+        return 0
+    n = 0
+    files = sorted(_RUNS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for f in files[:limit]:
+        try:
+            d = _json.loads(f.read_text(encoding="utf-8"))
+            rid = d.get("run_id")
+            if rid and rid not in _RUNS:
+                d["bus"], d["task"] = None, None
+                _RUNS[rid] = d
+                n += 1
+        except Exception:  # noqa: BLE001
+            continue
+    return n
 
 
 def _can_run_live(cfg: dict, backend: Optional[str] = None) -> bool:
@@ -187,12 +230,13 @@ def create_app() -> "FastAPI":
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.2.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.3.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
         allow_headers=["*"], allow_credentials=False,
     )
+    _load_persisted_runs()   # restore prior runs so Runs history survives restarts
 
     # ── UI ──────────────────────────────────────────────────────────────────────
     @app.get("/", include_in_schema=False)
@@ -211,7 +255,7 @@ def create_app() -> "FastAPI":
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.2.0",
+            "status": "ok", "version": "1.3.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -272,6 +316,16 @@ def create_app() -> "FastAPI":
     @app.get("/runs")
     async def list_runs():
         return [_public(r) for r in _RUNS.values()]
+
+    @app.get("/runs/search")
+    async def search_runs(q: str = ""):
+        ql = (q or "").lower().strip()
+        hits = []
+        for r in _RUNS.values():
+            hay = (r.get("goal", "") + " " + (r.get("output") or "")).lower()
+            if not ql or ql in hay:
+                hits.append(_public(r))
+        return hits
 
     @app.get("/run/{run_id}/events", include_in_schema=False)
     async def run_events(run_id: str):
@@ -408,6 +462,58 @@ def create_app() -> "FastAPI":
             raise HTTPException(404, "skill_id not found")
         return {"removed": skill_id}
 
+    # ── messaging gateways (one router, many platforms) ───────────────────────────
+    from gateways.router import GatewayRouter, OutboundMessage
+    from gateways import adapters as _gw_adapters
+    from gateways.handlers import grounded_answer
+
+    def _gw_status():
+        return {"backend": cfg.get("backend"), "pillars": 7,
+                "can_run_live": _can_run_live(cfg), "runs": len(_RUNS)}
+    _gw_router = GatewayRouter(handler=lambda m: grounded_answer(m.text), status_fn=_gw_status)
+
+    @app.get("/gateway/status")
+    async def gateway_status():
+        return {"platforms": list(_gw_adapters.ADAPTERS.keys()) + ["webhook", "cli"],
+                "status": _gw_status()}
+
+    @app.post("/gateway/{platform}/webhook")
+    async def gateway_webhook(platform: str, payload: dict = Body(default={})):
+        # Slack URL-verification handshake
+        if isinstance(payload, dict) and payload.get("type") == "url_verification":
+            return {"challenge": payload.get("challenge")}
+        msg = _gw_adapters.parse(platform, payload)
+        if msg is None:
+            return {"ok": True, "skipped": "no text"}
+        text = (msg.text or "").strip()
+        _tl = text.lower()
+        if (_tl == "/run" or _tl.startswith("/run ")) and text[4:].strip():
+            res = await submit_run(RunRequest(goal=text[4:].strip()))
+            out = OutboundMessage(text=f"▸ started deliberation · run {res['run_id']} ({res['mode']}). "
+                                       f"Watch it live in Studio.", channel=msg.channel, platform=platform)
+        else:
+            out = _gw_router.handle(msg)
+        delivered = _gw_adapters.deliver(out)       # best-effort; needs platform creds
+        return {"ok": True, "reply": out.text, "delivered": delivered,
+                "payload": _gw_adapters.format_out(platform, out)}
+
+    # ── tool surface ──────────────────────────────────────────────────────────────
+    from tools import default_registry as _tool_registry
+
+    @app.get("/tools")
+    async def list_tools():
+        return {"tools": _tool_registry().list()}
+
+    @app.post("/tools/call")
+    async def call_tool(req: "ToolCallRequest"):
+        reg = _tool_registry()
+        if req.name not in reg:
+            raise HTTPException(404, f"unknown tool '{req.name}'")
+        try:
+            return {"name": req.name, "result": reg.call(req.name, req.args)}
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"tool error: {e}")
+
     @app.get("/metrics", response_class=PlainTextResponse)
     async def prometheus_metrics():
         return metrics.to_prometheus()
@@ -483,6 +589,7 @@ def create_app() -> "FastAPI":
             run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
             metrics.record("pipeline", ms=(time.time() - t0) * 1000,
                            error=run["status"] == "error")
+            _persist_run(run)  # survives restarts; replayable in Studio
             bus.close()  # idempotent — guarantees the SSE stream terminates
         if req.webhook_url and run["status"] == "complete":
             await _fire_webhook(req.webhook_url, _public(run))
@@ -509,6 +616,7 @@ def create_app() -> "FastAPI":
             run["status"] = "error"
         finally:
             run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+            _persist_run(run)  # demo runs persist too, so Runs history is real
             bus.close()  # idempotent — terminates the SSE stream on every path
 
     return app
@@ -517,30 +625,10 @@ def create_app() -> "FastAPI":
 # ── webhook delivery ──────────────────────────────────────────────────────────
 
 def _safe_webhook(url: str) -> bool:
-    """Block SSRF: require http(s) and reject loopback / private / link-local / metadata.
-
-    Note: IP *literals* are checked here. A hostname that resolves to a private IP via
-    DNS is not re-resolved (no blocking DNS in the hot path) — documented limitation.
-    """
-    try:
-        import ipaddress
-        from urllib.parse import urlparse
-        u = urlparse(url)
-        if u.scheme not in ("http", "https") or not u.hostname:
-            return False
-        host = u.hostname
-        if host.lower() in ("localhost", "metadata.google.internal"):
-            return False
-        try:
-            ip = ipaddress.ip_address(host)
-            if (ip.is_private or ip.is_loopback or ip.is_link_local
-                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-                return False
-        except ValueError:
-            pass  # not an IP literal — a regular hostname
-        return True
-    except Exception:
-        return False
+    """Block SSRF on outbound webhooks. Delegates to the shared guard in
+    agents.net so the API and the messaging gateways enforce one policy."""
+    from agents.net import safe_url
+    return safe_url(url)
 
 
 async def _fire_webhook(url: str, payload: dict) -> None:

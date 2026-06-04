@@ -1,0 +1,15 @@
+.git
+.github
+__pycache__
+*.pyc
+.venv
+venv
+.env
+.claude
+node_modules
+*.pdf
+figs
+Tritone-companion-code
+.pytest_cache
+.mypy_cache
+runs/*.json

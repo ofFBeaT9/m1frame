@@ -5,7 +5,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
 **Portable multi-agent AI framework** — 7 pillars, 6 source repositories, one pipeline.  
-Works with Claude, OpenAI, Ollama, vLLM, and LM Studio. Switch backends in one line.  
+Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  
+Reach it from **Telegram / Slack / Discord / webhook / CLI**, give it **tools**, deploy with **Docker**.  
 Fully offline-capable. Git-versionable. Zero lock-in.
 
 > **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
@@ -13,8 +14,9 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > final answer; m1frame shows you the **reasoning** — the debate, the red-team, the grounding. Run it with no API
 > key (gorgeous demo mode) or wire a key for live runs.
 >
-> Now also **self-improving** (council-**vetted** skills learned from passing runs) and **200+ models** via
-> OpenRouter. 📖 **Full guide: [MANUAL.md](MANUAL.md).**
+> Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), an **agent tool surface**, and
+> **persistent run history** — deployable with one `docker compose up`. 📖 **Full guide: [MANUAL.md](MANUAL.md).**
 
 ---
 
@@ -37,7 +39,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
-python scripts/qa_validate.py  # 43 tests, no key needed
+python scripts/qa_validate.py  # 90 tests, no key needed
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
@@ -61,7 +63,7 @@ python studio/build_demo.py                         # build the demo fixture (on
 python api/server.py                                # → open http://localhost:8080
 ```
 
-Six surfaces, one renderer:
+Seven surfaces, one renderer:
 
 | Surface | What you get |
 |---|---|
@@ -80,7 +82,7 @@ Six surfaces, one renderer:
 
 It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
-`emit=None` by default, so the CLI and the **68/68** QA suite are byte-for-byte unaffected.
+`emit=None` by default, so the CLI and the **90/90** QA suite are byte-for-byte unaffected.
 
 ### Why m1frame is the most *auditable* multi-agent workspace
 
@@ -265,4 +267,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.2.0 "Studio + Skills" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.3.0 "Constellation" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
