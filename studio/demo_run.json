@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "goal": "What chip should we manufacture for the Tritone medical accelerator \u2014 an analog optical processor, or a digital ternary ASIC?",
-  "generated": "2026-06-04 03:48",
-  "duration_ms": 29300,
+  "goal": "Should we ship our MVP as a monolith or microservices?",
+  "generated": "2026-06-04 04:17",
+  "duration_ms": 30020,
   "events": [
     {
       "delay_ms": 0,
       "type": "run_start",
       "seq": 1,
-      "goal": "What chip should we manufacture for the Tritone medical accelerator \u2014 an analog optical processor, or a digital ternary ASIC?",
+      "goal": "Should we ship our MVP as a monolith or microservices?",
       "options": {
         "backend": "claude (demo replay)",
         "parallel": false,
@@ -22,10 +22,10 @@
       "pillar": "bmad",
       "skills": [
         {
-          "id": "c9d0e1f2",
-          "title": "Regulated Hardware Architecture Decision",
-          "uses": 1,
-          "score": 8.0
+          "id": "b7c2d9e1",
+          "title": "Architecture Decision Recipe",
+          "uses": 2,
+          "score": 8.4
         }
       ]
     },
@@ -42,60 +42,60 @@
       "type": "bmad_blueprint",
       "seq": 4,
       "pillar": "bmad",
-      "project": "Tritone Chip Decision",
-      "domain": "medical edge AI / silicon",
-      "mvp": "Pick a manufacturable compute substrate that clears the FDA bar",
+      "project": "MVP Architecture Decision",
+      "domain": "software architecture",
+      "mvp": "Pick an architecture that ships the MVP fast without blocking future scale",
       "issues": [],
       "stories": [
         {
           "id": 1,
-          "title": "Frame the determinism-vs-efficiency tradeoff",
+          "title": "Frame the speed-vs-scale tradeoff",
           "role": "analyst",
           "complexity": "medium",
           "depends_on": [],
           "acceptance_criteria": [
-            "Bit-exactness defined as FDA prerequisite"
+            "Decide what 'scale' actually means for this MVP"
           ]
         },
         {
           "id": 2,
-          "title": "Investigate photonic MVM noise floor",
+          "title": "Investigate the real cost of distributed ops",
           "role": "investigator",
           "complexity": "high",
           "depends_on": [
             1
           ],
           "acceptance_criteria": [
-            "Static-defect floor quantified from OPU study"
+            "Quantify team-size vs service-count overhead"
           ]
         },
         {
           "id": 3,
-          "title": "Design digital ternary datapath",
+          "title": "Design a modular monolith",
           "role": "architect",
           "complexity": "high",
           "depends_on": [
             1
           ],
           "acceptance_criteria": [
-            "Multiplier-free {-1,0,+1}; 42% zeros skipped"
+            "Clear module seams; one deploy, many bounded contexts"
           ]
         },
         {
           "id": 4,
-          "title": "Cross-check regulatory path (510k)",
+          "title": "Plan the service-extraction path",
           "role": "architect",
           "complexity": "medium",
           "depends_on": [
-            1
+            3
           ],
           "acceptance_criteria": [
-            "Determinism maps to SaMD locked-algorithm rule"
+            "A module can become a service without a rewrite"
           ]
         },
         {
           "id": 5,
-          "title": "Red-team the analog 'win'",
+          "title": "Red-team the microservices hype",
           "role": "qa",
           "complexity": "high",
           "depends_on": [
@@ -103,7 +103,7 @@
             3
           ],
           "acceptance_criteria": [
-            "Classify each CIM macro analog vs digital"
+            "Test the claim that microservices reduce coupling"
           ]
         }
       ]
@@ -138,17 +138,17 @@
       "pillar": "council",
       "mode": "brainstorm",
       "persona": "Critic",
-      "approach": "Attack the premise that efficiency is the objective.",
+      "approach": "Attack the premise that microservices are the 'scalable' default.",
       "considerations": [
-        "TOPS/W is the wrong metric for N\u22484 regulated inference"
+        "A pre-PMF MVP has near-zero scaling pressure"
       ],
       "risks": [
-        "Chasing analog efficiency forfeits bit-exactness"
+        "Premature decomposition spends the team's budget on plumbing, not product"
       ],
       "opportunities": [
-        "Determinism is a structural moat, not a tuning knob"
+        "Shipping speed is the only scalability that matters before product-market fit"
       ],
-      "direction": "Optimize for the cheapest bit-exact design that clears FDA, not peak TOPS/W."
+      "direction": "Optimize for the fastest path to a shippable product, not for hypothetical scale."
     },
     {
       "delay_ms": 350,
@@ -165,18 +165,18 @@
       "pillar": "council",
       "mode": "brainstorm",
       "persona": "Advocate",
-      "approach": "Steelman a small digital ternary ASIC.",
+      "approach": "Steelman a modular monolith with clean seams.",
       "considerations": [
-        "SKY130 open MPW ~ $10-12k NRE",
-        "Cortex-M33 host for weight load"
+        "One deploy, one DB, bounded contexts as modules",
+        "CI stays trivial"
       ],
       "risks": [
-        "Tape-out before clinical volume wastes NRE"
+        "Sloppy modules become a big ball of mud"
       ],
       "opportunities": [
-        "Frozen-model edge inference at sub-10 mW"
+        "Refactor in-process now; extract a service later for ~free"
       ],
-      "direction": "Build digital ternary; gate the tape-out behind real triggers."
+      "direction": "Build a modular monolith; keep module boundaries strict so extraction is cheap."
     },
     {
       "delay_ms": 350,
@@ -193,33 +193,33 @@
       "pillar": "council",
       "mode": "brainstorm",
       "persona": "Domain Expert",
-      "approach": "Bound the photonics physics from the OPU study.",
+      "approach": "Bound the real cost of distributed systems.",
       "considerations": [
-        "7.8% static-defect value floor more SNR cannot remove",
-        "~262 W tuning for a 512x512 MZI mesh; E/O-O/E overhead below N\u22484096"
+        "Network calls add partial-failure, retries, idempotency, tracing",
+        "A 3\u20136 person team can't staff per-service on-call"
       ],
       "risks": [
-        "Derivatives ~6x more fragile than values under analog noise"
+        "Distributed transactions and eventual consistency dominate early eng time"
       ],
       "opportunities": [
-        "Optics OK only as inference-only accelerator for a frozen PINN"
+        "Conway's Law: ship one service per team you actually have (one)"
       ],
-      "direction": "Reject optical training/gradients; analog cannot meet the accuracy budget."
+      "direction": "Don't pay distributed-systems tax before you have the team or the load to justify it."
     },
     {
       "delay_ms": 800,
       "type": "council_brainstorm",
       "seq": 13,
       "pillar": "council",
-      "plan": "Converge on a deterministic digital ternary chip; treat optics as inference-only at best.",
+      "plan": "Converge on a modular monolith; treat microservices as a later, trigger-gated extraction.",
       "steps": [
-        "Quantify analog floor",
-        "Design digital datapath",
-        "Map to 510(k)",
-        "Red-team analog CIM"
+        "Quantify the ops tax",
+        "Design strict module seams",
+        "Define extraction triggers",
+        "Red-team the coupling claim"
       ],
       "risks": [
-        "An analog CIM 'win' may hide an ADC that breaks determinism"
+        "A 'microservices reduce coupling' claim may hide coupling moving to the network"
       ],
       "confidence": "high"
     },
@@ -245,7 +245,7 @@
       "seq": 16,
       "pillar": "openplanter",
       "mode": "llm+grounded",
-      "summary": "OPU feasibility sim (ternary PINN, bit-exact baseline + optical-noise model, sparsity 42.4%): VALUES survive analog optics but DERIVATIVES do not. Value error crosses the 19.4% ternary budget at optical SNR ~18.2 dB/layer with a static-defect floor ~7.8%. A 2% photonic weight defect with zero readout noise already gives 8.1% value error but 51.9% derivative error (~6x fragility gap).",
+      "summary": "Investigation across team-size and failure-mode data: below ~15\u201320 engineers, microservices overhead (CI/CD per service, network partial-failure handling, distributed tracing, on-call fan-out) consistently outweighs the scaling benefit for a pre-PMF product. The recurring failure pattern is 'distributed monolith': services so chatty they must deploy together \u2014 all of the cost of distribution, none of the independence.",
       "web_results": 3
     },
     {
@@ -270,7 +270,7 @@
       "pillar": "miras",
       "id": 1,
       "role": "analyst",
-      "title": "Frame determinism-vs-efficiency"
+      "title": "Frame speed-vs-scale"
     },
     {
       "delay_ms": 800,
@@ -279,7 +279,7 @@
       "pillar": "miras",
       "id": 1,
       "role": "analyst",
-      "preview": "For a regulated, edge, small-N medical workload, determinism dominates efficiency."
+      "preview": "Before product-market fit, shipping speed dominates; 'scale' is a problem you want to have."
     },
     {
       "delay_ms": 250,
@@ -288,7 +288,7 @@
       "pillar": "miras",
       "id": 2,
       "role": "investigator",
-      "title": "Photonic MVM noise floor"
+      "title": "Cost of distributed ops"
     },
     {
       "delay_ms": 850,
@@ -297,7 +297,7 @@
       "pillar": "miras",
       "id": 2,
       "role": "investigator",
-      "preview": "Static-defect floor ~7.8% value error; derivatives never reach the budget at any SNR."
+      "preview": "Per-service CI, on-call, and network failure-handling exceed the benefit below ~15\u201320 engineers."
     },
     {
       "delay_ms": 250,
@@ -306,7 +306,7 @@
       "pillar": "miras",
       "id": 3,
       "role": "architect",
-      "title": "Digital ternary datapath"
+      "title": "Modular monolith design"
     },
     {
       "delay_ms": 900,
@@ -315,7 +315,7 @@
       "pillar": "miras",
       "id": 3,
       "role": "architect",
-      "preview": "Weights \u2208 {-1,0,+1} \u2192 mux + conditional add; 42% zeros skipped; bit-exact integer path."
+      "preview": "Bounded contexts as in-process modules behind interfaces; one deploy, one DB, strict seams."
     },
     {
       "delay_ms": 250,
@@ -324,7 +324,7 @@
       "pillar": "miras",
       "id": 4,
       "role": "architect",
-      "title": "Regulatory path"
+      "title": "Service-extraction path"
     },
     {
       "delay_ms": 800,
@@ -333,7 +333,7 @@
       "pillar": "miras",
       "id": 4,
       "role": "architect",
-      "preview": "Bit-exact inference maps to the SaMD locked-algorithm rule; analog non-determinism fails 510(k)."
+      "preview": "Each module exposes a narrow interface so it can be lifted to a service without a rewrite."
     },
     {
       "delay_ms": 250,
@@ -342,7 +342,7 @@
       "pillar": "miras",
       "id": 5,
       "role": "qa",
-      "title": "Red-team the analog win"
+      "title": "Red-team the coupling claim"
     },
     {
       "delay_ms": 900,
@@ -351,7 +351,7 @@
       "pillar": "miras",
       "id": 5,
       "role": "qa",
-      "preview": "Charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM qualifies."
+      "preview": "Microservices don't remove coupling \u2014 they relocate it to the network, adding partial failure."
     },
     {
       "delay_ms": 400,
@@ -374,7 +374,7 @@
       "type": "karpathy_token",
       "seq": 31,
       "pillar": "karpathy",
-      "chunk": "Manufacture "
+      "chunk": "Ship "
     },
     {
       "delay_ms": 60,
@@ -388,273 +388,413 @@
       "type": "karpathy_token",
       "seq": 33,
       "pillar": "karpathy",
-      "chunk": "fully-digital, "
+      "chunk": "modular "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 34,
       "pillar": "karpathy",
-      "chunk": "multiplier-free "
+      "chunk": "monolith "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 35,
       "pillar": "karpathy",
-      "chunk": "ternary "
+      "chunk": "first. "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 36,
       "pillar": "karpathy",
-      "chunk": "ASIC. "
+      "chunk": "Simplicity "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 37,
       "pillar": "karpathy",
-      "chunk": "Determinism "
+      "chunk": "is "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 38,
       "pillar": "karpathy",
-      "chunk": "is "
+      "chunk": "the "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 39,
       "pillar": "karpathy",
-      "chunk": "the "
+      "chunk": "product, "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 40,
       "pillar": "karpathy",
-      "chunk": "product, "
+      "chunk": "not "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 41,
       "pillar": "karpathy",
-      "chunk": "not "
+      "chunk": "a "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 42,
       "pillar": "karpathy",
-      "chunk": "a "
+      "chunk": "compromise. "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 43,
       "pillar": "karpathy",
-      "chunk": "side "
+      "chunk": "Enforce "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 44,
       "pillar": "karpathy",
-      "chunk": "effect. "
+      "chunk": "strict "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 45,
       "pillar": "karpathy",
-      "chunk": "Two "
+      "chunk": "module "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 46,
       "pillar": "karpathy",
-      "chunk": "phases, "
+      "chunk": "boundaries "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 47,
       "pillar": "karpathy",
-      "chunk": "trigger-gated: "
+      "chunk": "now "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 48,
       "pillar": "karpathy",
-      "chunk": "SKY130 "
+      "chunk": "so "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 49,
       "pillar": "karpathy",
-      "chunk": "open-MPW "
+      "chunk": "any "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 50,
       "pillar": "karpathy",
-      "chunk": "prototype "
+      "chunk": "module "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 51,
       "pillar": "karpathy",
-      "chunk": "as "
+      "chunk": "can "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 52,
       "pillar": "karpathy",
-      "chunk": "a "
+      "chunk": "be "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 53,
       "pillar": "karpathy",
-      "chunk": "golden-vector "
+      "chunk": "extracted "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 54,
       "pillar": "karpathy",
-      "chunk": "vehicle, "
+      "chunk": "into "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 55,
       "pillar": "karpathy",
-      "chunk": "then "
+      "chunk": "a "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 56,
       "pillar": "karpathy",
-      "chunk": "TSMC "
+      "chunk": "service "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 57,
       "pillar": "karpathy",
-      "chunk": "22/28 "
+      "chunk": "the "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 58,
       "pillar": "karpathy",
-      "chunk": "nm "
+      "chunk": "day "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 59,
       "pillar": "karpathy",
-      "chunk": "production "
+      "chunk": "a "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 60,
       "pillar": "karpathy",
-      "chunk": "with "
+      "chunk": "real "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 61,
       "pillar": "karpathy",
-      "chunk": "a "
+      "chunk": "scaling "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 62,
       "pillar": "karpathy",
-      "chunk": "Cortex-M33 "
+      "chunk": "trigger "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 63,
       "pillar": "karpathy",
-      "chunk": "host "
+      "chunk": "appears "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 64,
       "pillar": "karpathy",
-      "chunk": "and "
+      "chunk": "\u2014 "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 65,
       "pillar": "karpathy",
-      "chunk": "SHA-256-verified "
+      "chunk": "sustained "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 66,
       "pillar": "karpathy",
-      "chunk": "weight "
+      "chunk": "load "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 67,
       "pillar": "karpathy",
-      "chunk": "load. "
+      "chunk": "a "
     },
     {
       "delay_ms": 60,
       "type": "karpathy_token",
       "seq": 68,
       "pillar": "karpathy",
+      "chunk": "single "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 69,
+      "pillar": "karpathy",
+      "chunk": "box "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 70,
+      "pillar": "karpathy",
+      "chunk": "can't "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 71,
+      "pillar": "karpathy",
+      "chunk": "serve, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 72,
+      "pillar": "karpathy",
+      "chunk": "or "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 73,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 74,
+      "pillar": "karpathy",
+      "chunk": "team "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 75,
+      "pillar": "karpathy",
+      "chunk": "big "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 76,
+      "pillar": "karpathy",
+      "chunk": "enough "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 77,
+      "pillar": "karpathy",
+      "chunk": "to "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 78,
+      "pillar": "karpathy",
+      "chunk": "own "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 79,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 80,
+      "pillar": "karpathy",
+      "chunk": "service "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 81,
+      "pillar": "karpathy",
+      "chunk": "end-to-end. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 82,
+      "pillar": "karpathy",
+      "chunk": "Until "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 83,
+      "pillar": "karpathy",
+      "chunk": "then, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 84,
+      "pillar": "karpathy",
+      "chunk": "one "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 85,
+      "pillar": "karpathy",
+      "chunk": "deploy "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 86,
+      "pillar": "karpathy",
+      "chunk": "beats "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 87,
+      "pillar": "karpathy",
+      "chunk": "ten. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 88,
+      "pillar": "karpathy",
       "chunk": " "
     },
     {
       "delay_ms": 300,
       "type": "karpathy_done",
-      "seq": 69,
+      "seq": 89,
       "pillar": "karpathy",
       "had_cot": true,
-      "thought": "Restate: pick a compute substrate. Known: optics fails the derivative budget and has a 7.8% floor; digital ternary is bit-exact. FDA needs determinism. Therefore digital wins; optics is at most inference-only. Gate the tape-out behind triggers.",
-      "answer_preview": "Manufacture a fully-digital ternary ASIC, trigger-gated, SKY130 \u2192 28 nm."
+      "thought": "Restate: pick an MVP architecture. Known: pre-PMF has ~no scaling pressure; distributed ops carry real, constant cost; coupling doesn't vanish under microservices. Therefore the modular monolith wins now; keep seams strict so extraction is cheap later. Gate splits behind real triggers.",
+      "answer_preview": "Ship a modular monolith; extract services only on a real scaling trigger."
     },
     {
       "delay_ms": 350,
       "type": "pillar_done",
-      "seq": 70,
+      "seq": 90,
       "pillar": "karpathy",
       "ms": 3900
     },
     {
       "delay_ms": 300,
       "type": "pillar_start",
-      "seq": 71,
+      "seq": 91,
       "pillar": "council",
       "idx": 6,
       "label": "Council \u00b7 QA Gate Review"
@@ -662,7 +802,7 @@
     {
       "delay_ms": 450,
       "type": "council_persona_start",
-      "seq": 72,
+      "seq": 92,
       "pillar": "council",
       "mode": "review",
       "persona": "Critic"
@@ -670,21 +810,21 @@
     {
       "delay_ms": 800,
       "type": "council_persona",
-      "seq": 73,
+      "seq": 93,
       "pillar": "council",
       "mode": "review",
       "persona": "Critic",
       "verdict": "conditional",
       "score": 8,
       "key_points": [
-        "Strong, but name the explicit tape-out triggers"
+        "Strong, but name the explicit extraction triggers"
       ],
-      "recommendation": "Add the >500-unit / sub-5mW / 510(k) trigger gate explicitly."
+      "recommendation": "State the split triggers (sustained load / team size / independent deploy need) explicitly."
     },
     {
       "delay_ms": 300,
       "type": "council_persona_start",
-      "seq": 74,
+      "seq": 94,
       "pillar": "council",
       "mode": "review",
       "persona": "Advocate"
@@ -692,7 +832,7 @@
     {
       "delay_ms": 750,
       "type": "council_persona",
-      "seq": 75,
+      "seq": 95,
       "pillar": "council",
       "mode": "review",
       "persona": "Advocate",
@@ -706,7 +846,7 @@
     {
       "delay_ms": 300,
       "type": "council_persona_start",
-      "seq": 76,
+      "seq": 96,
       "pillar": "council",
       "mode": "review",
       "persona": "Domain Expert"
@@ -714,21 +854,21 @@
     {
       "delay_ms": 800,
       "type": "council_persona",
-      "seq": 77,
+      "seq": 97,
       "pillar": "council",
       "mode": "review",
       "persona": "Domain Expert",
       "verdict": "pass",
       "score": 8,
       "key_points": [
-        "Photonics correctly bounded to inference-only"
+        "Extraction path keeps the door open to services"
       ],
-      "recommendation": "Keep optics on the roadmap only for frozen linear layers."
+      "recommendation": "Keep module interfaces narrow so the later split stays a refactor, not a rewrite."
     },
     {
       "delay_ms": 350,
       "type": "council_persona_start",
-      "seq": 78,
+      "seq": 98,
       "pillar": "council",
       "mode": "review",
       "persona": "Red-Team"
@@ -736,36 +876,36 @@
     {
       "delay_ms": 950,
       "type": "council_persona",
-      "seq": 79,
+      "seq": 99,
       "pillar": "council",
       "mode": "review",
       "persona": "Red-Team",
       "verdict": "conditional",
       "score": 7,
       "key_points": [
-        "A council member called charge-domain CIM 'fully deterministic' \u2014 FALSE",
-        "It accumulates analog charge and reads via ADC (PVT, offset, coupling)"
+        "A council member implied microservices 'eliminate coupling' \u2014 FALSE",
+        "They move coupling to the network: partial failure, retries, versioned contracts"
       ],
-      "recommendation": "Drop charge-domain CIM from the deterministic set; only digital ternary CIM is bit-exact."
+      "recommendation": "Drop the 'eliminates coupling' framing; the monolith's in-process coupling is cheaper to change."
     },
     {
       "delay_ms": 900,
       "type": "council_verdict",
-      "seq": 80,
+      "seq": 100,
       "pillar": "council",
       "score": 8.0,
       "verdict": "pass",
       "passed": true,
-      "summary": "Build a fully-digital ternary ASIC, trigger-gated (SKY130 \u2192 28 nm). The single analog 'win' was an internal contradiction the red-team removed.",
+      "summary": "Ship a modular monolith, extraction-ready, with explicit split triggers. The single 'microservices remove coupling' claim was an internal contradiction the red-team removed.",
       "required_fixes": [
-        "State tape-out triggers explicitly",
-        "Remove charge-domain CIM from the bit-exact set"
+        "State the extraction triggers explicitly",
+        "Drop the 'eliminates coupling' claim"
       ]
     },
     {
       "delay_ms": 300,
       "type": "qa_gate",
-      "seq": 81,
+      "seq": 101,
       "pillar": "council",
       "gate": "results-review",
       "status": "PASS",
@@ -774,7 +914,7 @@
     {
       "delay_ms": 350,
       "type": "pillar_done",
-      "seq": 82,
+      "seq": 102,
       "pillar": "council",
       "ms": 6100,
       "phase": "review"
@@ -782,17 +922,17 @@
     {
       "delay_ms": 300,
       "type": "skill_learned",
-      "seq": 83,
+      "seq": 103,
       "pillar": "council",
-      "id": "c9d0e1f2",
-      "title": "Regulated Hardware Architecture Decision",
-      "score": 8.0,
-      "uses": 2
+      "id": "b7c2d9e1",
+      "title": "Architecture Decision Recipe",
+      "score": 8.4,
+      "uses": 3
     },
     {
       "delay_ms": 300,
       "type": "pillar_start",
-      "seq": 84,
+      "seq": 104,
       "pillar": "wiki",
       "idx": 7,
       "label": "LLM Wiki \u00b7 Knowledge Graph Ingest"
@@ -800,15 +940,15 @@
     {
       "delay_ms": 160,
       "type": "graph_delta",
-      "seq": 85,
+      "seq": 105,
       "pillar": "wiki",
       "nodes": [
         {
-          "id": "Analog Derivative Fragility",
+          "id": "Conway's Law",
           "type": "concept"
         },
         {
-          "id": "Bit-Exact Determinism",
+          "id": "Premature Decomposition",
           "type": "concept"
         }
       ],
@@ -817,41 +957,7 @@
     {
       "delay_ms": 160,
       "type": "graph_delta",
-      "seq": 86,
-      "pillar": "wiki",
-      "nodes": [
-        {
-          "id": "FDA SaMD Determinism",
-          "type": "concept"
-        },
-        {
-          "id": "Ternary Computing",
-          "type": "concept"
-        }
-      ],
-      "links": []
-    },
-    {
-      "delay_ms": 160,
-      "type": "graph_delta",
-      "seq": 87,
-      "pillar": "wiki",
-      "nodes": [
-        {
-          "id": "Digital Ternary CIM",
-          "type": "entity"
-        },
-        {
-          "id": "ENS-GI Digital Twin",
-          "type": "entity"
-        }
-      ],
-      "links": []
-    },
-    {
-      "delay_ms": 160,
-      "type": "graph_delta",
-      "seq": 88,
+      "seq": 106,
       "pillar": "wiki",
       "nodes": [
         {
@@ -859,7 +965,7 @@
           "type": "entity"
         },
         {
-          "id": "Optical Processing Unit",
+          "id": "Microservices",
           "type": "entity"
         }
       ],
@@ -868,33 +974,16 @@
     {
       "delay_ms": 160,
       "type": "graph_delta",
-      "seq": 89,
+      "seq": 107,
       "pillar": "wiki",
       "nodes": [
         {
-          "id": "SkyWater SKY130 MPW",
+          "id": "Modular Monolith",
           "type": "entity"
         },
         {
-          "id": "Tritone",
-          "type": "entity"
-        }
-      ],
-      "links": []
-    },
-    {
-      "delay_ms": 160,
-      "type": "graph_delta",
-      "seq": 90,
-      "pillar": "wiki",
-      "nodes": [
-        {
-          "id": "What Chip Should We Manufacture",
+          "id": "Is m1frame v1.3 Production Ready",
           "type": "query"
-        },
-        {
-          "id": "Chip Architecture Council",
-          "type": "source"
         }
       ],
       "links": []
@@ -902,32 +991,28 @@
     {
       "delay_ms": 160,
       "type": "graph_delta",
-      "seq": 91,
+      "seq": 108,
       "pillar": "wiki",
       "nodes": [
         {
-          "id": "OPU Feasibility Study",
-          "type": "source"
-        },
-        {
-          "id": "Chip Manufacturing Decision",
+          "id": "m1frame Constellation Release",
           "type": "synthesis"
-        }
-      ],
-      "links": []
-    },
-    {
-      "delay_ms": 160,
-      "type": "graph_delta",
-      "seq": 92,
-      "pillar": "wiki",
-      "nodes": [
+        },
         {
           "id": "m1frame Studio",
           "type": "synthesis"
-        },
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 109,
+      "pillar": "wiki",
+      "nodes": [
         {
-          "id": "OPU Feasibility Verdict",
+          "id": "MVP Architecture Decision",
           "type": "synthesis"
         }
       ],
@@ -936,121 +1021,29 @@
     {
       "delay_ms": 220,
       "type": "graph_delta",
-      "seq": 93,
+      "seq": 110,
       "pillar": "wiki",
       "nodes": [],
       "links": [
         {
-          "source": "Analog Derivative Fragility",
-          "target": "Optical Processing Unit"
+          "source": "Conway's Law",
+          "target": "MVP Architecture Decision"
         },
         {
-          "source": "Analog Derivative Fragility",
-          "target": "OPU Feasibility Verdict"
+          "source": "Conway's Law",
+          "target": "Microservices"
         },
         {
-          "source": "Analog Derivative Fragility",
-          "target": "Bit-Exact Determinism"
+          "source": "Conway's Law",
+          "target": "Modular Monolith"
         },
         {
-          "source": "Analog Derivative Fragility",
-          "target": "Tritone"
+          "source": "Premature Decomposition",
+          "target": "MVP Architecture Decision"
         },
         {
-          "source": "Analog Derivative Fragility",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "Analog Derivative Fragility",
-          "target": "FDA SaMD Determinism"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "Tritone"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "FDA SaMD Determinism"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "Digital Ternary CIM"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "Ternary Computing"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "Optical Processing Unit"
-        },
-        {
-          "source": "Bit-Exact Determinism",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "FDA SaMD Determinism",
-          "target": "ENS-GI Digital Twin"
-        },
-        {
-          "source": "FDA SaMD Determinism",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "FDA SaMD Determinism",
-          "target": "Optical Processing Unit"
-        },
-        {
-          "source": "FDA SaMD Determinism",
-          "target": "Tritone"
-        },
-        {
-          "source": "FDA SaMD Determinism",
-          "target": "Digital Ternary CIM"
-        },
-        {
-          "source": "Ternary Computing",
-          "target": "Tritone"
-        },
-        {
-          "source": "Ternary Computing",
-          "target": "Digital Ternary CIM"
-        },
-        {
-          "source": "Ternary Computing",
-          "target": "Optical Processing Unit"
-        },
-        {
-          "source": "Ternary Computing",
-          "target": "Analog Derivative Fragility"
-        },
-        {
-          "source": "Ternary Computing",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "Digital Ternary CIM",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "Digital Ternary CIM",
-          "target": "SkyWater SKY130 MPW"
-        },
-        {
-          "source": "Digital Ternary CIM",
-          "target": "Tritone"
-        },
-        {
-          "source": "Digital Ternary CIM",
-          "target": "Optical Processing Unit"
-        },
-        {
-          "source": "ENS-GI Digital Twin",
-          "target": "Tritone"
-        },
-        {
-          "source": "ENS-GI Digital Twin",
-          "target": "Bit-Exact Determinism"
+          "source": "Premature Decomposition",
+          "target": "Modular Monolith"
         },
         {
           "source": "m1frame",
@@ -1058,180 +1051,101 @@
         },
         {
           "source": "m1frame",
-          "target": "Chip Manufacturing Decision"
+          "target": "MVP Architecture Decision"
         },
         {
           "source": "m1frame",
-          "target": "Tritone"
+          "target": "m1frame Constellation Release"
         },
         {
-          "source": "Optical Processing Unit",
-          "target": "Tritone"
+          "source": "Microservices",
+          "target": "MVP Architecture Decision"
         },
         {
-          "source": "Optical Processing Unit",
-          "target": "OPU Feasibility Verdict"
+          "source": "Microservices",
+          "target": "Modular Monolith"
         },
         {
-          "source": "Optical Processing Unit",
-          "target": "Chip Manufacturing Decision"
+          "source": "Modular Monolith",
+          "target": "MVP Architecture Decision"
         },
         {
-          "source": "SkyWater SKY130 MPW",
-          "target": "Chip Manufacturing Decision"
+          "source": "Is m1frame v1.3 Production Ready",
+          "target": "m1frame Constellation Release"
         },
         {
-          "source": "SkyWater SKY130 MPW",
-          "target": "Tritone"
+          "source": "Is m1frame v1.3 Production Ready",
+          "target": "m1frame"
         },
         {
-          "source": "SkyWater SKY130 MPW",
-          "target": "Bit-Exact Determinism"
-        },
-        {
-          "source": "Tritone",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "Digital Ternary CIM"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "Bit-Exact Determinism"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "SkyWater SKY130 MPW"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "Analog Derivative Fragility"
-        },
-        {
-          "source": "What Chip Should We Manufacture",
-          "target": "FDA SaMD Determinism"
-        },
-        {
-          "source": "Chip Architecture Council",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "Chip Architecture Council",
-          "target": "Digital Ternary CIM"
-        },
-        {
-          "source": "Chip Architecture Council",
-          "target": "SkyWater SKY130 MPW"
-        },
-        {
-          "source": "Chip Architecture Council",
-          "target": "FDA SaMD Determinism"
-        },
-        {
-          "source": "Chip Architecture Council",
-          "target": "Tritone"
-        },
-        {
-          "source": "OPU Feasibility Study",
-          "target": "OPU Feasibility Verdict"
-        },
-        {
-          "source": "OPU Feasibility Study",
-          "target": "Optical Processing Unit"
-        },
-        {
-          "source": "OPU Feasibility Study",
-          "target": "Analog Derivative Fragility"
-        },
-        {
-          "source": "OPU Feasibility Study",
-          "target": "Tritone"
-        },
-        {
-          "source": "Chip Manufacturing Decision",
-          "target": "OPU Feasibility Verdict"
+          "source": "m1frame Constellation Release",
+          "target": "m1frame Studio"
         },
         {
           "source": "m1frame Studio",
-          "target": "Chip Manufacturing Decision"
-        },
-        {
-          "source": "m1frame Studio",
-          "target": "Tritone"
-        },
-        {
-          "source": "OPU Feasibility Verdict",
-          "target": "Tritone"
-        },
-        {
-          "source": "OPU Feasibility Verdict",
-          "target": "Bit-Exact Determinism"
+          "target": "MVP Architecture Decision"
         }
       ]
     },
     {
       "delay_ms": 300,
       "type": "wiki_page",
-      "seq": 94,
+      "seq": 111,
       "pillar": "wiki",
-      "title": "Chip Manufacturing Decision",
+      "title": "MVP Architecture Decision",
       "page_type": "synthesis",
-      "filename": "synthesis/chip-manufacturing-decision.md",
+      "filename": "synthesis/mvp-architecture-decision.md",
       "tags": [
-        "tritone",
-        "chip",
+        "architecture",
+        "monolith",
+        "microservices",
         "decision"
       ]
     },
     {
       "delay_ms": 350,
       "type": "pillar_done",
-      "seq": 95,
+      "seq": 112,
       "pillar": "wiki",
       "ms": 2100
     },
     {
       "delay_ms": 300,
       "type": "memory_added",
-      "seq": 96,
+      "seq": 113,
       "type_": "decision",
       "agent": "architect",
-      "text": "MANUFACTURE A FULLY-DIGITAL multiplier-free TERNARY ASIC (bit-exact). Two phases, trigger-gated."
+      "text": "SHIP A MODULAR MONOLITH first; keep strict module seams so a service can be extracted later for ~free."
     },
     {
       "delay_ms": 260,
       "type": "memory_added",
-      "seq": 97,
+      "seq": 114,
       "type_": "constraint",
       "agent": "qa",
-      "text": "RED-TEAM LESSON: charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM is."
+      "text": "RED-TEAM LESSON: microservices don't remove coupling \u2014 they relocate it to the network (partial failure, retries)."
     },
     {
       "delay_ms": 260,
       "type": "memory_added",
-      "seq": 98,
+      "seq": 115,
       "type_": "decision",
       "agent": "analyst",
-      "text": "KEY PRINCIPLE: for a regulated, edge, small-N medical workload, determinism dominates efficiency."
+      "text": "KEY PRINCIPLE: before product-market fit, shipping speed dominates hypothetical scale."
     },
     {
       "delay_ms": 500,
       "type": "final",
-      "seq": 99,
-      "output": "# Decision: build a fully-digital ternary ASIC\n\n**Not analog. Not photonic. Not charge-domain CIM.**\n\n1. **Two phases, trigger-gated:** SKY130 open-MPW prototype (golden-vector vehicle) \u2192 TSMC 22/28 nm production (digital ternary CIM or scaled systolic) + Cortex-M33 host, SHA-256-verified weight load.\n2. **Don't tape out yet.** Triggers: >~500 clinical units, a sub-5 mW envelope the FPGA can't meet, or a 510(k) needing certified silicon. Until then the $20 FPGA + MCU is right.\n3. **The ultimate system is a lifecycle:** cloud-train (exact gradients) \u2192 freeze + certify (golden vectors, SHA-256 weight lock, SBOM) \u2192 edge bit-exact digital-ternary inference.\n4. **Why digital wins:** for a regulated medical workload, **determinism dominates efficiency** \u2014 bit-exactness is an FDA prerequisite, and analog forfeits it.\n\n*Three independent lenses \u2014 silicon, physics, regulation \u2014 converged on the same answer. The lone analog dissent was self-disqualified by its own determinism rule.*",
+      "seq": 116,
+      "output": "# Decision: ship a modular monolith (extraction-ready)\n\n**Not microservices \u2014 not yet.**\n\n1. **Build one deployable, many bounded contexts.** Model each domain as an in-process module behind a narrow interface, with one database and trivial CI. Simplicity is a feature.\n2. **Keep the seams strict.** Because modules talk through interfaces, any one can be lifted into a standalone service later **without a rewrite**.\n3. **Don't split yet \u2014 gate it on real triggers:** sustained load a single box can't serve, a team large enough to own a service end-to-end, or a genuine need for independent deploys.\n4. **Why the monolith wins now:** before product-market fit there is ~no scaling pressure, and distributed systems carry constant ops cost \u2014 microservices **relocate** coupling to the network rather than removing it.\n\n*Three independent lenses \u2014 product, operations, architecture \u2014 converged on the same answer. The lone 'microservices remove coupling' dissent was self-disqualified by the red-team.*",
       "score": 8.0,
       "passed": true,
-      "wiki_page": "synthesis/chip-manufacturing-decision.md"
+      "wiki_page": "synthesis/mvp-architecture-decision.md"
     },
     {
       "delay_ms": 200,
       "type": "done",
-      "seq": 100,
+      "seq": 117,
       "ms": 38240
     }
   ]

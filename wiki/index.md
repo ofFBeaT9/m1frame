@@ -3,33 +3,22 @@
 Navigation entry point. Never bypass this. Updated after every ingest.
 
 ## Synthesis (start here)
-- [[Chip Manufacturing Decision]] — **the answer**: build a fully-digital ternary ASIC; SKY130 prototype → 28 nm production; trigger-gated.
-- [[OPU Feasibility Verdict]] — optics is inference-only; values survive analog noise, derivatives don't.
-- [[m1frame Studio]] — the real-time UI that makes the 7-pillar deliberation watchable (this pipeline, live + replayable).
-- [[m1frame Constellation Release]] — **v1.3**: gateways + tools + persistent runs + Docker close the Hermes architecture gaps; GO at 8.3/10, 90/90 QA.
+- [[MVP Architecture Decision]] — **the demo answer**: ship a modular monolith, extraction-ready; split only on a real trigger.
+- [[m1frame Studio]] — the real-time UI that makes the 7-pillar deliberation watchable (live + replayable).
+- [[m1frame Constellation Release]] — the framework's gateways + tools + persistent runs + Docker (v1.3+).
 
 ## Entities
-- [[m1frame]] — the portable multi-agent framework itself (the engine behind these studies; deliberates · grounds · remembers).
-- [[Tritone]] — multiplier-free ternary NN accelerator (the project).
-- [[ENS-GI Digital Twin]] — the clinical GI / enteric-nervous-system workload the PINN serves.
-- [[Optical Processing Unit]] — the analog photonic MVM idea that was evaluated and bounded.
-- [[Digital Ternary CIM]] — the recommended production compute style (bit-exact in-memory).
-- [[SkyWater SKY130 MPW]] — the low-cost open-PDK prototype shuttle.
+- [[m1frame]] — the portable multi-agent framework itself (the engine; deliberates · grounds · remembers).
+- [[Modular Monolith]] — one deployable, many bounded contexts; the low-regret MVP default.
+- [[Microservices]] — independently deployable services; great at scale, costly before it.
 
 ## Concepts
-- [[Ternary Computing]] — weights ∈ {−1,0,+1}; multiplier-free; sparse.
-- [[Bit-Exact Determinism]] — the property that makes Tritone certifiable.
-- [[Analog Derivative Fragility]] — why analog kills gradients/sensitivities.
-- [[FDA SaMD Determinism]] — why reproducible inference is a regulatory prerequisite.
+- [[Conway's Law]] — systems mirror team structure; don't make more services than you have teams.
+- [[Premature Decomposition]] — splitting into services too early; the "distributed monolith" trap.
 
 ## Queries
-- [[What Chip Should We Manufacture]] — saved question → answer.
 - [[Is m1frame v1.3 Production Ready]] — saved question → GO (for its positioning) + the #1 remaining gap.
 
-## Sources (immutable)
-- [[OPU Feasibility Study]] — `opu_study/` simulation + results.
-- [[Chip Architecture Council]] — `chip_decision/council/` papers + red-team.
-
 ## Lint status
-No orphans (every page is linked here and cross-linked). Confidence: high on the digital-ternary verdict;
-medium on specific 28 nm power/TOPS-W numbers (estimates pending a real Phase-1 tape-out).
+No orphans (every page is linked here and cross-linked). Confidence: high on the demo verdict and the framework
+self-description; the demo is illustrative, not a recommendation for any specific real project.

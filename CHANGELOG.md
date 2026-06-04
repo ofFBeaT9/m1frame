@@ -9,6 +9,22 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.4.0] — 2026-06-04 — "Toolbelt" (tool breadth + clean public release)
+### Added
+- **Tool surface 5 → 16**: sandboxed `read_file`/`write_file`/`list_dir` (workspace-jailed), `json_query`,
+  `regex_extract`, `base64_encode`/`decode`, `sha256`, `uuid4`, `url_parse`, `convert_temp` — alongside the
+  existing calculator/wiki_search/datetime/word_count/http_get.
+- **Command-approval gate**: tools can be marked `dangerous` (e.g. `write_file`); `POST /tools/call` rejects them
+  with **403** unless `approve: true` — Hermes-style command approval, auditable.
+- **Model registry**: `GET /backends` lists all 9 backends with `ready`/key/active status; surfaced in Settings.
+### Changed — clean public release
+- **Genericized the bundled demo** to a broadly-relatable decision (monolith vs microservices) and rebuilt a
+  clean, self-consistent starter **wiki** (0 lint errors/orphans). Removed all project-specific research content
+  (Tritone / ternary / SKYWATER SKY130 / OPU / chip-decision) from the public repo so a new user starts clean.
+- Shared SSRF guard already centralized in `agents/net.py`.
+### Notes
+- **95/95** offline QA (added 5 tool tests: encoding, sandboxed FS, path-traversal block, approval gate, backends).
+
 ## [1.3.0] — 2026-06-04 — "Constellation" (close the Hermes gap)
 ### Added
 - **Messaging gateways** (`gateways/`): one transport-agnostic `GatewayRouter` (local `/help` `/status`

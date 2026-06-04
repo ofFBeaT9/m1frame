@@ -547,9 +547,9 @@ function viewStudio(v){
       ...[["parallel","parallel"],["self_critique","self-critique"],["skip_council","skip council"],["skip_wiki","skip wiki"]]
         .map(([k,lbl])=>el("div",{class:"opt"+(S.opts[k]?" on":""),onclick:e=>{S.opts[k]=!S.opts[k];e.target.classList.toggle("on");}},lbl))),
     el("div",{class:"suggest"},
-      ...["Should we manufacture an analog optical chip or a digital ternary ASIC?",
-          "Design a FastAPI service with JWT auth and rate limiting",
-          "Investigate vendor payments against lobbying disclosures"]
+      ...["Should we ship our MVP as a monolith or microservices?",
+          "Design a REST API for a URL shortener with rate limiting",
+          "Should we adopt PostgreSQL or MongoDB for a new SaaS?"]
         .map(s=>el("button",{onclick:()=>{$("#goal").value=s;startRun();}},s))));
   // pillar rail
   const rail=el("div",{class:"rail",id:"rail"});
@@ -901,7 +901,7 @@ function viewChat(v){v.innerHTML="";
     el("div",{html:'<b style="color:var(--ink2);font-family:var(--disp);font-size:16px">Ask the knowledge graph.</b>'}),
     el("div",{},"Every answer is grounded in the wiki the council has built."),
     el("div",{class:"suggest",style:{justifyContent:"center"}},
-      ...["Why choose digital ternary over analog optics?","What did the council decide about the chip?","Summarise the OPU feasibility verdict."]
+      ...["Why a modular monolith over microservices?","What did the council decide about the MVP architecture?","Summarise the architecture verdict."]
         .map(s=>el("button",{onclick:()=>sendChat(s)},s)))));}
   else S.chat.forEach(m=>thread.append(chatMsg(m)));
   const bar=el("div",{class:"chatbar"},
@@ -1078,11 +1078,11 @@ async function loadSchedule(){const w=$("#schedwrap"); if(!w)return;
 async function loadToolsGateways(){const w=$("#toolgate"); if(!w)return;
   if(!S.server){w.innerHTML='<span style="color:var(--mute)">Tools &amp; gateways come alive with the API server (python api/server.py).</span>';return;}
   try{
-    const [t,g]=await Promise.all([fetch(API+"/tools").then(r=>r.json()),fetch(API+"/gateway/status").then(r=>r.json())]);
+    const [t,g,bk]=await Promise.all([fetch(API+"/tools").then(r=>r.json()),fetch(API+"/gateway/status").then(r=>r.json()),fetch(API+"/backends").then(r=>r.json()).catch(()=>({backends:[]}))]);
     w.innerHTML="";
     w.append(el("div",{class:"setrow"},
       el("div",{}, el("div",{class:"k"},"Agent tools · "+((t.tools||[]).length)),
-        el("div",{class:"d"},(t.tools||[]).map(x=>x.name).join("  ·  ")||"none")),
+        el("div",{class:"d"},(t.tools||[]).map(x=>x.name+(x.dangerous?" ⚠":"")).join("  ·  ")||"none")),
       el("button",{class:"btn ghost",onclick:async()=>{
         const r=await fetch(API+"/tools/call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"calculator",args:{expression:"6*7"}})}).then(x=>x.json());
         toast("calculator(6*7) = "+r.result);}},"test")));
@@ -1092,6 +1092,11 @@ async function loadToolsGateways(){const w=$("#toolgate"); if(!w)return;
       el("button",{class:"btn ghost",onclick:async()=>{
         const r=await fetch(API+"/gateway/cli/webhook",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"/ping"})}).then(x=>x.json());
         toast("gateway → "+r.reply);}},"ping")));
+    const bl=bk.backends||[]; const ready=bl.filter(x=>x.ready).length;
+    w.append(el("div",{class:"setrow"},
+      el("div",{}, el("div",{class:"k"},"Model registry · "+bl.length+" backends ("+ready+" ready)"),
+        el("div",{class:"d"},bl.map(x=>x.name+(x.active?"●":"")+(x.ready?" ✓":"")).join("  ·  "))),
+      el("span",{class:"ptype",style:{color:"var(--signal)",border:"1px solid var(--signal-dim)"}},(bk.active||"—"))));
   }catch(e){w.textContent="Tools/gateways unavailable.";}}
 
 /* ══════════════ command palette ══════════════ */
@@ -1100,7 +1105,7 @@ function togglePalette(open){const p=$("#palette"); p.classList.toggle("open",op
   if(open){const i=$("#palInput");i.value="";renderPalette("");i.focus();}}
 function renderPalette(q){const list=$("#palList");list.innerHTML="";
   const items=[...NAV.map(([id,l])=>({label:"Go to "+l,act:()=>{togglePalette(false);go(id);},pk:id})),
-    {label:"Run a demo deliberation",act:()=>{togglePalette(false);go("studio");setTimeout(()=>startRun("Should we manufacture an analog optical chip or a digital ternary ASIC?"),120);},pk:"run"}];
+    {label:"Run a demo deliberation",act:()=>{togglePalette(false);go("studio");setTimeout(()=>startRun("Should we ship our MVP as a monolith or microservices?"),120);},pk:"run"}];
   const f=q?items.filter(i=>i.label.toLowerCase().includes(q.toLowerCase())):items;
   if(q&&!f.length){list.append(el("div",{class:"opt2",onclick:()=>{togglePalette(false);go("studio");setTimeout(()=>startRun(q),120);}},
     el("span",{html:svg(ICONS.play,"")}),"Run: "+q));return;}

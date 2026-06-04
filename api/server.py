@@ -91,6 +91,7 @@ if _FASTAPI:
     class ToolCallRequest(BaseModel):
         name: str
         args: dict = {}
+        approve: bool = False               # required for tools marked dangerous
 
     class WikiIngestRequest(BaseModel):
         text: str
@@ -230,7 +231,7 @@ def create_app() -> "FastAPI":
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.3.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.4.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -255,7 +256,7 @@ def create_app() -> "FastAPI":
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.3.0",
+            "status": "ok", "version": "1.4.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -497,6 +498,17 @@ def create_app() -> "FastAPI":
         return {"ok": True, "reply": out.text, "delivered": delivered,
                 "payload": _gw_adapters.format_out(platform, out)}
 
+    # ── model registry ────────────────────────────────────────────────────────────
+    @app.get("/backends")
+    async def list_backends():
+        out = []
+        for b in ALL_BACKENDS:
+            bc = cfg.get(b, {}) or {}
+            out.append({"name": b, "model": bc.get("model"), "local": b in LOCAL_BACKENDS,
+                        "key_env": bc.get("api_key_env"), "ready": _can_run_live(cfg, b),
+                        "active": b == cfg.get("backend")})
+        return {"backends": out, "active": cfg.get("backend")}
+
     # ── tool surface ──────────────────────────────────────────────────────────────
     from tools import default_registry as _tool_registry
 
@@ -510,7 +522,9 @@ def create_app() -> "FastAPI":
         if req.name not in reg:
             raise HTTPException(404, f"unknown tool '{req.name}'")
         try:
-            return {"name": req.name, "result": reg.call(req.name, req.args)}
+            return {"name": req.name, "result": reg.call(req.name, req.args, approved=req.approve)}
+        except PermissionError as e:
+            raise HTTPException(403, str(e))   # dangerous tool needs approve=true
         except Exception as e:  # noqa: BLE001
             raise HTTPException(400, f"tool error: {e}")
 

@@ -3,7 +3,7 @@
 *A portable, offline-capable multi-agent framework that doesn't just act — it **deliberates, grounds, and
 remembers** — with a real-time UI (Studio) that lets you watch it think.*
 
-> **Version 1.3 "Constellation"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
+> **Version 1.4 "Toolbelt"** · works with Claude, OpenAI, OpenRouter (200+ models), Nous, Novita, NVIDIA NIM,
 > Ollama, vLLM, LM Studio · reachable from Telegram / Slack / Discord / webhook / CLI · tool surface + MCP ·
 > persistent runs · one-command Docker.
 
@@ -39,9 +39,9 @@ box — you *watch* the council debate, *watch* the red-team override an overcon
 in a live knowledge graph, and *see* memory and skills accumulate. All offline-capable, git-versionable, zero
 lock-in.
 
-**What it is not:** it is not (yet) a broad replacement for a mature agent *product*. It does not ship messaging
-gateways, a 40+ tool belt, or managed deploy backends. See [§11](#11-m1frame-vs-hermes-agent-honest) for the
-honest comparison and the roadmap.
+**What it is not:** it is not (yet) a broad replacement for a mature agent *product*. v1.3–1.4 added messaging
+gateways, a tool surface (16 tools + MCP), persistent runs, and Docker — but it still doesn't match Hermes' 40+
+tool *breadth* or ~10k-commit *maturity*. See [§11](#11-m1frame-vs-hermes-agent-honest) for the honest comparison.
 
 ---
 
@@ -65,7 +65,7 @@ Then open **http://localhost:8080**. No key? The Studio drops into a gorgeous **
 
 ```bash
 make studio          # installs Studio deps, builds the demo, launches the server
-make qa              # 73 offline tests, no key needed
+make qa              # 95 offline tests, no key needed
 make run GOAL="Build a FastAPI service with JWT auth"   # headless CLI run
 ```
 

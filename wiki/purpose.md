@@ -3,23 +3,20 @@
 The soul of this wiki. The LLM reads this on every operation.
 
 ## Domain
-Hardware-acceleration strategy for **[[Tritone]]** — a multiplier-free **ternary** neural-network
-accelerator that runs a Physics-Informed Neural Network (PINN) for the **[[ENS-GI Digital Twin]]**
-(a clinical GI / enteric-nervous-system model).
+This wiki is the **knowledge base of the [[m1frame]] framework itself**, plus the bundled demo. Out of the box it
+holds the framework's self-description and one worked example — the [[MVP Architecture Decision]] — so a new user
+can see how m1frame deliberates, grounds, and remembers before pointing it at their own domain.
 
 ## Questions we are trying to answer
-1. Can an exotic compute substrate (optical, analog in-memory) accelerate Tritone without destroying the
-   PINN accuracy that justifies it? → answered in **[[OPU Feasibility Verdict]]**.
-2. **What chip should we actually manufacture, and what is the ultimate computing architecture?** →
-   answered in **[[Chip Manufacturing Decision]]** / **[[What Chip Should We Manufacture]]**.
+1. How does m1frame turn a goal into an auditable, grounded, remembered result? → [[m1frame]], [[m1frame Studio]].
+2. (Demo) Should a team ship its MVP as a monolith or microservices? → [[MVP Architecture Decision]] /
+   [[Is m1frame v1.3 Production Ready]].
 
 ## Evolving thesis
-For a **regulated, edge, small-N medical** workload, **determinism dominates raw efficiency.** The optimum
-is a **fully-digital, bit-exact ternary ASIC** for frozen-model inference, with training kept in the cloud
-where exact gradients survive. Analog substrates (photonic, charge-domain CIM, ReRAM) are disqualified by
-**[[Analog Derivative Fragility]]** and **[[FDA SaMD Determinism]]** for *this* workload.
+m1frame's edge is **auditability**: visible multi-agent deliberation with a vetoing red-team, click-through
+grounding, and visible memory. The demo illustrates the method on a decision every team faces — favouring the
+[[Modular Monolith]] before product-market fit and treating [[Microservices]] as a later, trigger-gated step.
 
 ## Sources in scope
-The **[[OPU Feasibility Study]]** (software simulation) and the **[[Chip Architecture Council]]**
-(3 specialist position papers + a red-team gate). Both are summarized as immutable source pages; the
-structured knowledge sits in the entity/concept/synthesis layers above them.
+Replace this section with *your* sources when you adopt the wiki. The shipped pages describe the framework and the
+demo; add immutable source pages under `wiki/sources/` as you ingest real material.

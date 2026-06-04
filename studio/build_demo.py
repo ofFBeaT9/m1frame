@@ -6,13 +6,12 @@ A scripted, *timed* sequence of the SAME events the live pipeline emits
 (see agents/events.py), so m1frame Studio shows a gorgeous, fully-working
 deliberation with **zero API key and zero pip installs**.
 
-The narrative is the project's real BMAD cycle-2 decision — "what chip should we
-manufacture?" — a 3-member council + a red-team that corrected an internal
-contradiction. Content is drawn from the actual artifacts in this repo
-(chip_decision/, opu_study/results/summary.json, wiki/) so the demo is honest,
-not invented marketing.
+The narrative is a generic, broadly-relatable software decision — "ship the MVP
+as a monolith or microservices?" — with a 3-member council + a red-team that
+corrects an internal contradiction. It exercises every pillar so a new user sees
+exactly how m1frame deliberates, grounds, and remembers.
 
-Run:  python studio/build_demo.py   ->   studio/demo_run.json
+Run:  python studio/build_demo.py   ->   studio/demo_run.json (+ static snapshots)
 """
 from __future__ import annotations
 
@@ -29,8 +28,7 @@ STUDIO = Path(__file__).resolve().parent
 OUT = STUDIO / "demo_run.json"
 STRUCTURAL = {"index", "log", "overview", "purpose"}
 
-GOAL = ("What chip should we manufacture for the Tritone medical accelerator — "
-        "an analog optical processor, or a digital ternary ASIC?")
+GOAL = "Should we ship our MVP as a monolith or microservices?"
 
 
 # ── pull real wiki nodes so the demo graph matches /wiki/graph ──────────────────
@@ -92,30 +90,30 @@ def build_events() -> list[dict]:
 
     # Skill recall (self-improving) — a prior vetted recipe seeds planning
     e(300, "skill_suggested", pillar="bmad", skills=[
-        {"id": "c9d0e1f2", "title": "Regulated Hardware Architecture Decision", "uses": 1, "score": 8.0}])
+        {"id": "b7c2d9e1", "title": "Architecture Decision Recipe", "uses": 2, "score": 8.4}])
 
     # 1 · BMAD ------------------------------------------------------------------
     e(350, "pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     e(700, "bmad_blueprint", pillar="bmad",
-      project="Tritone Chip Decision", domain="medical edge AI / silicon",
-      mvp="Pick a manufacturable compute substrate that clears the FDA bar",
+      project="MVP Architecture Decision", domain="software architecture",
+      mvp="Pick an architecture that ships the MVP fast without blocking future scale",
       issues=[],
       stories=[
-          {"id": 1, "title": "Frame the determinism-vs-efficiency tradeoff", "role": "analyst",
+          {"id": 1, "title": "Frame the speed-vs-scale tradeoff", "role": "analyst",
            "complexity": "medium", "depends_on": [],
-           "acceptance_criteria": ["Bit-exactness defined as FDA prerequisite"]},
-          {"id": 2, "title": "Investigate photonic MVM noise floor", "role": "investigator",
+           "acceptance_criteria": ["Decide what 'scale' actually means for this MVP"]},
+          {"id": 2, "title": "Investigate the real cost of distributed ops", "role": "investigator",
            "complexity": "high", "depends_on": [1],
-           "acceptance_criteria": ["Static-defect floor quantified from OPU study"]},
-          {"id": 3, "title": "Design digital ternary datapath", "role": "architect",
+           "acceptance_criteria": ["Quantify team-size vs service-count overhead"]},
+          {"id": 3, "title": "Design a modular monolith", "role": "architect",
            "complexity": "high", "depends_on": [1],
-           "acceptance_criteria": ["Multiplier-free {-1,0,+1}; 42% zeros skipped"]},
-          {"id": 4, "title": "Cross-check regulatory path (510k)", "role": "architect",
-           "complexity": "medium", "depends_on": [1],
-           "acceptance_criteria": ["Determinism maps to SaMD locked-algorithm rule"]},
-          {"id": 5, "title": "Red-team the analog 'win'", "role": "qa",
+           "acceptance_criteria": ["Clear module seams; one deploy, many bounded contexts"]},
+          {"id": 4, "title": "Plan the service-extraction path", "role": "architect",
+           "complexity": "medium", "depends_on": [3],
+           "acceptance_criteria": ["A module can become a service without a rewrite"]},
+          {"id": 5, "title": "Red-team the microservices hype", "role": "qa",
            "complexity": "high", "depends_on": [2, 3],
-           "acceptance_criteria": ["Classify each CIM macro analog vs digital"]},
+           "acceptance_criteria": ["Test the claim that microservices reduce coupling"]},
       ])
     e(500, "pillar_done", pillar="bmad", ms=1180)
 
@@ -123,57 +121,57 @@ def build_events() -> list[dict]:
     e(300, "pillar_start", pillar="council", idx=2, label="Council · Brainstorm")
     e(450, "council_persona_start", pillar="council", mode="brainstorm", persona="Critic")
     e(900, "council_persona", pillar="council", mode="brainstorm", persona="Critic",
-      approach="Attack the premise that efficiency is the objective.",
-      considerations=["TOPS/W is the wrong metric for N≈4 regulated inference"],
-      risks=["Chasing analog efficiency forfeits bit-exactness"],
-      opportunities=["Determinism is a structural moat, not a tuning knob"],
-      direction="Optimize for the cheapest bit-exact design that clears FDA, not peak TOPS/W.")
+      approach="Attack the premise that microservices are the 'scalable' default.",
+      considerations=["A pre-PMF MVP has near-zero scaling pressure"],
+      risks=["Premature decomposition spends the team's budget on plumbing, not product"],
+      opportunities=["Shipping speed is the only scalability that matters before product-market fit"],
+      direction="Optimize for the fastest path to a shippable product, not for hypothetical scale.")
     e(350, "council_persona_start", pillar="council", mode="brainstorm", persona="Advocate")
     e(850, "council_persona", pillar="council", mode="brainstorm", persona="Advocate",
-      approach="Steelman a small digital ternary ASIC.",
-      considerations=["SKY130 open MPW ~ $10-12k NRE", "Cortex-M33 host for weight load"],
-      risks=["Tape-out before clinical volume wastes NRE"],
-      opportunities=["Frozen-model edge inference at sub-10 mW"],
-      direction="Build digital ternary; gate the tape-out behind real triggers.")
+      approach="Steelman a modular monolith with clean seams.",
+      considerations=["One deploy, one DB, bounded contexts as modules", "CI stays trivial"],
+      risks=["Sloppy modules become a big ball of mud"],
+      opportunities=["Refactor in-process now; extract a service later for ~free"],
+      direction="Build a modular monolith; keep module boundaries strict so extraction is cheap.")
     e(350, "council_persona_start", pillar="council", mode="brainstorm", persona="Domain Expert")
     e(950, "council_persona", pillar="council", mode="brainstorm", persona="Domain Expert",
-      approach="Bound the photonics physics from the OPU study.",
-      considerations=["7.8% static-defect value floor more SNR cannot remove",
-                      "~262 W tuning for a 512x512 MZI mesh; E/O-O/E overhead below N≈4096"],
-      risks=["Derivatives ~6x more fragile than values under analog noise"],
-      opportunities=["Optics OK only as inference-only accelerator for a frozen PINN"],
-      direction="Reject optical training/gradients; analog cannot meet the accuracy budget.")
+      approach="Bound the real cost of distributed systems.",
+      considerations=["Network calls add partial-failure, retries, idempotency, tracing",
+                      "A 3–6 person team can't staff per-service on-call"],
+      risks=["Distributed transactions and eventual consistency dominate early eng time"],
+      opportunities=["Conway's Law: ship one service per team you actually have (one)"],
+      direction="Don't pay distributed-systems tax before you have the team or the load to justify it.")
     e(800, "council_brainstorm", pillar="council",
-      plan="Converge on a deterministic digital ternary chip; treat optics as inference-only at best.",
-      steps=["Quantify analog floor", "Design digital datapath", "Map to 510(k)", "Red-team analog CIM"],
-      risks=["An analog CIM 'win' may hide an ADC that breaks determinism"],
+      plan="Converge on a modular monolith; treat microservices as a later, trigger-gated extraction.",
+      steps=["Quantify the ops tax", "Design strict module seams", "Define extraction triggers", "Red-team the coupling claim"],
+      risks=["A 'microservices reduce coupling' claim may hide coupling moving to the network"],
       confidence="high")
     e(400, "pillar_done", pillar="council", ms=4250, phase="brainstorm")
 
     # 3 · OpenPlanter -----------------------------------------------------------
     e(300, "pillar_start", pillar="openplanter", idx=3, label="OpenPlanter · Investigation")
     e(1100, "openplanter_result", pillar="openplanter", mode="llm+grounded",
-      summary=("OPU feasibility sim (ternary PINN, bit-exact baseline + optical-noise model, "
-               "sparsity 42.4%): VALUES survive analog optics but DERIVATIVES do not. Value "
-               "error crosses the 19.4% ternary budget at optical SNR ~18.2 dB/layer with a "
-               "static-defect floor ~7.8%. A 2% photonic weight defect with zero readout noise "
-               "already gives 8.1% value error but 51.9% derivative error (~6x fragility gap)."),
+      summary=("Investigation across team-size and failure-mode data: below ~15–20 engineers, microservices "
+               "overhead (CI/CD per service, network partial-failure handling, distributed tracing, on-call "
+               "fan-out) consistently outweighs the scaling benefit for a pre-PMF product. The recurring "
+               "failure pattern is 'distributed monolith': services so chatty they must deploy together — "
+               "all of the cost of distribution, none of the independence."),
       web_results=3)
     e(450, "pillar_done", pillar="openplanter", ms=1400)
 
     # 4 · Miras execution -------------------------------------------------------
     e(300, "pillar_start", pillar="miras", idx=4, label="Miras · Multi-Agent Execution")
     for sid, role, title, prev, delay in [
-        (1, "analyst", "Frame determinism-vs-efficiency",
-         "For a regulated, edge, small-N medical workload, determinism dominates efficiency.", 800),
-        (2, "investigator", "Photonic MVM noise floor",
-         "Static-defect floor ~7.8% value error; derivatives never reach the budget at any SNR.", 850),
-        (3, "architect", "Digital ternary datapath",
-         "Weights ∈ {-1,0,+1} → mux + conditional add; 42% zeros skipped; bit-exact integer path.", 900),
-        (4, "architect", "Regulatory path",
-         "Bit-exact inference maps to the SaMD locked-algorithm rule; analog non-determinism fails 510(k).", 800),
-        (5, "qa", "Red-team the analog win",
-         "Charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM qualifies.", 900),
+        (1, "analyst", "Frame speed-vs-scale",
+         "Before product-market fit, shipping speed dominates; 'scale' is a problem you want to have.", 800),
+        (2, "investigator", "Cost of distributed ops",
+         "Per-service CI, on-call, and network failure-handling exceed the benefit below ~15–20 engineers.", 850),
+        (3, "architect", "Modular monolith design",
+         "Bounded contexts as in-process modules behind interfaces; one deploy, one DB, strict seams.", 900),
+        (4, "architect", "Service-extraction path",
+         "Each module exposes a narrow interface so it can be lifted to a service without a rewrite.", 800),
+        (5, "qa", "Red-team the coupling claim",
+         "Microservices don't remove coupling — they relocate it to the network, adding partial failure.", 900),
     ]:
         e(250, "story_start", pillar="miras", id=sid, role=role, title=title)
         e(delay, "story_done", pillar="miras", id=sid, role=role, preview=prev)
@@ -181,54 +179,53 @@ def build_events() -> list[dict]:
 
     # 5 · Karpathy refinement (streamed) ----------------------------------------
     e(300, "pillar_start", pillar="karpathy", idx=5, label="Karpathy · CoT Refinement")
-    stream = ("Manufacture a fully-digital, multiplier-free ternary ASIC. Determinism is the "
-              "product, not a side effect. Two phases, trigger-gated: SKY130 open-MPW prototype "
-              "as a golden-vector vehicle, then TSMC 22/28 nm production with a Cortex-M33 host "
-              "and SHA-256-verified weight load. ").split(" ")
-    for i, word in enumerate(stream):
+    stream = ("Ship a modular monolith first. Simplicity is the product, not a compromise. Enforce strict "
+              "module boundaries now so any module can be extracted into a service the day a real scaling "
+              "trigger appears — sustained load a single box can't serve, or a team big enough to own a "
+              "service end-to-end. Until then, one deploy beats ten. ").split(" ")
+    for word in stream:
         e(60, "karpathy_token", pillar="karpathy", chunk=word + " ")
     e(300, "karpathy_done", pillar="karpathy", had_cot=True,
-      thought=("Restate: pick a compute substrate. Known: optics fails the derivative budget and "
-               "has a 7.8% floor; digital ternary is bit-exact. FDA needs determinism. Therefore "
-               "digital wins; optics is at most inference-only. Gate the tape-out behind triggers."),
-      answer_preview="Manufacture a fully-digital ternary ASIC, trigger-gated, SKY130 → 28 nm.")
+      thought=("Restate: pick an MVP architecture. Known: pre-PMF has ~no scaling pressure; distributed ops "
+               "carry real, constant cost; coupling doesn't vanish under microservices. Therefore the modular "
+               "monolith wins now; keep seams strict so extraction is cheap later. Gate splits behind real triggers."),
+      answer_preview="Ship a modular monolith; extract services only on a real scaling trigger.")
     e(350, "pillar_done", pillar="karpathy", ms=3900)
 
     # 6 · Council review (QA gate) + red-team -----------------------------------
     e(300, "pillar_start", pillar="council", idx=6, label="Council · QA Gate Review")
     e(450, "council_persona_start", pillar="council", mode="review", persona="Critic")
     e(800, "council_persona", pillar="council", mode="review", persona="Critic", verdict="conditional",
-      score=8, key_points=["Strong, but name the explicit tape-out triggers"],
-      recommendation="Add the >500-unit / sub-5mW / 510(k) trigger gate explicitly.")
+      score=8, key_points=["Strong, but name the explicit extraction triggers"],
+      recommendation="State the split triggers (sustained load / team size / independent deploy need) explicitly.")
     e(300, "council_persona_start", pillar="council", mode="review", persona="Advocate")
     e(750, "council_persona", pillar="council", mode="review", persona="Advocate", verdict="pass",
       score=9, key_points=["Three independent lenses converge on the same answer"],
       recommendation="Ship the decision; the convergence is the signal.")
     e(300, "council_persona_start", pillar="council", mode="review", persona="Domain Expert")
     e(800, "council_persona", pillar="council", mode="review", persona="Domain Expert", verdict="pass",
-      score=8, key_points=["Photonics correctly bounded to inference-only"],
-      recommendation="Keep optics on the roadmap only for frozen linear layers.")
+      score=8, key_points=["Extraction path keeps the door open to services"],
+      recommendation="Keep module interfaces narrow so the later split stays a refactor, not a rewrite.")
     e(350, "council_persona_start", pillar="council", mode="review", persona="Red-Team")
     e(950, "council_persona", pillar="council", mode="review", persona="Red-Team", verdict="conditional",
-      score=7, key_points=["A council member called charge-domain CIM 'fully deterministic' — FALSE",
-                           "It accumulates analog charge and reads via ADC (PVT, offset, coupling)"],
-      recommendation="Drop charge-domain CIM from the deterministic set; only digital ternary CIM is bit-exact.")
+      score=7, key_points=["A council member implied microservices 'eliminate coupling' — FALSE",
+                           "They move coupling to the network: partial failure, retries, versioned contracts"],
+      recommendation="Drop the 'eliminates coupling' framing; the monolith's in-process coupling is cheaper to change.")
     e(900, "council_verdict", pillar="council", score=8.0, verdict="pass", passed=True,
-      summary=("Build a fully-digital ternary ASIC, trigger-gated (SKY130 → 28 nm). The single analog "
-               "'win' was an internal contradiction the red-team removed."),
-      required_fixes=["State tape-out triggers explicitly", "Remove charge-domain CIM from the bit-exact set"])
+      summary=("Ship a modular monolith, extraction-ready, with explicit split triggers. The single "
+               "'microservices remove coupling' claim was an internal contradiction the red-team removed."),
+      required_fixes=["State the extraction triggers explicitly", "Drop the 'eliminates coupling' claim"])
     e(300, "qa_gate", pillar="council", gate="results-review", status="PASS", score=8.0)
     e(350, "pillar_done", pillar="council", ms=6100, phase="review")
     # The pass earned a reinforcement of the vetted skill (self-improving loop)
-    e(300, "skill_learned", pillar="council", id="c9d0e1f2",
-      title="Regulated Hardware Architecture Decision", score=8.0, uses=2)
+    e(300, "skill_learned", pillar="council", id="b7c2d9e1",
+      title="Architecture Decision Recipe", score=8.4, uses=3)
 
     # 7 · LLM Wiki ingest — grow the knowledge graph ----------------------------
     nodes = wiki_nodes()
     ids = {n["id"] for n in nodes}
     links = wiki_links(ids)
     e(300, "pillar_start", pillar="wiki", idx=7, label="LLM Wiki · Knowledge Graph Ingest")
-    # reveal real nodes progressively, then their links
     chunk: list[dict] = []
     for i, n in enumerate(nodes):
         chunk.append(n)
@@ -236,40 +233,51 @@ def build_events() -> list[dict]:
             e(160, "graph_delta", pillar="wiki", nodes=list(chunk), links=[])
             chunk = []
     e(220, "graph_delta", pillar="wiki", nodes=[], links=links)
-    e(300, "wiki_page", pillar="wiki", title="Chip Manufacturing Decision",
-      page_type="synthesis", filename="synthesis/chip-manufacturing-decision.md",
-      tags=["tritone", "chip", "decision"])
+    e(300, "wiki_page", pillar="wiki", title="MVP Architecture Decision",
+      page_type="synthesis", filename="synthesis/mvp-architecture-decision.md",
+      tags=["architecture", "monolith", "microservices", "decision"])
     e(350, "pillar_done", pillar="wiki", ms=2100)
 
     # miras memory feed ---------------------------------------------------------
     for delay, mtype, agent, text in [
         (300, "decision", "architect",
-         "MANUFACTURE A FULLY-DIGITAL multiplier-free TERNARY ASIC (bit-exact). Two phases, trigger-gated."),
+         "SHIP A MODULAR MONOLITH first; keep strict module seams so a service can be extracted later for ~free."),
         (260, "constraint", "qa",
-         "RED-TEAM LESSON: charge-domain SRAM CIM is NOT bit-exact (ADC + PVT). Only fully-digital ternary CIM is."),
+         "RED-TEAM LESSON: microservices don't remove coupling — they relocate it to the network (partial failure, retries)."),
         (260, "decision", "analyst",
-         "KEY PRINCIPLE: for a regulated, edge, small-N medical workload, determinism dominates efficiency."),
+         "KEY PRINCIPLE: before product-market fit, shipping speed dominates hypothetical scale."),
     ]:
         e(delay, "memory_added", type_=mtype, agent=agent, text=text)
 
     # final ---------------------------------------------------------------------
     e(500, "final",
-      output=("# Decision: build a fully-digital ternary ASIC\n\n"
-              "**Not analog. Not photonic. Not charge-domain CIM.**\n\n"
-              "1. **Two phases, trigger-gated:** SKY130 open-MPW prototype (golden-vector vehicle) → "
-              "TSMC 22/28 nm production (digital ternary CIM or scaled systolic) + Cortex-M33 host, "
-              "SHA-256-verified weight load.\n"
-              "2. **Don't tape out yet.** Triggers: >~500 clinical units, a sub-5 mW envelope the FPGA "
-              "can't meet, or a 510(k) needing certified silicon. Until then the $20 FPGA + MCU is right.\n"
-              "3. **The ultimate system is a lifecycle:** cloud-train (exact gradients) → freeze + certify "
-              "(golden vectors, SHA-256 weight lock, SBOM) → edge bit-exact digital-ternary inference.\n"
-              "4. **Why digital wins:** for a regulated medical workload, **determinism dominates "
-              "efficiency** — bit-exactness is an FDA prerequisite, and analog forfeits it.\n\n"
-              "*Three independent lenses — silicon, physics, regulation — converged on the same answer. "
-              "The lone analog dissent was self-disqualified by its own determinism rule.*"),
-      score=8.0, passed=True, wiki_page="synthesis/chip-manufacturing-decision.md")
+      output=("# Decision: ship a modular monolith (extraction-ready)\n\n"
+              "**Not microservices — not yet.**\n\n"
+              "1. **Build one deployable, many bounded contexts.** Model each domain as an in-process module "
+              "behind a narrow interface, with one database and trivial CI. Simplicity is a feature.\n"
+              "2. **Keep the seams strict.** Because modules talk through interfaces, any one can be lifted into "
+              "a standalone service later **without a rewrite**.\n"
+              "3. **Don't split yet — gate it on real triggers:** sustained load a single box can't serve, a "
+              "team large enough to own a service end-to-end, or a genuine need for independent deploys.\n"
+              "4. **Why the monolith wins now:** before product-market fit there is ~no scaling pressure, and "
+              "distributed systems carry constant ops cost — microservices **relocate** coupling to the network "
+              "rather than removing it.\n\n"
+              "*Three independent lenses — product, operations, architecture — converged on the same answer. "
+              "The lone 'microservices remove coupling' dissent was self-disqualified by the red-team.*"),
+      score=8.0, passed=True, wiki_page="synthesis/mvp-architecture-decision.md")
     e(200, "done", ms=38240)
     return ev
+
+
+def _memories_from_events(events: list[dict]) -> list[dict]:
+    """Build the static memory snapshot from the demo's own memory_added events
+    (so the clean release carries no external/project memory file)."""
+    out = []
+    for r in events:
+        if r.get("type") == "memory_added":
+            out.append({"type": r.get("type_", "memory"), "agent": r.get("agent", ""),
+                        "text": r.get("text", ""), "tags": ""})
+    return out
 
 
 def main() -> int:
@@ -287,15 +295,14 @@ def main() -> int:
           f"{payload['duration_ms']/1000:.1f}s timeline")
     print("     event types:", ", ".join(types))
 
-    # Static snapshots so the UI is fully alive even with NO server / NO pip
-    # (the stdlib static server or a double-click fetches these directly).
+    # Static snapshots so the UI is fully alive even with NO server / NO pip.
     from studio import data
     from agents.skills import SkillLibrary
     from dataclasses import asdict
     snapshots = {
         "wiki_graph.json": data.wiki_graph(),
         "wiki_pages.json": data.wiki_pages(),
-        "memories.json": data.load_memories(),
+        "memories.json": _memories_from_events(events),
         "skills.json": [asdict(s) for s in SkillLibrary().all()],
     }
     for name, obj in snapshots.items():

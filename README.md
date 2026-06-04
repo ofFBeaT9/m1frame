@@ -86,10 +86,9 @@ It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events
 
 ### Why m1frame is the most *auditable* multi-agent workspace
 
-This is not a claim that m1frame out-features every agent — Hermes Agent, for one, leads on gateways, tool
-breadth, model count, and maturity (see the honest parity matrix in
-[`studies/m1frame-studio/ROADMAP.md`](studies/m1frame-studio/ROADMAP.md)). It's a claim about **one axis we lead
-on decisively: transparency you can trust.** Most agents show you an answer; m1frame shows you **how it got
+This is not a claim that m1frame out-features every agent — Hermes Agent, for one, still leads on tool **breadth**
+and production **maturity** (see the honest parity matrix in [the manual](MANUAL.md#11-m1frame-vs-hermes-agent-honest)).
+It's a claim about **one axis we lead on decisively: transparency you can trust.** Most agents show you an answer; m1frame shows you **how it got
 there** — **deliberation** you can watch (a multi-persona council + an independent red-team that can *veto* a
 pass, both real in `agents/council.py`, not just the UI), **grounding** you can click (a living knowledge graph +
 cited chat), and **memory** you can watch accumulate (miras) — all 100% portable, offline-capable, zero-lock-in.
@@ -267,4 +266,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.3.0 "Constellation" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.4.0 "Toolbelt" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)

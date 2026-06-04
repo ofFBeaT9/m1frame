@@ -33,6 +33,40 @@
     "last_used": "2026-06-03"
   },
   {
+    "id": "b7c2d9e1",
+    "title": "Architecture Decision Recipe",
+    "goal": "Decide a software architecture (e.g. monolith vs microservices) for a new product",
+    "domain": "architecture",
+    "keywords": [
+      "architecture",
+      "decision",
+      "monolith",
+      "microservices",
+      "mvp",
+      "design",
+      "scale",
+      "service",
+      "system",
+      "tradeoff"
+    ],
+    "roles": [
+      "analyst",
+      "architect",
+      "qa"
+    ],
+    "steps": [
+      "Frame the speed-vs-scale tradeoff",
+      "Investigate the real ops cost",
+      "Design the low-regret option",
+      "Red-team the hype claim"
+    ],
+    "approach": "Three independent lenses (product, operations, architecture) + a red-team that tests the load-bearing claim before the verdict. Vetted pattern: prefer the reversible, simpler option and gate complexity behind real triggers.",
+    "score": 8.4,
+    "uses": 3,
+    "created": "2026-06-01",
+    "last_used": "2026-06-04"
+  },
+  {
     "id": "e5f6a7b8",
     "title": "Cross-Reference Investigation",
     "goal": "Investigate vendor payments against lobbying disclosures",
@@ -62,40 +96,6 @@
     "score": 8.2,
     "uses": 2,
     "created": "2026-05-30",
-    "last_used": "2026-06-02"
-  },
-  {
-    "id": "c9d0e1f2",
-    "title": "Regulated Hardware Architecture Decision",
-    "goal": "Decide a compute substrate for a regulated medical edge workload",
-    "domain": "hardware",
-    "keywords": [
-      "chip",
-      "manufacture",
-      "hardware",
-      "architecture",
-      "decision",
-      "asic",
-      "determinism",
-      "regulated",
-      "medical",
-      "ternary"
-    ],
-    "roles": [
-      "analyst",
-      "architect",
-      "qa"
-    ],
-    "steps": [
-      "Frame determinism-vs-efficiency",
-      "Bound the analog physics",
-      "Design the digital datapath",
-      "Red-team the analog 'win'"
-    ],
-    "approach": "Three independent lenses (silicon, physics, regulation) + a red-team that classifies each analog macro before any determinism claim. Vetted conclusion: for regulated edge inference, determinism dominates efficiency.",
-    "score": 8.0,
-    "uses": 1,
-    "created": "2026-06-02",
     "last_used": "2026-06-02"
   }
 ]

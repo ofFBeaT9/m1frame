@@ -13,3 +13,8 @@ venv/
 
 # runtime run store (disk-backed runs)
 runs/
+
+# Private research / internal dev logs — kept locally, excluded from the public repo
+chip_decision/
+opu_study/
+studies/

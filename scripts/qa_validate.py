@@ -740,7 +740,54 @@ def t_tool_calculator(m):
 def t_tool_builtins_present(m):
     from tools.builtin import default_registry
     names=default_registry().names()
-    for n in ("calculator","wiki_search","datetime_now","word_count","http_get"): assert n in names
+    for n in ("calculator","wiki_search","datetime_now","word_count","http_get",
+              "read_file","write_file","list_dir","json_query","regex_extract",
+              "base64_encode","base64_decode","sha256","uuid4","url_parse","convert_temp"):
+        assert n in names, n
+    assert len(names) >= 16
+def t_tool_encoding(m):
+    from tools.builtin import default_registry
+    r=default_registry()
+    assert r.call("base64_decode",{"text":r.call("base64_encode",{"text":"hi m1"})})=="hi m1"
+    assert len(r.call("sha256",{"text":"x"}))==64
+    assert r.call("json_query",{"data":{"a":{"b":[10,20]}},"path":"a.b.1"})==20
+    assert r.call("regex_extract",{"pattern":"[0-9]+","text":"a1 b22"})==["1","22"]
+    assert r.call("url_parse",{"url":"https://x.io/p?q=1"})["host"]=="x.io"
+    assert r.call("convert_temp",{"value":100,"to":"F"})==212.0
+def t_tool_filesystem(m):
+    from tools.builtin import default_registry
+    r=default_registry()
+    rel="runs/_qa_tool_test.txt"
+    assert r.call("write_file",{"path":rel,"content":"hello"},approved=True)["bytes"]==5
+    assert r.call("read_file",{"path":rel}).startswith("hello")
+    assert any(x.startswith("_qa_tool_test") for x in r.call("list_dir",{"path":"runs"}))
+    import os; from pathlib import Path
+    Path("runs/_qa_tool_test.txt").unlink(missing_ok=True)
+def t_tool_sandbox(m):
+    from tools.builtin import _safe_path
+    raised=False
+    try: _safe_path("../../etc/passwd")
+    except ValueError: raised=True
+    assert raised   # path traversal blocked
+def t_tool_approval(m):
+    from tools.builtin import default_registry
+    r=default_registry(); blocked=False
+    try: r.call("write_file",{"path":"runs/_x.txt","content":"y"})   # no approval
+    except PermissionError: blocked=True
+    assert blocked
+    from fastapi.testclient import TestClient
+    from api.server import create_app
+    c=TestClient(create_app())
+    assert c.post("/tools/call",json={"name":"write_file","args":{"path":"runs/_x.txt","content":"y"}}).status_code==403
+    ok=c.post("/tools/call",json={"name":"write_file","args":{"path":"runs/_x.txt","content":"y"},"approve":True})
+    assert ok.status_code==200
+    from pathlib import Path; Path("runs/_x.txt").unlink(missing_ok=True)
+def t_backends_api(m):
+    from fastapi.testclient import TestClient
+    from api.server import create_app
+    c=TestClient(create_app())
+    b=c.get("/backends").json()
+    assert len(b["backends"])==9 and all("ready" in x for x in b["backends"]) and b["active"]
 def t_tool_wiki_search(m):
     from tools.builtin import default_registry
     assert isinstance(default_registry().call("wiki_search",{"query":"chip ternary decision","k":2}), list)
@@ -872,10 +919,15 @@ ALL: dict[str,list] = {
                  ("API webhook + status",     t_gw_api)],
     "tools":    [("Registry register/call",   t_tool_registry),
                  ("Safe calculator",          t_tool_calculator),
-                 ("Built-ins present",        t_tool_builtins_present),
+                 ("Built-ins present (16)",   t_tool_builtins_present),
+                 ("Encoding/data tools",      t_tool_encoding),
+                 ("Sandboxed filesystem",     t_tool_filesystem),
+                 ("Path-traversal blocked",   t_tool_sandbox),
+                 ("Approval gate (danger)",   t_tool_approval),
                  ("wiki_search tool",         t_tool_wiki_search),
                  ("http_get SSRF guard",      t_tool_http_ssrf),
-                 ("Tools API",                t_tool_api)],
+                 ("Tools API",                t_tool_api),
+                 ("Backends registry API",    t_backends_api)],
     "runstore": [("Persist + reload run",     t_run_persist),
                  ("Runs search API",          t_run_search_api)],
     "deploy":   [("Provider presets",         t_provider_presets),

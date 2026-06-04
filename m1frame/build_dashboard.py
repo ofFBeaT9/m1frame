@@ -103,22 +103,19 @@ def build():
         "metrics": load_metrics(),
         "memories": load_memories(),
         "bmad": [
-            {"cycle": "Cycle 1 — OPU feasibility",
-             "phases": ["Analyst", "PM", "Architect", "SM", "QA gate 1", "Dev (11/11 tests)",
-                        "QA gate 2 (independent)", "Verdict"]},
-            {"cycle": "Cycle 2 — Chip decision",
-             "phases": ["Analyst/PM", "Council x3", "Red-team gate", "Synthesis",
-                        "Wiki ingest", "Lint", "miras", "Decision"]},
+            {"cycle": "Demo — MVP architecture decision",
+             "phases": ["BMAD", "Council brainstorm", "OpenPlanter", "Miras",
+                        "Karpathy", "Council QA + red-team", "Wiki ingest"]},
         ],
         "artifacts": [
-            {"label": "Chip DECISION", "path": "chip_decision/DECISION.md"},
-            {"label": "OPU final report", "path": "opu_study/FINAL_REPORT.md"},
-            {"label": "OPU SNR figure", "path": "opu_study/results/snr_sweep.png"},
+            {"label": "Studio UI", "path": "m1frame-studio.html"},
             {"label": "Wiki index", "path": "wiki/index.md"},
-            {"label": "Council papers", "path": "chip_decision/council/"},
+            {"label": "Manual", "path": "MANUAL.md"},
+            {"label": "Demo fixture", "path": "studio/demo_run.json"},
         ],
-        "verdict": "Manufacture a fully-digital ternary ASIC (SKY130 prototype → TSMC 28 nm), "
-                   "trigger-gated. Reject analog — determinism > efficiency for a regulated medical edge.",
+        "verdict": "Demo decision: ship a modular monolith, extraction-ready; split into microservices only on a "
+                   "real scaling trigger. The point is that you can watch how the council reached it — debate, "
+                   "red-team veto, grounding, and memory.",
         "generated": time.strftime("%Y-%m-%d %H:%M"),
     }
     html = TEMPLATE.replace("__M1FRAME_DATA__", json.dumps(data))

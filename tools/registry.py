@@ -18,9 +18,11 @@ class Tool:
     description: str
     func: Callable[..., Any]
     schema: dict = field(default_factory=dict)   # {param: type-or-description}
+    dangerous: bool = False                       # requires explicit approval to run
 
     def spec(self) -> dict:
-        return {"name": self.name, "description": self.description, "schema": self.schema}
+        return {"name": self.name, "description": self.description,
+                "schema": self.schema, "dangerous": self.dangerous}
 
 
 class ToolRegistry:
@@ -44,10 +46,13 @@ class ToolRegistry:
     def names(self) -> list[str]:
         return list(self._tools)
 
-    def call(self, name: str, args: dict | None = None) -> Any:
+    def call(self, name: str, args: dict | None = None, approved: bool = False) -> Any:
         if name not in self._tools:
             raise KeyError(f"unknown tool '{name}'")
-        return self._tools[name].func(**(args or {}))
+        tool = self._tools[name]
+        if tool.dangerous and not approved:
+            raise PermissionError(f"tool '{name}' is dangerous and requires approval")
+        return tool.func(**(args or {}))
 
     def __contains__(self, name: str) -> bool:
         return name in self._tools
