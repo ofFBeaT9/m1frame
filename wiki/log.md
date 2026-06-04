@@ -32,3 +32,5 @@ Append-only chronological record. Never delete entries.
   score-ring) were verified **false** and rejected.
 - Positioning vs **Hermes Agent**: *not* broadly superior; **decisively ahead on auditable, watchable
   deliberation.** Honest headline: "the most auditable multi-agent workspace there is." See `studies/m1frame-studio/`.
+
+- 2026-06-04 — Ingested [[m1frame Constellation Release]] + saved query [[Is m1frame v1.3 Production Ready]] (v1.3 readiness audit; GO 8.3/10, 90/90 QA).

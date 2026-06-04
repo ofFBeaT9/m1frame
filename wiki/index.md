@@ -6,6 +6,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 - [[Chip Manufacturing Decision]] — **the answer**: build a fully-digital ternary ASIC; SKY130 prototype → 28 nm production; trigger-gated.
 - [[OPU Feasibility Verdict]] — optics is inference-only; values survive analog noise, derivatives don't.
 - [[m1frame Studio]] — the real-time UI that makes the 7-pillar deliberation watchable (this pipeline, live + replayable).
+- [[m1frame Constellation Release]] — **v1.3**: gateways + tools + persistent runs + Docker close the Hermes architecture gaps; GO at 8.3/10, 90/90 QA.
 
 ## Entities
 - [[m1frame]] — the portable multi-agent framework itself (the engine behind these studies; deliberates · grounds · remembers).
@@ -23,6 +24,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 
 ## Queries
 - [[What Chip Should We Manufacture]] — saved question → answer.
+- [[Is m1frame v1.3 Production Ready]] — saved question → GO (for its positioning) + the #1 remaining gap.
 
 ## Sources (immutable)
 - [[OPU Feasibility Study]] — `opu_study/` simulation + results.
