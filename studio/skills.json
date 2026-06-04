@@ -1,0 +1,101 @@
+[
+  {
+    "id": "a1b2c3d4",
+    "title": "JWT-Secured FastAPI Service",
+    "goal": "Build a FastAPI service with JWT auth and rate limiting",
+    "domain": "backend",
+    "keywords": [
+      "fastapi",
+      "service",
+      "jwt",
+      "auth",
+      "rate",
+      "limiting",
+      "authentication",
+      "api"
+    ],
+    "roles": [
+      "analyst",
+      "architect",
+      "dev",
+      "qa"
+    ],
+    "steps": [
+      "Elicit auth requirements",
+      "Design token + middleware architecture",
+      "Implement endpoints + JWT",
+      "Write auth + rate-limit tests"
+    ],
+    "approach": "Short-lived access + refresh tokens; auth middleware; per-IP rate limiter; tests cover token expiry, refresh, and 429 paths. Council passed on clear separation of auth vs business logic.",
+    "score": 8.6,
+    "uses": 3,
+    "created": "2026-05-28",
+    "last_used": "2026-06-03"
+  },
+  {
+    "id": "e5f6a7b8",
+    "title": "Cross-Reference Investigation",
+    "goal": "Investigate vendor payments against lobbying disclosures",
+    "domain": "investigation",
+    "keywords": [
+      "investigate",
+      "vendor",
+      "payments",
+      "lobbying",
+      "disclosures",
+      "cross",
+      "reference",
+      "entity"
+    ],
+    "roles": [
+      "analyst",
+      "investigator",
+      "qa"
+    ],
+    "steps": [
+      "Frame the entities + sources",
+      "Resolve entities across datasets",
+      "Cross-reference for overlaps",
+      "Red-team the inferred links"
+    ],
+    "approach": "OpenPlanter entity-resolution across both datasets, then cross-reference for shared directors/addresses; the red-team gates every inferred connection before it ships. Vetted for surfacing non-obvious links without overclaiming.",
+    "score": 8.2,
+    "uses": 2,
+    "created": "2026-05-30",
+    "last_used": "2026-06-02"
+  },
+  {
+    "id": "c9d0e1f2",
+    "title": "Regulated Hardware Architecture Decision",
+    "goal": "Decide a compute substrate for a regulated medical edge workload",
+    "domain": "hardware",
+    "keywords": [
+      "chip",
+      "manufacture",
+      "hardware",
+      "architecture",
+      "decision",
+      "asic",
+      "determinism",
+      "regulated",
+      "medical",
+      "ternary"
+    ],
+    "roles": [
+      "analyst",
+      "architect",
+      "qa"
+    ],
+    "steps": [
+      "Frame determinism-vs-efficiency",
+      "Bound the analog physics",
+      "Design the digital datapath",
+      "Red-team the analog 'win'"
+    ],
+    "approach": "Three independent lenses (silicon, physics, regulation) + a red-team that classifies each analog macro before any determinism claim. Vetted conclusion: for regulated edge inference, determinism dominates efficiency.",
+    "score": 8.0,
+    "uses": 1,
+    "created": "2026-06-02",
+    "last_used": "2026-06-02"
+  }
+]

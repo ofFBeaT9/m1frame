@@ -5,7 +5,7 @@
 # All other settings are backend-specific.
 
 # ── LLM Backend ──────────────────────────────────────────────────
-backend: claude          # claude | openai | ollama | vllm | lmstudio
+backend: claude          # claude | openai | openrouter | ollama | vllm | lmstudio
 
 claude:
   model: claude-sonnet-4-20250514
@@ -40,6 +40,13 @@ lmstudio:
   max_tokens: 8096
   temperature: 0.2
   api_key_env: null
+
+openrouter:               # 200+ models through one OpenAI-compatible endpoint
+  model: anthropic/claude-3.5-sonnet   # or openai/gpt-4o, google/gemini-2.0-flash, meta-llama/llama-3.3-70b-instruct, …
+  base_url: https://openrouter.ai/api/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: OPENROUTER_API_KEY
 
 # ── Pillar: BMAD ─────────────────────────────────────────────────
 bmad:

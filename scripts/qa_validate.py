@@ -640,6 +640,52 @@ def t_e2e(m):
     assert set(st2.outputs.keys())==set(st.outputs.keys())
 
 
+# ── Skills (council-vetted learning loop) ─────────────────────────────────────
+from types import SimpleNamespace
+def _stub_blueprint():
+    return SimpleNamespace(project_name="JWT API", domain="backend", mvp_scope="JWT auth service",
+        stories=[SimpleNamespace(role="architect", title="Design auth"),
+                 SimpleNamespace(role="dev", title="Implement endpoints")])
+def t_skill_learn_vetted(m):
+    from agents.skills import SkillLibrary
+    import tempfile
+    lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
+    sk=lib.learn("Build a FastAPI service with JWT auth", _stub_blueprint(), score=8.5)
+    assert sk is not None and sk.score==8.5 and "dev" in sk.roles
+def t_skill_rejects_unvetted(m):
+    from agents.skills import SkillLibrary
+    import tempfile
+    lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
+    assert lib.learn("Build something", _stub_blueprint(), score=5.0) is None   # below gate
+def t_skill_suggest(m):
+    from agents.skills import SkillLibrary
+    import tempfile
+    lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
+    lib.learn("Build a FastAPI JWT auth service", _stub_blueprint(), score=9.0)
+    hits=lib.suggest("Create a FastAPI service with JWT authentication")
+    assert hits and hits[0].roles
+def t_skill_reinforce_dedup(m):
+    from agents.skills import SkillLibrary
+    import tempfile
+    lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
+    a=lib.learn("Build a FastAPI JWT auth service", _stub_blueprint(), score=8.0)
+    b=lib.learn("Build a FastAPI JWT auth service again", _stub_blueprint(), score=9.0)
+    assert a.id==b.id and b.uses==2 and len(lib.skills)==1 and b.score==9.0
+def t_skill_persist(m):
+    from agents.skills import SkillLibrary
+    import tempfile
+    p=str(Path(tempfile.mkdtemp())/"s.json")
+    SkillLibrary(path=p).learn("Investigate vendor payments vs lobbying", _stub_blueprint(), score=8.0)
+    assert SkillLibrary(path=p).all() and Path(p).exists()
+def t_skill_tolerates_partial(m):
+    from agents.skills import SkillLibrary
+    import tempfile, json as _j
+    p=Path(tempfile.mkdtemp())/"s.json"
+    p.write_text(_j.dumps({"skills":[{"id":"x","title":"Partial"}]}),encoding="utf-8")  # missing uses/score/etc
+    lib=SkillLibrary(path=str(p)); s=lib.all()[0]      # must not crash sort on None
+    assert s.uses==0 and s.score==0.0 and s.roles==[]
+
+
 # ══ Registry ══════════════════════════════════════════════════════════════════
 ALL: dict[str,list] = {
     "config":   [("Config keys",              t_config),
@@ -709,6 +755,12 @@ ALL: dict[str,list] = {
                  ("remove() job",             t_scheduler_remove),
                  ("run_now() executes",       t_scheduler_run_now),
                  ("disable() job",            t_scheduler_disable)],
+    "skills":   [("learn() vets passes",      t_skill_learn_vetted),
+                 ("rejects unvetted",         t_skill_rejects_unvetted),
+                 ("suggest() matches goal",   t_skill_suggest),
+                 ("reinforce + dedup",        t_skill_reinforce_dedup),
+                 ("persists to disk",         t_skill_persist),
+                 ("tolerates partial json",   t_skill_tolerates_partial)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 

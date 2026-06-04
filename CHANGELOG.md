@@ -9,6 +9,21 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ## [Unreleased]
 _No unreleased changes yet._
 
+## [1.2.0] — 2026-06-04 — "Studio + Skills"
+### Added
+- **Council-vetted skill-learning loop** (`agents/skills.py`): runs that pass the QA gate (score ≥ threshold)
+  are distilled into reusable, auditable `Skill`s (`skills/skills.json`); `suggest()` recalls them to seed BMAD
+  planning on similar goals, so the system improves over time. Near-duplicate goals reinforce instead of
+  fragmenting. Wired into `scripts/run_workflow.py` (`--no-learn` to disable) and emitted as
+  `skill_suggested` / `skill_learned` events.
+- **OpenRouter backend** — 200+ models through one OpenAI-compatible endpoint (`config.yaml`, `OPENROUTER_API_KEY`).
+- **Studio "Skills" surface** + live skill-recall / skill-learned cards; API `GET /skills`,
+  `POST /skills/suggest`, `DELETE /skills/{id}`.
+- **[MANUAL.md](MANUAL.md)** — a complete user manual (pillars, Studio, skills, backends, CLI, API, vs Hermes).
+
+### Notes
+- 73/73 offline QA (added 5 skill tests). Skill learning is opt-out and never runs in the test suite.
+
 ## [1.1.0] — 2026-06-03 — "Studio"
 ### Added
 - **m1frame Studio** (`m1frame-studio.html`) — a zero-build, offline, single-file real-time UI with six

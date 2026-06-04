@@ -12,6 +12,9 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
 > final answer; m1frame shows you the **reasoning** — the debate, the red-team, the grounding. Run it with no API
 > key (gorgeous demo mode) or wire a key for live runs.
+>
+> Now also **self-improving** (council-**vetted** skills learned from passing runs) and **200+ models** via
+> OpenRouter. 📖 **Full guide: [MANUAL.md](MANUAL.md).**
 
 ---
 
@@ -66,6 +69,7 @@ Six surfaces, one renderer:
 | **Chat** | Talk to m1frame — answers stream token-by-token, **grounded** in the wiki with clickable citations. |
 | **Graph** | The full force-directed knowledge-graph constellation; click any node to read its page. |
 | **Runs** | Every run, fully **replayable** from its recorded event trace. |
+| **Skills** | The library of **council-vetted** skills m1frame has learned — score, uses, roles, approach. Self-improving, but auditable. |
 | **Wiki** | Search and read the knowledge base with rendered Markdown, types, and confidence. |
 | **Settings** | One-click backend/model switch, scheduler, live metrics, demo/live toggle, accent theming. |
 
@@ -175,8 +179,12 @@ Without it, m1frame runs OpenPlanter in **LLM-only mode** (all reasoning, no rea
 
 ```yaml
 # config.yaml
-backend: ollama     # claude | openai | ollama | vllm | lmstudio
+backend: ollama     # claude | openai | openrouter | ollama | vllm | lmstudio
 ```
+
+`openrouter` reaches **200+ models** (Anthropic, OpenAI, Google, Meta, Mistral, …) through one
+OpenAI-compatible endpoint — set `openrouter.model` to e.g. `google/gemini-2.0-flash`. Local backends
+(ollama/vllm/lmstudio) need no key and run fully offline.
 
 ```bash
 python -m m1frame --goal "..." --backend ollama  # fully offline with Ollama
@@ -257,4 +265,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.1.0 "Studio" — Mahdad Shakiba, June 2026*
+*m1frame v1.2.0 "Studio + Skills" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)

@@ -90,6 +90,10 @@ def build_events() -> list[dict]:
     e(0, "run_start", goal=GOAL, options={
         "backend": "claude (demo replay)", "parallel": False, "self_critique": True})
 
+    # Skill recall (self-improving) — a prior vetted recipe seeds planning
+    e(300, "skill_suggested", pillar="bmad", skills=[
+        {"id": "c9d0e1f2", "title": "Regulated Hardware Architecture Decision", "uses": 1, "score": 8.0}])
+
     # 1 · BMAD ------------------------------------------------------------------
     e(350, "pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     e(700, "bmad_blueprint", pillar="bmad",
@@ -215,6 +219,9 @@ def build_events() -> list[dict]:
       required_fixes=["State tape-out triggers explicitly", "Remove charge-domain CIM from the bit-exact set"])
     e(300, "qa_gate", pillar="council", gate="results-review", status="PASS", score=8.0)
     e(350, "pillar_done", pillar="council", ms=6100, phase="review")
+    # The pass earned a reinforcement of the vetted skill (self-improving loop)
+    e(300, "skill_learned", pillar="council", id="c9d0e1f2",
+      title="Regulated Hardware Architecture Decision", score=8.0, uses=2)
 
     # 7 · LLM Wiki ingest — grow the knowledge graph ----------------------------
     nodes = wiki_nodes()
@@ -283,10 +290,13 @@ def main() -> int:
     # Static snapshots so the UI is fully alive even with NO server / NO pip
     # (the stdlib static server or a double-click fetches these directly).
     from studio import data
+    from agents.skills import SkillLibrary
+    from dataclasses import asdict
     snapshots = {
         "wiki_graph.json": data.wiki_graph(),
         "wiki_pages.json": data.wiki_pages(),
         "memories.json": data.load_memories(),
+        "skills.json": [asdict(s) for s in SkillLibrary().all()],
     }
     for name, obj in snapshots.items():
         (STUDIO / name).write_text(json.dumps(obj, indent=2), encoding="utf-8")

@@ -41,6 +41,7 @@ from agents.wiki import LLMWiki
 from agents.openplanter import OpenPlanterAgent
 from agents.logger import PillarLogger
 from agents.metrics import get_metrics
+from agents.skills import SkillLibrary
 
 
 def _bar(text: str) -> None:
@@ -77,6 +78,7 @@ def run_workflow(
     webhook_url: str | None = None,
     metrics_port: int | None = None,
     emit: Optional[Callable[..., None]] = None,
+    learn_skills: bool = True,
 ) -> dict:
     # `emit(type, pillar=..., **data)` streams progress to the Studio UI.
     # Default no-op ⇒ byte-identical CLI behaviour and the QA suite is unaffected.
@@ -106,12 +108,29 @@ def run_workflow(
         "investigation": None, "state": None, "verdict": None, "wiki_page": None,
     }
 
+    # ── Skill recall (self-improving): seed planning with prior VETTED approaches ──
+    # Defensive throughout: the learning loop must never be able to break a run.
+    skills = None
+    skill_ctx = ""
+    try:
+        skills = SkillLibrary(threshold=float((cfg.get("council") or {}).get("consensus_threshold", 7.0)))
+        suggested = skills.suggest(goal)
+        skill_ctx = skills.as_context(suggested)
+        if suggested:
+            emit("skill_suggested", pillar="bmad",
+                 skills=[{"id": s.id, "title": s.title, "uses": s.uses, "score": s.score}
+                         for s in suggested])
+            if verbose:
+                print(f"  ↻ recalled {len(suggested)} prior vetted skill(s) to seed planning")
+    except Exception as e:  # noqa: BLE001 — recall is best-effort
+        logger.warn("bmad", "skill_recall_error", error=str(e))
+
     # ── 1. BMAD — Story Backlog ───────────────────────────────────────────────
     _bar("PILLAR 1 · BMAD  —  Story Backlog")
     emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
-    blueprint = bmad.plan(goal, extra_context=purpose[:500])
+    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], skill_ctx])))
     issues = bmad.validate(blueprint)
     print(f"  {'✓ Blueprint valid' if not issues else '⚠  ' + str(issues)}")
     if verbose:
@@ -294,6 +313,20 @@ def run_workflow(
              score=verdict.consensus_score)
         emit("pillar_done", pillar="council", ms=round(ms), phase="review")
 
+        # ── Skill learning (vetted): remember HOW, only when the council passed ──
+        if learn_skills and skills is not None and verdict.passed:
+            try:
+                learned = skills.learn(goal, blueprint, verdict.consensus_score,
+                                       approach=(refined.answer[:200] if refined.answer else ""))
+                if learned:
+                    emit("skill_learned", pillar="council", id=learned.id, title=learned.title,
+                         score=learned.score, uses=learned.uses)
+                    results["skill"] = learned
+                    if verbose:
+                        print(f"  ★ learned vetted skill: {learned.title} ({learned.score:.1f}/10)")
+            except Exception as e:  # noqa: BLE001 — learning is best-effort, never fatal
+                logger.warn("council", "skill_learn_error", error=str(e))
+
     # ── 7. LLM Wiki ──────────────────────────────────────────────────────────
     page = None
     if not skip_wiki:
@@ -346,7 +379,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description="m1frame — Portable Multi-Agent Workflow")
     p.add_argument("--goal", required=True, help="High-level goal to accomplish")
     p.add_argument("--backend", default=None,
-                   help="LLM backend: claude|openai|ollama|vllm|lmstudio")
+                   help="LLM backend: claude|openai|openrouter|ollama|vllm|lmstudio")
+    p.add_argument("--no-learn",        action="store_true",
+                   help="Don't learn/recall a council-vetted skill")
     p.add_argument("--no-council",      action="store_true", help="Skip Council steps")
     p.add_argument("--no-wiki",         action="store_true", help="Skip Wiki ingest")
     p.add_argument("--no-openplanter",  action="store_true", help="Skip OpenPlanter investigation")
@@ -370,6 +405,7 @@ def main() -> None:
         self_critique=args.self_critique,
         webhook_url=args.webhook,
         metrics_port=args.metrics_port,
+        learn_skills=not args.no_learn,
     )
 
 if __name__ == "__main__":

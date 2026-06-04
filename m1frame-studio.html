@@ -408,14 +408,16 @@ const ICONS = {
   graph:'<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="8" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8 7l8 1M7 8l4 8M16 10l-3 6"/>',
   runs:'<path d="M5 4v16M5 7h13l-2.5 3L18 13H5"/>', wiki:'<path d="M5 4h11l3 3v13H5z"/><path d="M9 9h6M9 13h6M9 17h3"/>',
   settings:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.5 5.5l2 2M16.5 16.5l2 2M18.5 5.5l-2 2M7.5 16.5l-2 2"/>',
+  skills:'<path d="M12 4l8 4-8 4-8-4 8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>',
   spark:'<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>', play:'<path d="M8 5v14l11-7z"/>'
 };
-const NAV=[["studio","Studio"],["chat","Chat"],["graph","Graph"],["runs","Runs"],["wiki","Wiki"],["settings","Settings"]];
+const NAV=[["studio","Studio"],["chat","Chat"],["graph","Graph"],["runs","Runs"],["skills","Skills"],["wiki","Wiki"],["settings","Settings"]];
+const SKILL_HUE="#fbbf24";
 
 /* ══════════════ state ══════════════ */
 const S = {
   view:"studio", mode:"demo", server:false, canLive:false, config:null,
-  busy:false, run:null, runs:[], graph:{nodes:[],links:[]}, pages:[], memories:[],
+  busy:false, run:null, runs:[], graph:{nodes:[],links:[]}, pages:[], memories:[], skills:[],
   chat:[], opts:{parallel:false, self_critique:true, skip_council:false, skip_wiki:false}, accent:"#34e7e4"
 };
 const API = location.protocol.startsWith("http") ? location.origin : "";
@@ -473,12 +475,13 @@ async function boot(){
 }
 async function loadData(){
   if(S.server){
-    try{const [g,p,m,c]=await Promise.all([
+    try{const [g,p,m,c,sk]=await Promise.all([
       fetch(API+"/wiki/graph").then(r=>r.json()),
       fetch(API+"/wiki/pages").then(r=>r.json()),
       fetch(API+"/memories").then(r=>r.json()),
-      fetch(API+"/config").then(r=>r.json())]);
-      S.graph=g; S.pages=p.pages||[]; S.memories=m.memories||[]; S.config=c;
+      fetch(API+"/config").then(r=>r.json()),
+      fetch(API+"/skills").then(r=>r.json()).catch(()=>({skills:[]}))]);
+      S.graph=g; S.pages=p.pages||[]; S.memories=m.memories||[]; S.config=c; S.skills=sk.skills||[];
       try{S.runs=await fetch(API+"/runs").then(r=>r.json());}catch(e){}
     }catch(e){console.warn(e);}
   } else {
@@ -487,7 +490,8 @@ async function loadData(){
     S.graph=await get("wiki_graph.json")||{nodes:[],links:[]};
     S.pages=await get("wiki_pages.json")||[];
     S.memories=await get("memories.json")||[];
-    S.config={backend:"static",model:"—",backends:["claude","openai","ollama","vllm","lmstudio"],models:{},can_run_live:false,default_mode:"demo"};
+    S.skills=await get("skills.json")||[];
+    S.config={backend:"static",model:"—",backends:["claude","openai","openrouter","ollama","vllm","lmstudio"],models:{},can_run_live:false,default_mode:"demo"};
   }
 }
 
@@ -523,7 +527,7 @@ function route(){
   $$(".navbtn").forEach(b=>{const on=b.dataset.nav===S.view; b.classList.toggle("on",on);
     if(on)b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current");});
   const v=$("#view"); v.scrollTop=0;
-  ({studio:viewStudio,chat:viewChat,graph:viewGraph,runs:viewRuns,wiki:viewWiki,settings:viewSettings}[S.view]||viewStudio)(v);
+  ({studio:viewStudio,chat:viewChat,graph:viewGraph,runs:viewRuns,skills:viewSkills,wiki:viewWiki,settings:viewSettings}[S.view]||viewStudio)(v);
 }
 function setMode(m){ if(m==="live"&&!S.canLive){toast("No API key detected — staying in DEMO. Add ANTHROPIC_API_KEY for live runs.");return;}
   S.mode=m; $$(".seg button").forEach(b=>b.classList.remove("on","demo"));
@@ -661,6 +665,8 @@ function onEvent(ev){
     case "graph_delta": applyGraphDelta(ev); break;
     case "wiki_page": addMemoryPulse({type:ev.page_type,agent:"wiki",text:ev.title}); break;
     case "memory_added": addMemoryPulse({type:ev.type_||ev.type,agent:ev.agent,text:ev.text}); break;
+    case "skill_suggested": renderSkillEvent(ev,"suggested"); break;
+    case "skill_learned": renderSkillEvent(ev,"learned"); break;
     case "final": renderFinal(ev); break;
     case "error": toast("Pipeline error: "+ev.message); break;
     case "done": setAurora(PILLARS.system.hue); if(S.server&&!ev._instant)refreshSidecars(); break;
@@ -771,6 +777,25 @@ function applyGraphDelta(ev){ (ev.nodes||[]).forEach(n=>{ if(!S.graph.nodes.find
   const have=new Set(S.graph.links.map(key));
   (ev.links||[]).forEach(l=>{ if(have.has(key(l)))return; have.add(key(l)); S.graph.links.push(l); miniGraph&&miniGraph.addLink(l);});
   const gc=$("#gcount"); if(gc)gc.textContent=S.graph.nodes.length+" nodes";}
+function renderSkillEvent(ev,kind){const F=$("#feed"); if(!F)return; const hue=SKILL_HUE;
+  if(kind==="suggested"){const n=(ev.skills||[]).length;
+    F.append(el("div",{class:"card",style:{"--hue":hue}},
+      el("div",{class:"ch"}, el("div",{class:"ico",html:svg(ICONS.skills)}),
+        el("h3",{},"Skill recall"), el("span",{class:"meta"},"self-improving")),
+      el("div",{class:"cb"},
+        el("div",{style:{fontSize:"13px",color:"var(--ink2)"}},"↻ Recalled "+n+" prior vetted skill"+(n===1?"":"s")+" to seed planning:"),
+        el("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap",marginTop:"8px"}},
+          ...(ev.skills||[]).map(s=>el("span",{class:"role",style:{borderColor:hue+"66",color:hue}},s.title+" · "+(s.uses||0)+"×"))))));
+  } else {
+    F.append(el("div",{class:"card",style:{"--hue":hue}},
+      el("div",{class:"ch"}, el("div",{class:"ico",html:svg(ICONS.skills)}),
+        el("h3",{},"Skill learned"), el("span",{class:"meta"},"vetted "+(ev.score?.toFixed?ev.score.toFixed(1):ev.score)+"/10")),
+      el("div",{class:"cb"}, el("div",{style:{fontSize:"13px"}},
+        "★ ", el("b",{},ev.title), " is now in the library (used "+(ev.uses||1)+"×). m1frame will recall it for similar goals."))));
+    const ex=S.skills.find(x=>x.id===ev.id);
+    if(ex){ex.uses=ev.uses; ex.score=ev.score;}
+    else S.skills.unshift({id:ev.id,title:ev.title,score:ev.score,uses:ev.uses,domain:"learned",roles:[],approach:""});
+  }}
 function addMemoryPulse(m){const mf=$("#memfeed"); if(mf){mf.prepend(memItem(m,true));}
   S.memories.unshift({type:m.type,agent:m.agent,text:m.text}); const mc=$("#memcount"); if(mc)mc.textContent=S.memories.length+" stored";}
 function renderFinal(ev){const c=el("div",{class:"card final",style:{"--hue":"#34e7e4"}},
@@ -937,6 +962,28 @@ async function replayRun(r){go("studio");
     if(!events&&S.server){try{events=(await fetch(API+"/run/"+r.run_id).then(x=>x.json())).events;}catch(e){}}
     (events||[]).forEach(ev=>onEvent({...ev,_instant:true}));
     toast("Replayed run · "+(r.score!=null?r.score+"/10":"")); },80);}
+
+/* ══════════════ SKILLS view ══════════════ */
+function viewSkills(v){v.innerHTML="";
+  v.append(el("div",{class:"eyebrow"},"SELF-IMPROVING MEMORY"),
+    el("div",{style:{display:"flex",gap:"12px",alignItems:"baseline",marginBottom:"6px",flexWrap:"wrap"}},
+      el("h2",{style:{fontFamily:"var(--disp)",fontSize:"20px"}},(S.skills.length||0)+" vetted skills"),
+      el("span",{style:{color:"var(--mute)",fontFamily:"var(--mono)",fontSize:"12px"}},"learned only from runs that passed the council gate")),
+    el("div",{style:{fontSize:"13px",color:"var(--ink2)",maxWidth:"760px",marginBottom:"18px",lineHeight:"1.6"}},
+      "Every time a run clears the Council QA gate, m1frame distils the approach that worked into a reusable, auditable skill — and recalls it to seed the next similar goal. Unlike a black-box self-improving agent, each skill records the goal it came from, the score that earned it, and how often it's been reused."));
+  if(!S.skills.length){v.append(el("div",{class:"empty"},
+    el("div",{class:"glyph",html:svg(ICONS.skills)}),
+    el("div",{},"No skills yet. Run a goal to a passing verdict and m1frame learns its first vetted recipe.")));return;}
+  const grid=el("div",{class:"grid2"}); S.skills.forEach(s=>grid.append(skillCard(s))); v.append(grid);}
+function skillCard(s){const score=(s.score&&s.score.toFixed)?s.score.toFixed(1):s.score;
+  return el("div",{class:"pagecard",style:{borderLeft:"3px solid "+SKILL_HUE}},
+    el("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",gap:"8px"}},
+      el("span",{class:"ptype",style:{color:SKILL_HUE,border:"1px solid "+SKILL_HUE+"55"}},s.domain||"skill"),
+      el("span",{style:{fontFamily:"var(--mono)",fontSize:"11px",color:"var(--mute)"}},"used "+(s.uses||0)+"× · "+score+"/10")),
+    el("div",{style:{fontFamily:"var(--disp)",fontSize:"16px",marginBottom:"6px"}},s.title),
+    el("div",{style:{fontSize:"12.5px",color:"var(--ink2)",marginBottom:"9px"}},s.approach||""),
+    (s.roles&&s.roles.length)?el("div",{style:{display:"flex",gap:"5px",flexWrap:"wrap"}},
+      ...s.roles.map(r=>el("span",{class:"role"},r))):null);}
 
 /* ══════════════ WIKI view ══════════════ */
 function viewWiki(v){v.innerHTML="";

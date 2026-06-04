@@ -63,7 +63,7 @@ from llm_client import LLMClient, load_config
 STUDIO_HTML = ROOT / "m1frame-studio.html"
 DEMO_FIXTURE = ROOT / "studio" / "demo_run.json"
 LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio"}
-ALL_BACKENDS = ["claude", "openai", "ollama", "vllm", "lmstudio"]
+ALL_BACKENDS = ["claude", "openai", "openrouter", "ollama", "vllm", "lmstudio"]
 SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
                "X-Accel-Buffering": "no"}
 
@@ -82,6 +82,10 @@ if _FASTAPI:
         parallel: bool = False
         self_critique: bool = False
         webhook_url: Optional[str] = None
+        learn_skills: bool = True
+
+    class SkillSuggestRequest(BaseModel):
+        goal: str
 
     class WikiIngestRequest(BaseModel):
         text: str
@@ -183,7 +187,7 @@ def create_app() -> "FastAPI":
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.1.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.2.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -207,7 +211,7 @@ def create_app() -> "FastAPI":
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.1.0",
+            "status": "ok", "version": "1.2.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -382,6 +386,28 @@ def create_app() -> "FastAPI":
         from studio.data import load_memories
         return {"memories": load_memories()}
 
+    # ── skills (council-vetted learning loop) ─────────────────────────────────────
+    def _skill_lib():
+        from agents.skills import SkillLibrary
+        return SkillLibrary(threshold=float((cfg.get("council") or {}).get("consensus_threshold", 7.0)))
+
+    @app.get("/skills")
+    async def list_skills():
+        from dataclasses import asdict
+        lib = _skill_lib()
+        return {"skills": [asdict(s) for s in lib.all()], "threshold": lib.threshold}
+
+    @app.post("/skills/suggest")
+    async def suggest_skills(req: "SkillSuggestRequest"):
+        from dataclasses import asdict
+        return {"skills": [asdict(s) for s in _skill_lib().suggest(req.goal)]}
+
+    @app.delete("/skills/{skill_id}")
+    async def remove_skill(skill_id: str):
+        if not _skill_lib().remove(skill_id):
+            raise HTTPException(404, "skill_id not found")
+        return {"removed": skill_id}
+
     @app.get("/metrics", response_class=PlainTextResponse)
     async def prometheus_metrics():
         return metrics.to_prometheus()
@@ -436,6 +462,7 @@ def create_app() -> "FastAPI":
                 skip_council=req.skip_council, skip_wiki=req.skip_wiki,
                 skip_openplanter=req.skip_openplanter, verbose=False,
                 parallel=req.parallel, self_critique=req.self_critique, emit=emit,
+                learn_skills=req.learn_skills,
             )
 
         try:
