@@ -9,7 +9,7 @@ is supplied by the API server).
 from __future__ import annotations
 
 import re
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .router import InboundMessage
 
@@ -33,14 +33,14 @@ def grounded_answer(text: str, max_pages: int = 3) -> str:
         return "No grounded match in the knowledge graph yet. Try /run <goal> to build one."
     lines = []
     for _, p in scored[:max_pages]:
-        first = next((l.strip() for l in (p.get("body", "") or "").splitlines()
-                      if l.strip() and not l.strip().startswith(("#", "-", "|", ">"))), "")
+        first = next((ln.strip() for ln in (p.get("body", "") or "").splitlines()
+                      if ln.strip() and not ln.strip().startswith(("#", "-", "|", ">"))), "")
         lines.append(f"• {p.get('title')}: {first}".rstrip(": ").strip())
     cites = ", ".join(p.get("title") for _, p in scored[:max_pages])
     return "\n".join(lines) + f"\n[grounded in: {cites}]"
 
 
-def make_default_handler(run_async: Optional[Callable[[str], str]] = None
+def make_default_handler(run_async: Callable[[str], str] | None = None
                          ) -> Callable[[InboundMessage], str]:
     def handler(msg: InboundMessage) -> str:
         if (msg.meta or {}).get("mode") == "run":

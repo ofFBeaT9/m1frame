@@ -1,6 +1,19 @@
 line-length = 100
 target-version = "py310"
+# Private research / build scripts (not part of the framework) — never linted.
+extend-exclude = [
+    ".claude", "dist", "chip_decision", "opu_study", "studies", "Tritone-companion-code",
+    "figs", "build_ultimate.py", "build_v6.py", "md2pdf.py",
+    "gen_appendix_d.py", "gen_diagrams.py", "gen_fig04_real.py", "gen_fig09_fig07b.py",
+    "gen_wiring_v3.py",
+]
 
 [lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = ["E501", "B008", "UP007"]
+
+[lint.per-file-ignores]
+# The QA suite is intentionally dense — one assertion per line — for scannability.
+"scripts/qa_validate.py" = ["E701", "E702", "E402", "I001"]
+# api/server.py imports after a sys.path.insert bootstrap (standard pattern).
+"api/server.py" = ["E402"]

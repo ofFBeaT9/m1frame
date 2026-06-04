@@ -33,7 +33,7 @@ _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
 def _safe_eval(node):
     if isinstance(node, ast.Expression):
         return _safe_eval(node.body)
-    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+    if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
         return node.value
     if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
         return _OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))

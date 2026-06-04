@@ -13,12 +13,12 @@ Usage:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import time
 import uuid
-import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 class PillarLogger:
@@ -33,7 +33,7 @@ class PillarLogger:
     def __init__(
         self,
         log_dir: str = "logs",
-        trace_id: Optional[str] = None,
+        trace_id: str | None = None,
     ) -> None:
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)

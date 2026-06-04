@@ -39,14 +39,13 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 # ── Optional FastAPI import ───────────────────────────────────────────────────
 try:
-    from fastapi import FastAPI, HTTPException, Body
+    from fastapi import Body, FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
     from pydantic import BaseModel
@@ -74,15 +73,15 @@ SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
 if _FASTAPI:
     class RunRequest(BaseModel):
         goal: str
-        backend: Optional[str] = None
-        mode: Optional[str] = None          # live | demo (auto-demo without a key)
+        backend: str | None = None
+        mode: str | None = None          # live | demo (auto-demo without a key)
         speed: float = 1.0                  # demo replay speed multiplier
         skip_council: bool = False
         skip_wiki: bool = False
         skip_openplanter: bool = False
         parallel: bool = False
         self_critique: bool = False
-        webhook_url: Optional[str] = None
+        webhook_url: str | None = None
         learn_skills: bool = True
 
     class SkillSuggestRequest(BaseModel):
@@ -109,8 +108,8 @@ if _FASTAPI:
         ground: bool = True
 
     class ConfigPatch(BaseModel):
-        backend: Optional[str] = None
-        model: Optional[str] = None
+        backend: str | None = None
+        model: str | None = None
 
 
 # ── In-memory run store ───────────────────────────────────────────────────────
@@ -177,7 +176,7 @@ def _load_persisted_runs(limit: int = 50) -> int:
     return n
 
 
-def _can_run_live(cfg: dict, backend: Optional[str] = None) -> bool:
+def _can_run_live(cfg: dict, backend: str | None = None) -> bool:
     b = backend or cfg.get("backend", "claude")
     if b in LOCAL_BACKENDS:
         return True
@@ -188,7 +187,7 @@ def _can_run_live(cfg: dict, backend: Optional[str] = None) -> bool:
 _MODEL_RE = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")   # PATCH /config: no ':' (YAML), no spaces/newlines
 
 
-def _persist_config(backend: Optional[str], model: Optional[str]) -> None:
+def _persist_config(backend: str | None, model: str | None) -> None:
     """Best-effort update of config.yaml that preserves comments (line walk)."""
     path = ROOT / "config.yaml"
     if not path.exists():
@@ -220,7 +219,7 @@ def _persist_config(backend: Optional[str], model: Optional[str]) -> None:
 
 # ── App factory ───────────────────────────────────────────────────────────────
 
-def create_app() -> "FastAPI":
+def create_app() -> FastAPI:
     if not _FASTAPI:
         raise ImportError("Run: pip install fastapi uvicorn httpx")
 
@@ -275,7 +274,7 @@ def create_app() -> "FastAPI":
         }
 
     @app.patch("/config")
-    async def patch_config(req: "ConfigPatch"):
+    async def patch_config(req: ConfigPatch):
         if req.backend:
             if req.backend not in ALL_BACKENDS:
                 raise HTTPException(400, f"unknown backend '{req.backend}'")
@@ -290,7 +289,7 @@ def create_app() -> "FastAPI":
 
     # ── runs ─────────────────────────────────────────────────────────────────────
     @app.post("/run", status_code=202)
-    async def submit_run(req: "RunRequest"):
+    async def submit_run(req: RunRequest):
         run_id = _new_run(req.goal)
         run = _RUNS[run_id]
         bus = EventBus()
@@ -350,9 +349,8 @@ def create_app() -> "FastAPI":
 
     # ── chat (SSE token stream) ───────────────────────────────────────────────────
     @app.post("/chat", include_in_schema=False)
-    async def chat(req: "ChatRequest"):
+    async def chat(req: ChatRequest):
         user_msg = req.message or (req.messages[-1]["content"] if req.messages else "")
-        history = req.messages[:-1] if req.messages else []
 
         async def gen():
             from studio.data import keyword_answer
@@ -409,7 +407,7 @@ def create_app() -> "FastAPI":
 
     # ── wiki / graph / memories / metrics ─────────────────────────────────────────
     @app.post("/wiki/ingest")
-    async def wiki_ingest(req: "WikiIngestRequest"):
+    async def wiki_ingest(req: WikiIngestRequest):
         from agents.wiki import LLMWiki
         wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
         page = wiki.ingest(req.text, topic_hint=req.topic_hint, source_name=req.source_name)
@@ -453,7 +451,7 @@ def create_app() -> "FastAPI":
         return {"skills": [asdict(s) for s in lib.all()], "threshold": lib.threshold}
 
     @app.post("/skills/suggest")
-    async def suggest_skills(req: "SkillSuggestRequest"):
+    async def suggest_skills(req: SkillSuggestRequest):
         from dataclasses import asdict
         return {"skills": [asdict(s) for s in _skill_lib().suggest(req.goal)]}
 
@@ -464,9 +462,9 @@ def create_app() -> "FastAPI":
         return {"removed": skill_id}
 
     # ── messaging gateways (one router, many platforms) ───────────────────────────
-    from gateways.router import GatewayRouter, OutboundMessage
     from gateways import adapters as _gw_adapters
     from gateways.handlers import grounded_answer
+    from gateways.router import GatewayRouter, OutboundMessage
 
     def _gw_status():
         return {"backend": cfg.get("backend"), "pillars": 7,
@@ -517,16 +515,16 @@ def create_app() -> "FastAPI":
         return {"tools": _tool_registry().list()}
 
     @app.post("/tools/call")
-    async def call_tool(req: "ToolCallRequest"):
+    async def call_tool(req: ToolCallRequest):
         reg = _tool_registry()
         if req.name not in reg:
             raise HTTPException(404, f"unknown tool '{req.name}'")
         try:
             return {"name": req.name, "result": reg.call(req.name, req.args, approved=req.approve)}
         except PermissionError as e:
-            raise HTTPException(403, str(e))   # dangerous tool needs approve=true
+            raise HTTPException(403, str(e)) from e   # dangerous tool needs approve=true
         except Exception as e:  # noqa: BLE001
-            raise HTTPException(400, f"tool error: {e}")
+            raise HTTPException(400, f"tool error: {e}") from e
 
     @app.get("/metrics", response_class=PlainTextResponse)
     async def prometheus_metrics():
@@ -546,15 +544,17 @@ def create_app() -> "FastAPI":
     # ── scheduler ─────────────────────────────────────────────────────────────────
     @app.get("/schedule")
     async def list_schedule():
-        from agents.scheduler import InvestigationScheduler
         from dataclasses import asdict
+
+        from agents.scheduler import InvestigationScheduler
         sched = InvestigationScheduler(LLMClient())
         return {"jobs": [asdict(j) for j in sched.list_jobs()]}
 
     @app.post("/schedule", status_code=201)
-    async def add_schedule(req: "ScheduleJobRequest"):
-        from agents.scheduler import InvestigationScheduler
+    async def add_schedule(req: ScheduleJobRequest):
         from dataclasses import asdict
+
+        from agents.scheduler import InvestigationScheduler
         sched = InvestigationScheduler(LLMClient())
         job = sched.add(req.job_id, req.task, req.interval_hours)
         return {"job": asdict(job)}
@@ -568,7 +568,7 @@ def create_app() -> "FastAPI":
         return {"removed": job_id}
 
     # ── run executors (closures capture cfg/metrics/logger) ───────────────────────
-    async def _run_live(run_id: str, req: "RunRequest", bus: EventBus) -> None:
+    async def _run_live(run_id: str, req: RunRequest, bus: EventBus) -> None:
         from scripts.run_workflow import run_workflow
         run = _RUNS[run_id]
         run["status"] = "running"

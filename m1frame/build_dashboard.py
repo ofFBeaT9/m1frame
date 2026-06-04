@@ -36,7 +36,7 @@ def parse_wiki():
         tm = re.search(r"^page_type:\s*(.+)$", text, re.M)
         ptype = tm.group(1).strip() if tm else "page"
         title2type[title] = ptype
-        raw[title] = [l.split("|")[0].strip() for l in LINK.findall(text)]
+        raw[title] = [ln.split("|")[0].strip() for ln in LINK.findall(text)]
         inbound.setdefault(title, 0)
         nodes.append({"id": title, "type": ptype,
                       "file": str(p.relative_to(ROOT)).replace("\\", "/")})

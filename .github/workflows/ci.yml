@@ -43,7 +43,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install dev dependencies
-        run: pip install ruff mypy pyyaml python-dotenv
+        run: pip install ruff mypy pyyaml types-PyYAML python-dotenv
       - name: Ruff lint
         run: ruff check .
       - name: Mypy type check

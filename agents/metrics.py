@@ -20,12 +20,11 @@ Module singleton:
 """
 from __future__ import annotations
 
-import time
 import threading
+import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Dict, Generator, Optional
-
 
 # ── Per-pillar data ───────────────────────────────────────────────────────────
 
@@ -66,10 +65,10 @@ class MetricsCollector:
     """
 
     def __init__(self) -> None:
-        self._pillars: Dict[str, PillarMetrics] = {}
+        self._pillars: dict[str, PillarMetrics] = {}
         self._lock = threading.Lock()
         self._start = time.time()
-        self._http_server: Optional[object] = None
+        self._http_server: object | None = None
 
     # ── Recording API ─────────────────────────────────────────────────────────
 
@@ -112,7 +111,7 @@ class MetricsCollector:
         with self._lock:
             return self._pillars.get(pillar, PillarMetrics(pillar=pillar))
 
-    def all_pillars(self) -> Dict[str, PillarMetrics]:
+    def all_pillars(self) -> dict[str, PillarMetrics]:
         with self._lock:
             return dict(self._pillars)
 
@@ -202,7 +201,7 @@ class MetricsCollector:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_default: Optional[MetricsCollector] = None
+_default: MetricsCollector | None = None
 _singleton_lock = threading.Lock()
 
 

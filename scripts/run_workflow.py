@@ -24,24 +24,25 @@ Usage:
   python -m m1frame --goal "..."
 """
 from __future__ import annotations
+
 import argparse
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from llm_client import LLMClient, load_config
-from agents.bmad import BMADAgent, BMAD_ROLES
-from agents.miras import MirasOrchestrator
-from agents.karpathy import KarpathyEngine
+from agents.bmad import BMADAgent
 from agents.council import LLMCouncil
-from agents.wiki import LLMWiki
-from agents.openplanter import OpenPlanterAgent
+from agents.karpathy import KarpathyEngine
 from agents.logger import PillarLogger
 from agents.metrics import get_metrics
+from agents.miras import MirasOrchestrator
+from agents.openplanter import OpenPlanterAgent
 from agents.skills import SkillLibrary
+from agents.wiki import LLMWiki
+from llm_client import LLMClient, load_config
 
 
 def _bar(text: str) -> None:
@@ -56,7 +57,8 @@ def _step(label: str, detail: str = "") -> None:
 def _fire_webhook(url: str, payload: dict) -> None:
     """POST result payload to webhook URL — non-fatal."""
     try:
-        import urllib.request, json
+        import json
+        import urllib.request
         data = json.dumps(payload, default=str).encode()
         req = urllib.request.Request(url, data=data,
               headers={"Content-Type": "application/json"}, method="POST")
@@ -77,7 +79,7 @@ def run_workflow(
     self_critique: bool = False,
     webhook_url: str | None = None,
     metrics_port: int | None = None,
-    emit: Optional[Callable[..., None]] = None,
+    emit: Callable[..., None] | None = None,
     learn_skills: bool = True,
 ) -> dict:
     # `emit(type, pillar=..., **data)` streams progress to the Studio UI.
@@ -302,7 +304,7 @@ def run_workflow(
         results["verdict"] = verdict
         final_output = verdict.approved_output
         ms = (time.perf_counter() - t0) * 1000
-        metrics.record("council_review", ms=ms, score=verdict.consensus_score, passed=verdict.passed)
+        metrics.record("council_review", ms=ms)   # score/passed are logged + emitted below, not metrics fields
         logger.timing("council", ms=ms, mode="review", score=verdict.consensus_score, passed=verdict.passed)
         emit("council_verdict", pillar="council",
              score=verdict.consensus_score, verdict=verdict.verdict,

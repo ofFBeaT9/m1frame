@@ -19,11 +19,11 @@ prompt — prevents system-prompt overflow on large outputs.
 """
 
 from __future__ import annotations
-import re
-import json
-from dataclasses import dataclass, field
-from typing import Optional
 
+import json
+import re
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -200,7 +200,7 @@ class LLMCouncil:
         },
     ]
 
-    def __init__(self, llm_client, config: Optional[dict] = None) -> None:
+    def __init__(self, llm_client, config: dict | None = None) -> None:
         self.llm = llm_client
         self.cfg = config or {}
         self.personas = self.cfg.get("personas", self.DEFAULT_PERSONAS)
@@ -214,8 +214,8 @@ class LLMCouncil:
     def brainstorm(
         self,
         task: str,
-        on_persona_start: Optional[callable] = None,
-        on_persona_done: Optional[callable] = None,
+        on_persona_start: Callable | None = None,
+        on_persona_done: Callable | None = None,
     ) -> BrainstormResult:
         """
         Run council BEFORE generating output (gcpdev pattern).
@@ -252,8 +252,8 @@ class LLMCouncil:
         task: str,
         output: str,
         _round: int = 1,
-        on_persona_start: Optional[callable] = None,
-        on_persona_done: Optional[callable] = None,
+        on_persona_start: Callable | None = None,
+        on_persona_done: Callable | None = None,
     ) -> CouncilVerdict:
         """
         QA gate AFTER generation.
@@ -457,7 +457,7 @@ class LLMCouncil:
 
 def _parse_json(text: str) -> dict:
     """Strip markdown fences and parse JSON. Raises ValueError on failure."""
-    clean = re.sub(r"```(?:json)?", "", text).strip().rstrip("```").strip()
+    clean = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
     try:
         return json.loads(clean)
     except json.JSONDecodeError as exc:

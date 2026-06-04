@@ -24,7 +24,7 @@ def main() -> int:
     for p in pages:
         text = p.read_text(encoding="utf-8")
         t = title_of(p, text)
-        links = [l.split("|")[0].strip() for l in LINK.findall(text)]
+        links = [ln.split("|")[0].strip() for ln in LINK.findall(text)]
         page_links[p] = links
         if p.stem in STRUCTURAL:
             continue
@@ -37,22 +37,24 @@ def main() -> int:
         inbound.setdefault(t, 0)
 
     for p, links in page_links.items():
-        for l in links:
-            if l in inbound:
-                inbound[l] += 1
-            elif l not in title2file:
-                errors.append(f"BROKEN LINK: {p.relative_to(WIKI)} -> [[{l}]]")
+        for ln in links:
+            if ln in inbound:
+                inbound[ln] += 1
+            elif ln not in title2file:
+                errors.append(f"BROKEN LINK: {p.relative_to(WIKI)} -> [[{ln}]]")
 
     orphans = [t for t, n in inbound.items() if n == 0]
     for t in orphans:
         errors.append(f"ORPHAN: '{t}' has no inbound links")
 
-    print(f"# LintReport")
+    print("# LintReport")
     print(f"pages: {len(pages)} | titled: {len(title2file)} | "
           f"links: {sum(len(v) for v in page_links.values())}")
     print(f"errors: {len(errors)} | warnings: {len(warnings)}")
-    for e in errors: print("  ERROR  ", e)
-    for w in warnings: print("  warn   ", w)
+    for e in errors:
+        print("  ERROR  ", e)
+    for w in warnings:
+        print("  warn   ", w)
     print("OK — graph is consistent." if not errors else "FAIL — fix errors above.")
     return 1 if errors else 0
 

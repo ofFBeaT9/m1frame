@@ -42,7 +42,7 @@ def _pages() -> list[dict]:
             "tags": [t.strip().strip('"\'') for t in (tags.group(1).split(",") if tags else []) if t.strip()],
             "confidence": conf.group(1).strip() if conf else "",
             "file": str(p.relative_to(ROOT)).replace("\\", "/"),
-            "links": [l.strip() for l in _LINK.findall(text)],
+            "links": [ln.strip() for ln in _LINK.findall(text)],
             "body": _strip_frontmatter(text),
         })
     return out

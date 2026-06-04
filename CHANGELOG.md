@@ -7,7 +7,15 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ---
 
 ## [Unreleased]
-_No unreleased changes yet._
+### Fixed (CI / lint)
+- Made the **CI lint + type-check job green**: applied ~837 safe Ruff autofixes (import sorting, `Optional`→
+  `X | None`, unused imports) and hand-fixed the rest (B904 `raise ... from`, E741 `l`→`ln`, B005, UP028/UP038).
+- Fixed a **real latent bug** mypy caught: `run_workflow.py` called `metrics.record()` with `score`/`passed`
+  kwargs it doesn't accept — would have raised `TypeError` on a *live* council-review step (never hit by
+  demos/tests). Now records timing only; score/passed are already logged + emitted.
+- Fixed `callable` used as a type annotation in `agents/council.py` (→ `Callable`).
+- Ruff: excluded private research/build scripts; per-file-ignore for the intentionally dense QA suite.
+- Mypy: `types-PyYAML` in CI; `warn_return_any=false` (noise over untyped LLM SDKs; real errors still fail).
 
 ## [1.6.0] — 2026-06-04 — "Claude Code Native"
 ### Added

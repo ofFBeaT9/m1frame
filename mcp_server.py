@@ -104,6 +104,7 @@ def m1frame_call_tool(name: str, args: dict | None = None, approve: bool = False
     Returns: The tool's result as a string (JSON-encoded if structured).
     """
     import json
+
     from tools import default_registry
     reg = default_registry()
     if name not in reg:
@@ -120,8 +121,9 @@ def m1frame_call_tool(name: str, args: dict | None = None, approve: bool = False
 @mcp.tool()
 def m1frame_list_skills() -> list:
     """List the council-vetted skills m1frame has learned (title, score, uses, approach)."""
-    from agents.skills import SkillLibrary
     from dataclasses import asdict
+
+    from agents.skills import SkillLibrary
     return [asdict(s) for s in SkillLibrary().all()]
 
 

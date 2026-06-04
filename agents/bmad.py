@@ -16,11 +16,10 @@ that Miras agents then execute sequentially.
 """
 
 from __future__ import annotations
+
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
-
 
 # ── BMAD Role Definitions (from the actual BMAD-METHOD repo) ─────────────────
 
@@ -101,7 +100,7 @@ class Story:
     depends_on: list[int]
     acceptance_criteria: list[str]
     description: str
-    result: Optional[str] = None
+    result: str | None = None
     status: str = "pending"   # pending | running | done | failed
 
     @property
@@ -127,10 +126,10 @@ class Blueprint:
     def subtasks(self) -> list[Story]:
         return self.stories
 
-    def get_subtask(self, story_id: int) -> Optional[Story]:
+    def get_subtask(self, story_id: int) -> Story | None:
         return next((s for s in self.stories if s.id == story_id), None)
 
-    def get_story(self, story_id: int) -> Optional[Story]:
+    def get_story(self, story_id: int) -> Story | None:
         return self.get_subtask(story_id)
 
     def pending_stories(self) -> list[Story]:
@@ -157,7 +156,7 @@ class BMADAgent:
     Assigns each story a BMAD role (analyst, architect, dev, qa, etc.).
     """
 
-    def __init__(self, llm_client, config: Optional[dict] = None):
+    def __init__(self, llm_client, config: dict | None = None):
         self.llm = llm_client
         self.cfg = config or {}
         self.max_subtasks = self.cfg.get("max_subtasks", 10)
@@ -196,7 +195,7 @@ class BMADAgent:
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
-            raise ValueError(f"BMAD: LLM returned invalid JSON — {e}\nRaw:\n{text}")
+            raise ValueError(f"BMAD: LLM returned invalid JSON — {e}\nRaw:\n{text}") from e
 
     @staticmethod
     def _build_blueprint(data: dict) -> Blueprint:

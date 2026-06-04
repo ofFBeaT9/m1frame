@@ -9,14 +9,14 @@ webhooks), best-effort and SSRF-guarded; it's exercised live, not in the suite.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from agents.net import safe_url
+
 from .router import InboundMessage, OutboundMessage
 
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
-def telegram_parse(update: dict) -> Optional[InboundMessage]:
+def telegram_parse(update: dict) -> InboundMessage | None:
     m = (update or {}).get("message") or (update or {}).get("edited_message") or {}
     text = m.get("text")
     if not text:
@@ -33,7 +33,7 @@ def telegram_format(out: OutboundMessage) -> dict:
 
 
 # ── Slack (Events API) ────────────────────────────────────────────────────────
-def slack_parse(payload: dict) -> Optional[InboundMessage]:
+def slack_parse(payload: dict) -> InboundMessage | None:
     ev = (payload or {}).get("event", payload or {})
     text = ev.get("text")
     if not text:
@@ -48,7 +48,7 @@ def slack_format(out: OutboundMessage) -> dict:
 
 
 # ── Discord ───────────────────────────────────────────────────────────────────
-def discord_parse(payload: dict) -> Optional[InboundMessage]:
+def discord_parse(payload: dict) -> InboundMessage | None:
     text = (payload or {}).get("content")
     if not text:
         return None
@@ -63,7 +63,7 @@ def discord_format(out: OutboundMessage) -> dict:
 
 
 # ── generic webhook / CLI (the default) ───────────────────────────────────────
-def generic_parse(payload: dict) -> Optional[InboundMessage]:
+def generic_parse(payload: dict) -> InboundMessage | None:
     payload = payload or {}
     text = payload.get("text") or payload.get("message")
     if not text:
@@ -84,7 +84,7 @@ ADAPTERS = {
 }
 
 
-def parse(platform: str, payload: dict) -> Optional[InboundMessage]:
+def parse(platform: str, payload: dict) -> InboundMessage | None:
     fn = ADAPTERS.get(platform, (generic_parse, generic_format))[0]
     msg = fn(payload)
     if msg is not None and platform not in ADAPTERS:

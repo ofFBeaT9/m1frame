@@ -18,12 +18,12 @@ Usage:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import threading
-import datetime
-from dataclasses import dataclass, field, asdict
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Optional
 
 
 @dataclass
@@ -32,8 +32,8 @@ class ScheduledJob:
     task: str
     interval_hours: float
     enabled: bool = True
-    last_run: Optional[str] = None           # ISO-8601 UTC datetime
-    next_run: Optional[str] = None           # ISO-8601 UTC datetime
+    last_run: str | None = None           # ISO-8601 UTC datetime
+    next_run: str | None = None           # ISO-8601 UTC datetime
     run_count: int = 0
     last_result_summary: str = ""
 
@@ -55,7 +55,7 @@ class InvestigationScheduler:
         self,
         llm_client,
         workspace: str = "workspace",
-        on_complete: Optional[Callable[[str, str], None]] = None,
+        on_complete: Callable[[str, str], None] | None = None,
     ) -> None:
         self.llm = llm_client
         self.workspace = Path(workspace)
@@ -130,7 +130,7 @@ class InvestigationScheduler:
         with self._lock:
             return list(self._jobs.values())
 
-    def get_job(self, job_id: str) -> Optional[ScheduledJob]:
+    def get_job(self, job_id: str) -> ScheduledJob | None:
         with self._lock:
             return self._jobs.get(job_id)
 
@@ -211,7 +211,7 @@ def _iso_after(hours: float) -> str:
     return dt.isoformat() + "Z"
 
 
-def _seconds_until(iso_str: Optional[str]) -> float:
+def _seconds_until(iso_str: str | None) -> float:
     if not iso_str:
         return 0.0
     try:

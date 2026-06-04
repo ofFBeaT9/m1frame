@@ -31,7 +31,7 @@ class MCPClient:
                 "MCP client needs the 'mcp' package — install with: pip install mcp"
             ) from e
 
-    def connect_stdio(self, command: list[str]) -> "MCPClient":
+    def connect_stdio(self, command: list[str]) -> MCPClient:
         """Connect to an MCP server launched as a subprocess (stdio transport)."""
         self._require_mcp()
         # The mcp SDK's stdio client is established here; tool specs are cached in

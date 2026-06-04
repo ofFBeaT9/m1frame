@@ -12,10 +12,16 @@ Usage:
   python scripts/qa_validate.py --pillar self_critique
 """
 from __future__ import annotations
-import sys, json, time, argparse, traceback, tempfile
-from pathlib import Path
+
+import argparse
+import json
+import sys
+import tempfile
+import time
+import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -222,13 +228,7 @@ def t_claude_md(m):
     c=p.read_text(encoding="utf-8"); assert "Page Types" in c and "WikiLink" in c
 
 def t_imports(m):
-    from agents import (BMADAgent,Blueprint,Story,BMAD_ROLES,
-                        MirasOrchestrator,AgentState,KarpathyEngine,KarpathyResult,
-                        LLMCouncil,CouncilVerdict,BrainstormResult,
-                        LLMWiki,WikiPage,LintReport,ContradictionReport,
-                        OpenPlanterAgent,InvestigationResult,
-                        PillarLogger,MetricsCollector,get_metrics,
-                        InvestigationScheduler,ScheduledJob)
+    pass
 
 def t_pyproject(m): assert Path("pyproject.toml").exists()
 def t_license(m):   assert Path("LICENSE").exists()
@@ -247,7 +247,7 @@ def t_bmad_plan(m):
     assert bp.project_name and bp.goal_summary and bp.stories and bp.execution_order
 
 def t_bmad_roles(m):
-    from agents.bmad import BMADAgent, BMAD_ROLES
+    from agents.bmad import BMAD_ROLES, BMADAgent
     assert "investigator" in BMAD_ROLES
     bp=BMADAgent(m).plan("x")
     for s in bp.stories: assert s.role in BMAD_ROLES
@@ -269,7 +269,8 @@ def t_bmad_alias(m):
 
 # ══ Tests — MIRAS ════════════════════════════════════════════════════════════
 def t_miras_run(m):
-    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    from agents.bmad import BMADAgent
+    from agents.miras import MirasOrchestrator
     bp=BMADAgent(m).plan("x"); st=MirasOrchestrator(m).run(bp)
     assert st.outputs
     for sid in bp.execution_order: assert sid in st.outputs
@@ -281,7 +282,8 @@ def t_miras_state(m):
     assert "Story 1" in st.final_output() and "Story 2" in st.final_output()
 
 def t_miras_callbacks(m):
-    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    from agents.bmad import BMADAgent
+    from agents.miras import MirasOrchestrator
     s,d=[],[]
     MirasOrchestrator(m,on_subtask_start=lambda x:s.append(x.id),
                       on_subtask_done=lambda x,r:d.append(x.id)).run(BMADAgent(m).plan("x"))
@@ -299,22 +301,25 @@ def t_miras_adaptive_temp(m):
 
 # ══ Tests — PARALLEL MIRAS ═══════════════════════════════════════════════════
 def t_parallel_run(m):
-    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    from agents.bmad import BMADAgent
+    from agents.miras import MirasOrchestrator
     bp = BMADAgent(m).plan("x")
     st = MirasOrchestrator(m).run_parallel(bp)
     assert st.outputs
     for sid in bp.execution_order: assert sid in st.outputs
 
 def t_parallel_same_result(m):
-    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
+    from agents.bmad import BMADAgent
+    from agents.miras import MirasOrchestrator
     bp = BMADAgent(m).plan("x")
     seq = MirasOrchestrator(m).run(bp)
     par = MirasOrchestrator(m).run_parallel(bp)
     assert set(seq.outputs.keys()) == set(par.outputs.keys())
 
 def t_parallel_state_threadsafe(m):
-    from agents.miras import AgentState
     import threading
+
+    from agents.miras import AgentState
     st = AgentState(goal="g", blueprint_summary="b")
     def write(i): st.add_result(i, f"result_{i}")
     threads = [threading.Thread(target=write, args=(i,)) for i in range(20)]
@@ -557,8 +562,9 @@ def t_metrics_prometheus(m):
     assert 'pillar="council"' in out
 
 def t_metrics_timer_ctx(m):
-    from agents.metrics import MetricsCollector
     import time
+
+    from agents.metrics import MetricsCollector
     mc=MetricsCollector()
     with mc.timer("miras"):
         time.sleep(0.01)
@@ -620,9 +626,12 @@ def t_scheduler_disable(m):
 
 # ══ E2E ═══════════════════════════════════════════════════════════════════════
 def t_e2e(m):
-    from agents.bmad import BMADAgent; from agents.miras import MirasOrchestrator
-    from agents.karpathy import KarpathyEngine; from agents.council import LLMCouncil
-    from agents.wiki import LLMWiki; from agents.openplanter import OpenPlanterAgent
+    from agents.bmad import BMADAgent
+    from agents.council import LLMCouncil
+    from agents.karpathy import KarpathyEngine
+    from agents.miras import MirasOrchestrator
+    from agents.openplanter import OpenPlanterAgent
+    from agents.wiki import LLMWiki
     tmp=Path(tempfile.mkdtemp()); goal="Build a Python REST API with JWT auth"
     bp=BMADAgent(m).plan(goal);               assert bp.stories
     br=LLMCouncil(m).brainstorm(goal);        assert br.recommended_plan
@@ -642,44 +651,53 @@ def t_e2e(m):
 
 # ── Skills (council-vetted learning loop) ─────────────────────────────────────
 from types import SimpleNamespace
+
+
 def _stub_blueprint():
     return SimpleNamespace(project_name="JWT API", domain="backend", mvp_scope="JWT auth service",
         stories=[SimpleNamespace(role="architect", title="Design auth"),
                  SimpleNamespace(role="dev", title="Implement endpoints")])
 def t_skill_learn_vetted(m):
-    from agents.skills import SkillLibrary
     import tempfile
+
+    from agents.skills import SkillLibrary
     lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
     sk=lib.learn("Build a FastAPI service with JWT auth", _stub_blueprint(), score=8.5)
     assert sk is not None and sk.score==8.5 and "dev" in sk.roles
 def t_skill_rejects_unvetted(m):
-    from agents.skills import SkillLibrary
     import tempfile
+
+    from agents.skills import SkillLibrary
     lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
     assert lib.learn("Build something", _stub_blueprint(), score=5.0) is None   # below gate
 def t_skill_suggest(m):
-    from agents.skills import SkillLibrary
     import tempfile
+
+    from agents.skills import SkillLibrary
     lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
     lib.learn("Build a FastAPI JWT auth service", _stub_blueprint(), score=9.0)
     hits=lib.suggest("Create a FastAPI service with JWT authentication")
     assert hits and hits[0].roles
 def t_skill_reinforce_dedup(m):
-    from agents.skills import SkillLibrary
     import tempfile
+
+    from agents.skills import SkillLibrary
     lib=SkillLibrary(path=str(Path(tempfile.mkdtemp())/"s.json"))
     a=lib.learn("Build a FastAPI JWT auth service", _stub_blueprint(), score=8.0)
     b=lib.learn("Build a FastAPI JWT auth service again", _stub_blueprint(), score=9.0)
     assert a.id==b.id and b.uses==2 and len(lib.skills)==1 and b.score==9.0
 def t_skill_persist(m):
-    from agents.skills import SkillLibrary
     import tempfile
+
+    from agents.skills import SkillLibrary
     p=str(Path(tempfile.mkdtemp())/"s.json")
     SkillLibrary(path=p).learn("Investigate vendor payments vs lobbying", _stub_blueprint(), score=8.0)
     assert SkillLibrary(path=p).all() and Path(p).exists()
 def t_skill_tolerates_partial(m):
+    import json as _j
+    import tempfile
+
     from agents.skills import SkillLibrary
-    import tempfile, json as _j
     p=Path(tempfile.mkdtemp())/"s.json"
     p.write_text(_j.dumps({"skills":[{"id":"x","title":"Partial"}]}),encoding="utf-8")  # missing uses/score/etc
     lib=SkillLibrary(path=str(p)); s=lib.all()[0]      # must not crash sort on None
@@ -718,6 +736,7 @@ def t_gw_adapters(m):
     assert adapters.telegram_parse({"message":{"chat":{"id":1}}}) is None   # no text -> skip
 def t_gw_api(m):
     from fastapi.testclient import TestClient
+
     from api.server import create_app
     c=TestClient(create_app())
     assert "pong" in c.post("/gateway/cli/webhook", json={"text":"/ping"}).json()["reply"].lower()
@@ -727,7 +746,7 @@ def t_gw_api(m):
 
 # ── Tools (agent tool surface) ────────────────────────────────────────────────
 def t_tool_registry(m):
-    from tools import ToolRegistry, Tool
+    from tools import Tool, ToolRegistry
     r=ToolRegistry(); r.register(Tool("echo","e",lambda x:x,{"x":"any"}))
     assert "echo" in r and len(r)==1 and r.call("echo",{"x":7})==7 and r.list()[0]["name"]=="echo"
 def t_tool_calculator(m):
@@ -764,7 +783,7 @@ def t_tool_filesystem(m):
     assert r.call("write_file",{"path":rel,"content":"hello"},approved=True)["bytes"]==5
     assert r.call("read_file",{"path":rel}).startswith("hello")
     assert any(x.startswith("_qa_tool_test") for x in r.call("list_dir",{"path":"runs"}))
-    import os; from pathlib import Path
+    from pathlib import Path
     Path("runs/_qa_tool_test.txt").unlink(missing_ok=True)
 def t_tool_sandbox(m):
     from tools.builtin import _safe_path
@@ -779,6 +798,7 @@ def t_tool_approval(m):
     except PermissionError: blocked=True
     assert blocked
     from fastapi.testclient import TestClient
+
     from api.server import create_app
     c=TestClient(create_app())
     assert c.post("/tools/call",json={"name":"write_file","args":{"path":"runs/_x.txt","content":"y"}}).status_code==403
@@ -787,6 +807,7 @@ def t_tool_approval(m):
     from pathlib import Path; Path("runs/_x.txt").unlink(missing_ok=True)
 def t_backends_api(m):
     from fastapi.testclient import TestClient
+
     from api.server import create_app
     c=TestClient(create_app())
     b=c.get("/backends").json()
@@ -807,6 +828,7 @@ def t_tool_extra(m):
 def t_gw_e2e(m):
     # Full inbound -> router -> outbound loop through the API for EVERY platform.
     from fastapi.testclient import TestClient
+
     from api.server import create_app
     c=TestClient(create_app())
     cases={
@@ -831,6 +853,7 @@ def t_tool_http_ssrf(m):
     assert "error" in http_get("file:///etc/passwd")        # non-http blocked
 def t_tool_api(m):
     from fastapi.testclient import TestClient
+
     from api.server import create_app
     c=TestClient(create_app())
     assert any(t["name"]=="calculator" for t in c.get("/tools").json()["tools"])
@@ -840,8 +863,10 @@ def t_tool_api(m):
 
 # ── Run store (disk persistence + search) ─────────────────────────────────────
 def t_run_persist(m):
-    import api.server as S, tempfile
+    import tempfile
     from pathlib import Path
+
+    import api.server as S
     old=S._RUNS_DIR
     S._RUNS_DIR=Path(tempfile.mkdtemp())/"runs"
     try:
@@ -855,22 +880,23 @@ def t_run_persist(m):
         S._RUNS_DIR=old; S._RUNS.clear()
 def t_run_search_api(m):
     from fastapi.testclient import TestClient
+
     import api.server as S
     from api.server import create_app
     c=TestClient(create_app())
     S._RUNS["zz999"]={"run_id":"zz999","goal":"unique-quokka-objective","status":"complete","score":7.5,"output":"","events":[]}
     assert any(x["run_id"]=="zz999" for x in c.get("/runs/search",params={"q":"quokka"}).json())
 def t_provider_presets(m):
-    from llm_client import load_config
     import api.server as S
+    from llm_client import load_config
     c=load_config()
     for b in ("openrouter","nous","novita","nvidia_nim"):
         assert b in c and c[b].get("base_url","").startswith("http") and b in S.ALL_BACKENDS
 def t_docker_files(m):
     assert Path("Dockerfile").exists() and Path("docker-compose.yml").exists()
 def t_claudecli_backend(m):
-    from llm_client import load_config, LLMClient
     import api.server as S
+    from llm_client import LLMClient, load_config
     c=load_config()
     assert "claudecli" in c and "claudecli" in S.ALL_BACKENDS and "claudecli" in S.LOCAL_BACKENDS
     assert S._can_run_live(c,"claudecli") is True            # uses Claude Code login, no API key
@@ -986,7 +1012,7 @@ ALL: dict[str,list] = {
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 
-def run_all(pillar: Optional[str]=None) -> bool:
+def run_all(pillar: str | None=None) -> bool:
     m=MockLLMClient(); suite=Suite()
     total=sum(len(v) for v in ALL.values())
     sep="="*65

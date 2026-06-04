@@ -13,8 +13,8 @@ import os
 import sys
 import time
 
-from .router import GatewayRouter, InboundMessage
 from .handlers import make_default_handler
+from .router import GatewayRouter, InboundMessage
 
 
 def _status() -> dict:
@@ -36,6 +36,7 @@ def run_cli() -> None:
 
 def run_telegram(poll_timeout: int = 25) -> None:
     import httpx
+
     from . import adapters
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:

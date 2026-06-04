@@ -30,8 +30,9 @@ from __future__ import annotations
 import itertools
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 # Reserved top-level keys that payload `data` may not override.
 _RESERVED = ("type", "ts", "seq", "pillar")
@@ -47,7 +48,7 @@ class Event:
     """One structured progress event. `data` is flattened into the wire dict."""
     type: str
     data: dict = field(default_factory=dict)
-    pillar: Optional[str] = None
+    pillar: str | None = None
     ts: int = field(default_factory=_now_ms)
     seq: int = field(default_factory=lambda: next(_seq_counter))
 
@@ -93,7 +94,7 @@ class EventBus:
         import asyncio
 
         loop = asyncio.get_running_loop()
-        q: "asyncio.Queue[Event]" = asyncio.Queue()
+        q: asyncio.Queue[Event] = asyncio.Queue()
         with self._lock:
             for ev in self._history:
                 q.put_nowait(ev)
@@ -102,7 +103,7 @@ class EventBus:
 
     def unsubscribe_async(self, q) -> None:
         with self._lock:
-            self._async_subs = [(l, qq) for (l, qq) in self._async_subs if qq is not q]
+            self._async_subs = [(cb, qq) for (cb, qq) in self._async_subs if qq is not q]
 
     def subscribe_sync(self, fn: Callable[[Event], None]) -> None:
         """Register a synchronous callback (used by recorders/tests). Replays history."""
@@ -114,7 +115,7 @@ class EventBus:
 
     # ── emit ───────────────────────────────────────────────────────────────────
 
-    def emit(self, type: str, pillar: Optional[str] = None, **data: Any) -> Event:
+    def emit(self, type: str, pillar: str | None = None, **data: Any) -> Event:
         ev = Event(type=type, data=data, pillar=pillar)
         with self._lock:
             self._history.append(ev)
@@ -157,18 +158,18 @@ class EventBus:
         return [e.to_dict() for e in self.history]
 
 
-def make_emitter(bus: Optional[EventBus]) -> Emitter:
+def make_emitter(bus: EventBus | None) -> Emitter:
     """Adapt an `EventBus` (or None) into a plain `emit(type, **data)` callable.
 
     Passing `emit=None` to the pipeline yields a no-op, so instrumentation is
     zero-cost and behaviour is byte-identical when nobody is watching.
     """
     if bus is None:
-        def _noop(type: str, pillar: Optional[str] = None, **data: Any) -> None:
+        def _noop(type: str, pillar: str | None = None, **data: Any) -> None:
             return None
         return _noop
 
-    def _emit(type: str, pillar: Optional[str] = None, **data: Any) -> None:
+    def _emit(type: str, pillar: str | None = None, **data: Any) -> None:
         bus.emit(type, pillar=pillar, **data)
 
     return _emit

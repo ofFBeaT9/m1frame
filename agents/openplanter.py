@@ -30,13 +30,12 @@ Supported backends (OpenPlanter providers):
 """
 
 from __future__ import annotations
+
 import json
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
-
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -219,8 +218,8 @@ class OpenPlanterAgent:
     def __init__(
         self,
         llm_client,
-        config: Optional[dict] = None,
-        workspace: Optional[str] = None,
+        config: dict | None = None,
+        workspace: str | None = None,
     ) -> None:
         self.llm = llm_client
         self.cfg = config or {}
@@ -232,7 +231,7 @@ class OpenPlanterAgent:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def investigate(self, task: str, datasets: Optional[list[str]] = None) -> InvestigationResult:
+    def investigate(self, task: str, datasets: list[str] | None = None) -> InvestigationResult:
         """
         Run a full OpenPlanter investigation on a task.
 
@@ -407,7 +406,6 @@ class OpenPlanterAgent:
             vectors = result.embeddings
 
             # Build similarity pairs (cosine similarity > 0.92 = likely same entity)
-            import math
             candidates: list[dict] = []
             for i in range(len(names)):
                 for j in range(i + 1, len(names)):
@@ -491,7 +489,7 @@ def _parse_json(text: str) -> dict:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     mag_a = sum(x * x for x in a) ** 0.5
     mag_b = sum(x * x for x in b) ** 0.5
     if mag_a == 0 or mag_b == 0:

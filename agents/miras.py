@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import concurrent.futures
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from agents.bmad import Blueprint, Story
-
 
 AGENT_SYSTEM_TEMPLATE = """You are a specialised sub-agent in the m1frame multi-agent system.
 Your assigned role: {role}
@@ -77,7 +77,7 @@ class AgentState:
             ]
         return "\n\n---\n\n".join(parts)
 
-    def get_result(self, story_id: int) -> Optional[str]:
+    def get_result(self, story_id: int) -> str | None:
         with self._lock:
             return self.outputs.get(story_id)
 
@@ -122,9 +122,9 @@ class MirasOrchestrator:
     def __init__(
         self,
         llm_client,
-        config: Optional[dict] = None,
-        on_subtask_start: Optional[Callable[[Story], None]] = None,
-        on_subtask_done: Optional[Callable[[Story, str], None]] = None,
+        config: dict | None = None,
+        on_subtask_start: Callable[[Story], None] | None = None,
+        on_subtask_done: Callable[[Story, str], None] | None = None,
     ):
         self.llm = llm_client
         self.cfg = config or {}
@@ -179,7 +179,7 @@ class MirasOrchestrator:
         self,
         blueprint: Blueprint,
         purpose_context: str = "",
-        max_workers: Optional[int] = None,
+        max_workers: int | None = None,
     ) -> AgentState:
         """
         Execute independent stories concurrently using a thread pool.

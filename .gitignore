@@ -18,3 +18,14 @@ runs/
 chip_decision/
 opu_study/
 studies/
+
+# Private research build scripts (kept local, excluded from the repo)
+build_ultimate.py
+gen_*.py
+md2pdf.py
+appendix_d.md
+Tritone-companion-code/
+figs/
+*.pdf
+.claude/worktrees/
+dist/

@@ -4,10 +4,10 @@ Supports: Anthropic Claude | OpenAI-compatible (Ollama, vLLM, LM Studio, OpenAI)
 """
 
 from __future__ import annotations
+
 import os
+
 import yaml
-from pathlib import Path
-from typing import Optional
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -23,7 +23,7 @@ class LLMClient:
         response = client.chat("What is 2+2?")
     """
 
-    def __init__(self, config_path: str = "config.yaml", override_backend: Optional[str] = None):
+    def __init__(self, config_path: str = "config.yaml", override_backend: str | None = None):
         self.cfg = load_config(config_path)
         self.backend = override_backend or self.cfg["backend"]
         self._client = self._build_client()
@@ -34,9 +34,9 @@ class LLMClient:
         self,
         prompt: str,
         system: str = "",
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        history: Optional[list[dict]] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        history: list[dict] | None = None,
     ) -> str:
         """Send a chat message and return the assistant reply as a string."""
         if self.backend == "claude":
@@ -46,7 +46,7 @@ class LLMClient:
         else:
             return self._openai_chat(prompt, system, temperature, max_tokens, history)
 
-    def stream(self, prompt: str, system: str = "", temperature: Optional[float] = None):
+    def stream(self, prompt: str, system: str = "", temperature: float | None = None):
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
         if self.backend == "claude":
             yield from self._claude_stream(prompt, system, temperature)
@@ -66,7 +66,7 @@ class LLMClient:
                 api_key = os.environ.get(self.cfg["claude"]["api_key_env"])
                 return anthropic.Anthropic(api_key=api_key)
             except ImportError:
-                raise ImportError("Run: pip install anthropic")
+                raise ImportError("Run: pip install anthropic") from None
         else:
             try:
                 from openai import OpenAI
@@ -76,7 +76,7 @@ class LLMClient:
                 base_url = bcfg.get("base_url")
                 return OpenAI(api_key=api_key or "local", base_url=base_url)
             except ImportError:
-                raise ImportError("Run: pip install openai")
+                raise ImportError("Run: pip install openai") from None
 
     # ── Claude ────────────────────────────────────────────────────────────────
 
@@ -110,8 +110,7 @@ class LLMClient:
         if temperature is not None:
             kwargs["temperature"] = temperature
         with self._client.messages.stream(**kwargs) as stream:
-            for text in stream.text_stream:
-                yield text
+            yield from stream.text_stream
 
     # ── Claude Code CLI (no API key — uses your `claude` auth) ────────────────
     def _claudecli_chat(self, prompt, system, history) -> str:
@@ -133,7 +132,7 @@ class LLMClient:
                                  timeout=bcfg.get("timeout", 300))
         except FileNotFoundError:
             raise RuntimeError("Claude Code CLI ('claude') not found on PATH. "
-                               "Install Claude Code, or set backend to 'claude' with an API key.")
+                               "Install Claude Code, or set backend to 'claude' with an API key.") from None
         if res.returncode != 0:
             raise RuntimeError(f"claude CLI error: {(res.stderr or '').strip()[:300]}")
         return (res.stdout or "").strip()
@@ -178,7 +177,7 @@ class LLMClient:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _build_messages(prompt: str, history: Optional[list[dict]]) -> list[dict]:
+    def _build_messages(prompt: str, history: list[dict] | None) -> list[dict]:
         messages = list(history) if history else []
         messages.append({"role": "user", "content": prompt})
         return messages

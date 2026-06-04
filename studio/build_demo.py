@@ -296,9 +296,10 @@ def main() -> int:
     print("     event types:", ", ".join(types))
 
     # Static snapshots so the UI is fully alive even with NO server / NO pip.
-    from studio import data
-    from agents.skills import SkillLibrary
     from dataclasses import asdict
+
+    from agents.skills import SkillLibrary
+    from studio import data
     snapshots = {
         "wiki_graph.json": data.wiki_graph(),
         "wiki_pages.json": data.wiki_pages(),

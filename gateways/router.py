@@ -9,8 +9,8 @@ every channel behaves identically and is tested once.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 HELP = (
     "🛰️ *m1frame gateway*\n"
@@ -45,18 +45,18 @@ class GatewayRouter:
     the router is fully testable offline with a mock handler (or none)."""
 
     def __init__(self,
-                 handler: Optional[Callable[["InboundMessage"], str]] = None,
-                 status_fn: Optional[Callable[[], dict]] = None) -> None:
+                 handler: Callable[[InboundMessage], str] | None = None,
+                 status_fn: Callable[[], dict] | None = None) -> None:
         self.handler = handler
         self.status_fn = status_fn
         self.started = time.time()
 
-    def handle(self, msg: "InboundMessage") -> "OutboundMessage":
+    def handle(self, msg: InboundMessage) -> OutboundMessage:
         reply = self._dispatch(msg, (msg.text or "").strip())
         return OutboundMessage(text=reply, channel=msg.channel, platform=msg.platform,
                                meta={"in_reply_to": msg.user})
 
-    def _dispatch(self, msg: "InboundMessage", text: str) -> str:
+    def _dispatch(self, msg: InboundMessage, text: str) -> str:
         low = text.lower()
         if low in ("/help", "help", "/start", "start"):
             return HELP

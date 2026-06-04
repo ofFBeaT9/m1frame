@@ -26,13 +26,13 @@ New in v1.1:
 """
 
 from __future__ import annotations
-import re
-import yaml
-import datetime
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Optional
 
+import datetime
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -134,7 +134,7 @@ class WikiPage:
     filename: str = ""
 
     @classmethod
-    def from_markdown(cls, text: str, filename: str = "") -> "WikiPage":
+    def from_markdown(cls, text: str, filename: str = "") -> WikiPage:
         fm, _ = _split_frontmatter(text)
         return cls(
             title=fm.get("title", "Untitled"),
@@ -157,7 +157,7 @@ class WikiPage:
         return fm.get("confidence", "high")
 
     @property
-    def created_date(self) -> Optional[datetime.date]:
+    def created_date(self) -> datetime.date | None:
         try:
             return datetime.date.fromisoformat(str(self.created))
         except (ValueError, TypeError):
@@ -224,7 +224,7 @@ class LLMWiki:
     Operations: ingest | query | lint | decay_confidence | detect_contradictions
     """
 
-    def __init__(self, llm_client, config: Optional[dict] = None):
+    def __init__(self, llm_client, config: dict | None = None):
         self.llm = llm_client
         self.cfg = config or {}
         self.wiki_dir = Path(self.cfg.get("directory", "wiki"))
@@ -433,7 +433,7 @@ class LLMWiki:
                 break
         return results
 
-    def get_page(self, title: str) -> Optional[WikiPage]:
+    def get_page(self, title: str) -> WikiPage | None:
         slug = _slugify(title)
         for md_file in self.wiki_dir.rglob(f"{slug}*.md"):
             return WikiPage.from_markdown(md_file.read_text(), filename=md_file.name)
@@ -487,7 +487,7 @@ class LLMWiki:
         except Exception:
             return self.search(query, max_results)
 
-    def _embed(self, text: str) -> Optional[list[float]]:
+    def _embed(self, text: str) -> list[float] | None:
         """Return a vector embedding for text. Returns None if no embed model."""
         embed_model = self.cfg.get("embed_model")
         if not embed_model:

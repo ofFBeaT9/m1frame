@@ -21,7 +21,6 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
 
 # Small stopword set so keyword matching focuses on the meaningful terms.
 _STOP = {
@@ -139,7 +138,7 @@ class SkillLibrary:
     # ── learning ────────────────────────────────────────────────────────────
 
     def learn(self, goal: str, blueprint, score: float,
-              approach: str = "") -> Optional[Skill]:
+              approach: str = "") -> Skill | None:
         """Distil a vetted skill from a passing run. Returns the Skill, or None
         if the score didn't clear the gate. Near-duplicate goals reinforce the
         existing skill instead of creating a new one.

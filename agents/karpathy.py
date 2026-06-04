@@ -9,10 +9,9 @@ New in v1.1:
 """
 
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from typing import Optional
-
 
 KARPATHY_SYSTEM = """You are a precise, minimalist reasoning engine.
 
@@ -72,7 +71,7 @@ class KarpathyEngine:
     - self_critique(): two-pass critique → refine loop
     """
 
-    def __init__(self, llm_client, config: Optional[dict] = None):
+    def __init__(self, llm_client, config: dict | None = None):
         self.llm = llm_client
         self.cfg = config or {}
         self.temperature = self.cfg.get("temperature_override", 0.1)
@@ -85,7 +84,7 @@ class KarpathyEngine:
         prompt: str,
         extra_system: str = "",
         refine: bool = False,
-        history: Optional[list[dict]] = None,
+        history: list[dict] | None = None,
     ) -> KarpathyResult:
         """
         Run a prompt through the Karpathy engine.
@@ -175,7 +174,7 @@ class KarpathyEngine:
             had_tag = False
         return KarpathyResult(raw=raw, thought=thought, answer=answer, had_thought_tag=had_tag)
 
-    def build_prompt(self, task: str, examples: Optional[list[dict]] = None) -> str:
+    def build_prompt(self, task: str, examples: list[dict] | None = None) -> str:
         """
         Build a few-shot Karpathy prompt.
         examples: list of {"input": ..., "thought": ..., "output": ...}
