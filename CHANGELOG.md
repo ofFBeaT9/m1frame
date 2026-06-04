@@ -7,7 +7,12 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ---
 
 ## [Unreleased]
-_No unreleased changes yet._
+### Added — phone / internet access without a tunnel
+- **GitHub Pages deploy** (`.github/workflows/pages.yml`): publishes the mobile-responsive Studio as a public,
+  key-less demo at `https://<owner>.github.io/m1frame/` — open it from any phone over the internet, zero setup.
+- **Dispatch-ready**: `mcp` is now a real dependency, so a dispatched cloud Claude Code session gets m1frame's
+  tools automatically (`.mcp.json` auto-registers after `pip install -r requirements.txt`). MANUAL §"from your
+  phone" documents both no-server paths (Dispatch for the agent, Pages for the UI).
 
 ## [1.7.0] — 2026-06-04 — "Pocket Studio" (use m1frame from your phone)
 ### Added

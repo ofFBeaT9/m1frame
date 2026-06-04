@@ -29,3 +29,4 @@ figs/
 *.pdf
 .claude/worktrees/
 dist/
+.cloudflared/

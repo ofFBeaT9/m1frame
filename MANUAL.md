@@ -185,6 +185,18 @@ Host it on your laptop (same Wi-Fi), a small VPS, or behind a tunnel (`cloudflar
 anywhere. ⚠️ `--http` binds `0.0.0.0` and the config-write endpoint is unauthenticated — only expose it on a
 trusted network or behind an authenticating tunnel.
 
+**4. ✅ The two no-server internet paths (recommended for phones).** If you can't expose a host (firewall,
+sandboxed network), use these instead — nothing to tunnel:
+
+- **Dispatch a cloud Claude Code session (use the *tools/agent* from your phone).** In the Claude app, dispatch a
+  Claude Code **cloud session** against this GitHub repo. It checks the repo out in the cloud, runs
+  `pip install -r requirements.txt` (which now includes `mcp`), and **`.mcp.json` auto-registers m1frame's tools** —
+  so you can say *"use m1frame to decide …"* from your phone and it runs in the cloud. No tunnel, nothing exposed.
+- **GitHub Pages (open the *UI* from any network).** The Studio is published as a static, mobile-responsive demo
+  at **`https://<owner>.github.io/m1frame/`** (key-less DEMO mode — the deliberation replays, graph/chat/skills all
+  work). Enable once: repo **Settings → Pages → Source = GitHub Actions**; thereafter every push redeploys it.
+  Open the link in your phone browser — m1frame Studio, live, over the internet, zero setup.
+
 ---
 
 ## 7. Command line
