@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>m1frame — system dashboard</title>
+<style>
+ *{box-sizing:border-box} html,body{margin:0;height:100%}
+ body{background:#0d1117;color:#c9d1d9;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+ header{padding:14px 20px;border-bottom:1px solid #21262d;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+ header h1{font-size:18px;margin:0;letter-spacing:.5px}
+ header h1 span{color:#58a6ff}
+ .badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+ .ok{background:#13351f;color:#3fb950;border:1px solid #238636}
+ .bad{background:#3a1418;color:#f85149;border:1px solid #da3633}
+ .muted{color:#8b949e;font-size:12px}
+ .wrap{display:grid;grid-template-columns:1fr 360px;gap:0;height:calc(100% - 59px)}
+ #graphwrap{position:relative;border-right:1px solid #21262d}
+ canvas{display:block;width:100%;height:100%}
+ .legend{position:absolute;top:12px;left:12px;background:#161b22cc;border:1px solid #21262d;border-radius:8px;padding:8px 10px;font-size:12px}
+ .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+ .tip{position:absolute;pointer-events:none;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;max-width:260px;display:none;z-index:5}
+ aside{overflow:auto;padding:16px}
+ .card{background:#161b22;border:1px solid #21262d;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+ .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#8b949e;margin:0 0 10px}
+ .kv{display:flex;justify-content:space-between;border-bottom:1px solid #21262d;padding:4px 0}
+ .kv:last-child{border:0} .kv b{font-weight:600}
+ .phase{display:inline-block;background:#13351f;color:#3fb950;border:1px solid #238636;border-radius:6px;padding:2px 7px;margin:2px;font-size:11px}
+ .mem{border-left:3px solid #58a6ff;padding:4px 0 4px 9px;margin-bottom:9px;font-size:12px}
+ .mem .t{color:#8b949e;font-size:11px;text-transform:uppercase}
+ a{color:#58a6ff;text-decoration:none} a:hover{text-decoration:underline}
+ .verdict{background:#1c2530;border:1px solid #2d4257;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px}
+</style></head><body>
+<header>
+ <h1>m1<span>frame</span> · system dashboard</h1>
+ <span id="lintbadge" class="badge">lint</span>
+ <span class="badge ok">BMAD ×2 ✓</span>
+ <span id="membadge" class="badge ok">miras</span>
+ <span class="muted" id="gen"></span>
+</header>
+<div class="wrap">
+ <div id="graphwrap">
+   <canvas id="cv"></canvas>
+   <div class="legend" id="legend"></div>
+   <div class="tip" id="tip"></div>
+ </div>
+ <aside>
+   <div class="verdict"><b>Verdict.</b> <span id="verdict"></span></div>
+   <div class="card"><h2>Knowledge graph</h2><div id="graphstats"></div></div>
+   <div class="card"><h2>OPU study metrics</h2><div id="metrics"></div></div>
+   <div class="card"><h2>BMAD cycles</h2><div id="bmad"></div></div>
+   <div class="card"><h2>miras memories</h2><div id="mems"></div></div>
+   <div class="card"><h2>Artifacts</h2><div id="artifacts"></div></div>
+ </aside>
+</div>
+<script>
+const D = {"graph": {"nodes": [{"id": "Conway's Law", "type": "concept", "file": "wiki/concepts/conways-law.md"}, {"id": "Premature Decomposition", "type": "concept", "file": "wiki/concepts/premature-decomposition.md"}, {"id": "m1frame", "type": "entity", "file": "wiki/entities/m1frame.md"}, {"id": "Microservices", "type": "entity", "file": "wiki/entities/microservices.md"}, {"id": "Modular Monolith", "type": "entity", "file": "wiki/entities/modular-monolith.md"}, {"id": "Is m1frame v1.3 Production Ready", "type": "query", "file": "wiki/queries/is-m1frame-v1.3-production-ready.md"}, {"id": "m1frame Constellation Release", "type": "synthesis", "file": "wiki/synthesis/m1frame-constellation.md"}, {"id": "m1frame Studio", "type": "synthesis", "file": "wiki/synthesis/m1frame-studio.md"}, {"id": "MVP Architecture Decision", "type": "synthesis", "file": "wiki/synthesis/mvp-architecture-decision.md"}], "links": [{"source": "Conway's Law", "target": "MVP Architecture Decision"}, {"source": "Conway's Law", "target": "Microservices"}, {"source": "Conway's Law", "target": "Modular Monolith"}, {"source": "Premature Decomposition", "target": "MVP Architecture Decision"}, {"source": "Premature Decomposition", "target": "Modular Monolith"}, {"source": "m1frame", "target": "m1frame Studio"}, {"source": "m1frame", "target": "MVP Architecture Decision"}, {"source": "m1frame", "target": "m1frame Constellation Release"}, {"source": "Microservices", "target": "MVP Architecture Decision"}, {"source": "Microservices", "target": "Modular Monolith"}, {"source": "Modular Monolith", "target": "MVP Architecture Decision"}, {"source": "Is m1frame v1.3 Production Ready", "target": "m1frame Constellation Release"}, {"source": "Is m1frame v1.3 Production Ready", "target": "m1frame"}, {"source": "m1frame Constellation Release", "target": "m1frame Studio"}, {"source": "m1frame Studio", "target": "MVP Architecture Decision"}]}, "lint": {"pages": 13, "titled": 9, "links": 15, "broken": [], "orphans": []}, "metrics": {}, "memories": [], "bmad": [{"cycle": "Demo \u2014 MVP architecture decision", "phases": ["BMAD", "Council brainstorm", "OpenPlanter", "Miras", "Karpathy", "Council QA + red-team", "Wiki ingest"]}], "artifacts": [{"label": "Studio UI", "path": "m1frame-studio.html"}, {"label": "Wiki index", "path": "wiki/index.md"}, {"label": "Manual", "path": "MANUAL.md"}, {"label": "Demo fixture", "path": "studio/demo_run.json"}], "verdict": "Demo decision: ship a modular monolith, extraction-ready; split into microservices only on a real scaling trigger. The point is that you can watch how the council reached it \u2014 debate, red-team veto, grounding, and memory.", "generated": "2026-06-10 13:16"};
+const COL = {entity:"#58a6ff",concept:"#3fb950",synthesis:"#d29922",source:"#8b949e",query:"#bc8cff",page:"#c9d1d9"};
+// ---- panels ----
+document.getElementById("gen").textContent = "generated "+D.generated;
+document.getElementById("verdict").textContent = D.verdict;
+const lintBad = D.lint.broken.length || D.lint.orphans.length;
+const lb = document.getElementById("lintbadge");
+lb.textContent = lintBad ? ("lint: "+(D.lint.broken.length)+" broken / "+(D.lint.orphans.length)+" orphans") : "lint ✓ 0 errors";
+lb.className = "badge "+(lintBad?"bad":"ok");
+document.getElementById("membadge").textContent = "miras "+D.memories.length;
+document.getElementById("graphstats").innerHTML =
+  kv("nodes (titled pages)",D.lint.titled)+kv("links",D.lint.links)+
+  kv("broken links",D.lint.broken.length)+kv("orphans",D.lint.orphans.length);
+const m=D.metrics; const me=document.getElementById("metrics");
+if(m && Object.keys(m).length){ me.innerHTML =
+  kv("network sparsity",m.sparsity+"%")+kv("SNR for value &lt; budget",(m.snr_budget?m.snr_budget.toFixed(1):"—")+" dB")+
+  kv("static defect: value",m.static_value+"%")+kv("static defect: derivative",m.static_deriv+"%")+
+  kv("Jacobian ε-stab (INT8→smooth)",m.jac_stability_int8+" → "+m.jac_stability_smooth)+
+  kv("sweep runtime",m.runtime+" s"); } else { me.innerHTML='<span class="muted">no summary.json found</span>'; }
+document.getElementById("bmad").innerHTML = D.bmad.map(c=>
+  '<div style="margin-bottom:8px"><div class="muted">'+c.cycle+'</div>'+
+  c.phases.map(p=>'<span class="phase">'+p+' ✓</span>').join('')+'</div>').join('');
+document.getElementById("mems").innerHTML = D.memories.length ? D.memories.map(x=>
+  '<div class="mem"><div class="t">'+x.type+(x.agent?(' · '+x.agent):'')+'</div>'+esc(x.text)+'</div>').join('')
+  : '<span class="muted">run miras_export to m1frame/miras_snapshot.json</span>';
+document.getElementById("artifacts").innerHTML = D.artifacts.map(a=>
+  '<div class="kv"><a href="../'+a.path+'">'+a.label+'</a><span class="muted">'+a.path+'</span></div>').join('');
+const types=[...new Set(D.graph.nodes.map(n=>n.type))];
+document.getElementById("legend").innerHTML = types.map(t=>'<div><i style="background:'+(COL[t]||'#888')+'"></i>'+t+'</div>').join('');
+function kv(k,v){return '<div class="kv"><span>'+k+'</span><b>'+v+'</b></div>';}
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+// ---- force-directed graph ----
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d"),tip=document.getElementById("tip");
+let W,H; const N=D.graph.nodes, L=D.graph.links;
+const idx=Object.fromEntries(N.map((n,i)=>[n.id,i]));
+function size(){const r=cv.parentElement.getBoundingClientRect();W=cv.width=r.width;H=cv.height=r.height;}
+size(); addEventListener("resize",size);
+N.forEach(n=>{n.x=W/2+(Math.random()-.5)*240;n.y=H/2+(Math.random()-.5)*240;n.vx=0;n.vy=0;});
+let drag=null,hover=null,mx=0,my=0;
+function step(){
+  for(let i=0;i<N.length;i++){const a=N[i];
+    for(let j=i+1;j<N.length;j++){const b=N[j];let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2);
+      const f=2600/d2; const fx=dx/d*f,fy=dy/d*f; a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}
+    a.vx+=(W/2-a.x)*0.0016; a.vy+=(H/2-a.y)*0.0016; }
+  L.forEach(l=>{const a=N[idx[l.source]],b=N[idx[l.target]];let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-120)*0.02,fx=dx/d*f,fy=dy/d*f; a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;});
+  N.forEach(n=>{ if(n===drag){return;} n.vx*=0.86;n.vy*=0.86;n.x+=n.vx;n.y+=n.vy;
+    n.x=Math.max(40,Math.min(W-40,n.x)); n.y=Math.max(30,Math.min(H-30,n.y)); });
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle="#30363d"; ctx.lineWidth=1;
+  L.forEach(l=>{const a=N[idx[l.source]],b=N[idx[l.target]];
+    ctx.globalAlpha=(hover&&(a===hover||b===hover))?0.9:0.35;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();});
+  ctx.globalAlpha=1;
+  N.forEach(n=>{const deg=L.filter(l=>l.source===n.id||l.target===n.id).length;
+    const r=6+Math.min(deg,8); ctx.fillStyle=COL[n.type]||"#888";
+    ctx.beginPath();ctx.arc(n.x,n.y,r,0,7);ctx.fill();
+    if(n===hover){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.stroke();}
+    ctx.fillStyle="#c9d1d9";ctx.font="11px sans-serif";ctx.textAlign="center";
+    ctx.fillText(n.id,n.x,n.y-r-4);});
+}
+function loop(){step();draw();requestAnimationFrame(loop);} loop();
+function nearest(x,y){let best=null,bd=400;N.forEach(n=>{const d=(n.x-x)**2+(n.y-y)**2;if(d<bd){bd=d;best=n;}});return best;}
+cv.addEventListener("mousemove",e=>{const r=cv.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top;
+  if(drag){drag.x=mx;drag.y=my;drag.vx=drag.vy=0;}
+  hover=nearest(mx,my);
+  if(hover){tip.style.display="block";tip.style.left=(mx+14)+"px";tip.style.top=(my+10)+"px";
+    tip.innerHTML="<b>"+hover.id+"</b><br><span class='muted'>"+hover.type+" · "+hover.file+"</span>";}
+  else tip.style.display="none";});
+cv.addEventListener("mousedown",()=>{if(hover)drag=hover;});
+addEventListener("mouseup",()=>{drag=null;});
+</script></body></html>
