@@ -14,7 +14,7 @@ confidence: high
 close the three [[Clinical Safety Loops]] — medication (CPOE safety checks → MAR with witness
 protocol), results (lab critical-value alert → ack → 30-min escalation), continuity (I-PASS
 handover with receiver synthesis) — and **defer breadth** (triage/ESI, bed board, consent workflow,
-patient portal). Shipped as v1.1.0 with 66/66 tests green, every new safety transition audited,
+patient portal). Shipped as v1.1.0 with 71/71 tests green, every new safety transition audited,
 FHIR `$everything` now carrying real MedicationRequests and lab Observations.
 
 ## Why this ranking won

@@ -12,3 +12,7 @@ Append-only chronological record. Never delete entries.
   [[NEXUS v2 Gap Cycle]], [[Which NEXUS v2 Gaps Close First]]. Contradiction tracked: spec metadata
   listed Code Blue veto as open; v1 code already implements it (inventory-first lesson). fmed bumped
   to 1.1.0, 66/66 tests green. Study artifacts: studies/nexus-v2-gap-cycle/.
+- 2026-06-10 — Red-team pass (gate: CONCERNS → resolved): fixed MF-1 (README test count), MF-2
+  (med_tech could not reach the lab-entry UI), MF-3 (403/404 existence oracle on order/MAR
+  mutation routes → 404 cloak), MF-4 (lab-entry hospital-wide scope now documented + tested).
+  Final: 71/71 tests green. Wiki pages corrected from the stale 66 count.

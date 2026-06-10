@@ -23,7 +23,7 @@ A demo-grade, full-stack clinical intelligence platform (repo: **fmed**) impleme
   hard/soft stops, offline interaction table, pediatric dose limits, renal flags, duplicate
   detection, resident co-signature), MAR with controlled-substance two-person witness + waste +
   scan-to-confirm, lab critical-value alerting with acknowledgement read receipts and 30-minute
-  escalation sweeps, and I-PASS handover with receiver synthesis. 66 tests green; versions 1.1.0.
+  escalation sweeps, and I-PASS handover with receiver synthesis. 71 tests green; versions 1.1.0.
 - **Deliberately open:** triage/ESI, bed board, consent workflow, patient portal UI, chat/video,
   imaging/DICOM, notes engine — breadth deferred behind safety depth per [[NEXUS v2 Gap Cycle]].
 
