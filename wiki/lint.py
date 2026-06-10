@@ -18,7 +18,9 @@ def title_of(p: Path, text: str):
     return m.group(1).strip() if m else None
 
 def main() -> int:
-    pages = list(WIKI.rglob("*.md"))
+    # Layer 1 (raw/) is immutable source text the LLM only reads — not typed wiki
+    # pages, so they are excluded from frontmatter/orphan checks (per CLAUDE.md).
+    pages = [p for p in WIKI.rglob("*.md") if "raw" not in p.relative_to(WIKI).parts]
     title2file, inbound, errors, warnings = {}, {}, [], []
     page_links = {}
     for p in pages:

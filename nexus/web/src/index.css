@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #0a0e17;
+  color: #f1f5f9;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* Signature element: heartbeat sparkline pulse on new reading (spec §16.4) */
+@keyframes pulse-beat {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.heartbeat { animation: pulse-beat 1.6s ease-in-out 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .heartbeat { animation: none; }
+}
+
+/* Code Blue pulsing dot */
+@keyframes cb-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.cb-dot { animation: cb-pulse 1.4s infinite; }
+
+*:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 2px;
+}
