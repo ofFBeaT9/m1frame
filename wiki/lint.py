@@ -18,7 +18,8 @@ def title_of(p: Path, text: str):
     return m.group(1).strip() if m else None
 
 def main() -> int:
-    pages = list(WIKI.rglob("*.md"))
+    # raw/ is Layer 1 (immutable source text, no frontmatter by design) — not lintable pages.
+    pages = [p for p in WIKI.rglob("*.md") if "raw" not in p.relative_to(WIKI).parts]
     title2file, inbound, errors, warnings = {}, {}, [], []
     page_links = {}
     for p in pages:
