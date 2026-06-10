@@ -33,3 +33,8 @@ dist/
 
 # Personal local Claude Code settings (never commit)
 .claude/settings.local.json
+
+# NEXUS app build artifacts
+node_modules/
+nexus/**/node_modules/
+nexus/**/dist/
