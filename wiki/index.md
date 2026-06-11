@@ -19,6 +19,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 - [[Premature Decomposition]] — splitting into services too early; the "distributed monolith" trap.
 - [[Clinical Safety Loops]] — close the loops where patients are harmed/saved before adding surface breadth.
 - [[Residual Retirement]] — a release is spotless only when every documented gap is fixed-with-test or re-scoped out loud.
+- [[Honest Scope Labels]] — a demo earns trust by stating what each capability is NOT, next to the feature.
 
 ## Sources
 - [[NEXUS v2 Master Prompt]] — the 21-section council-approved build prompt (raw text immutable in raw/sources).
@@ -27,6 +28,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 - [[Is m1frame v1.3 Production Ready]] — saved question → GO (for its positioning) + the #1 remaining gap.
 - [[Which NEXUS v2 Gaps Close First]] — saved question → the three safety loops; inventory the code before trusting a spec's gap list.
 - [[Can One Cycle Make NEXUS Spotless]] — saved question → yes, by defining spotless as zero unretired residuals + all gates PASS.
+- [[Can a Demo Earn Trust]] — saved question → yes, iff every mechanism is real-but-bounded and the bound is stated as loudly as the feature.
 
 ## Lint status
 No orphans (every page is linked here and cross-linked). Confidence: high on the demo verdict and the framework

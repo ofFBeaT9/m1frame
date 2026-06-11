@@ -1,7 +1,7 @@
 ---
 title: NEXUS Clinical Platform
 tags: [entity, project, clinical, ehr, fmed]
-related: ["[[NEXUS v2 Master Prompt]]", "[[NEXUS v2 Gap Cycle]]", "[[NEXUS v1.2 Polish Cycle]]", "[[Clinical Safety Loops]]", "[[Residual Retirement]]", "[[m1frame]]"]
+related: ["[[NEXUS v2 Master Prompt]]", "[[NEXUS v2 Gap Cycle]]", "[[NEXUS v1.2 Polish Cycle]]", "[[NEXUS v1.3 Reach and Trust Cycle]]", "[[Clinical Safety Loops]]", "[[Residual Retirement]]", "[[Honest Scope Labels]]", "[[m1frame]]"]
 created: 2026-06-10
 sources: ["nexus-v2-master-prompt"]
 page_type: entity
@@ -30,7 +30,13 @@ A demo-grade, full-stack clinical intelligence platform (repo: **fmed**) impleme
   mandatory override reasons), bed management (single-writer rule), all six v1.1 residuals
   retired per [[Residual Retirement]], calculators 13 → 24, four new web surfaces + a six-item
   polish round. 103 tests green; versions 1.2.0.
-- **Deliberately open:** patient portal UI, chat/video, print/PDF, imaging/DICOM, HL7 v2 ingest,
-  production substrate (WORM audit, e-signature) — re-scoped per [[NEXUS v2 Gap Cycle]] logic.
+- **v1.3 "Reach & Trust" (per [[NEXUS v1.3 Reach and Trust Cycle]]):** trust substrate (WORM
+  hash-chained audit re-verified on restore, HMAC e-signatures at four attestation points,
+  durable snapshot persistence), patient portal with separate lighter identity (released
+  results with mandatory clinician comments, PHQ-2 with crisis signposting, access-log with
+  Code Blue disclosure, care plan), communication hub + call waiting room, imaging scaffold,
+  print views — every demo boundary carrying [[Honest Scope Labels]]. 128 tests; v1.3.0.
+- **Deliberately open:** portal emergency/visiting/diagnosis-explainer surfaces, per-user
+  signing keys, HL7 v2 ingest, Postgres adapter — re-scoped per [[NEXUS v2 Gap Cycle]] logic.
 
 Both the spec and the upgrade cycles were produced by the [[m1frame]] pipeline.

@@ -22,3 +22,9 @@ Append-only chronological record. Never delete entries.
   Contradiction tracked: the engineering council's own gate prescription (read_chart) was wrong for
   the patient role; corrected twice via tests — reviewer prescriptions are hypotheses, tests arbitrate.
   Study artifacts: studies/nexus-v12-polish-cycle/.
+- 2026-06-11 — Cycle 3 ingested: [[NEXUS v1.3 Reach and Trust Cycle]] (synthesis),
+  [[Honest Scope Labels]] (concept), [[Can a Demo Earn Trust]] (query); [[NEXUS Clinical Platform]]
+  updated to v1.3 (portal/chat/imaging/print + WORM chain + e-signatures + persistence; 128/128).
+  Process honesty: two council lens agents killed by a session limit — checklists executed directly,
+  failure recorded in the study. Red-team caught a forged-urgent-flag path and a stale README count;
+  both fixed with tests. Study artifacts: studies/nexus-v13-reach-trust/.
