@@ -16,3 +16,9 @@ Append-only chronological record. Never delete entries.
   (med_tech could not reach the lab-entry UI), MF-3 (403/404 existence oracle on order/MAR
   mutation routes → 404 cloak), MF-4 (lab-entry hospital-wide scope now documented + tested).
   Final: 71/71 tests green. Wiki pages corrected from the stale 66 count.
+- 2026-06-11 — Cycle 2 ingested: [[NEXUS v1.2 Polish Cycle]] (synthesis), [[Residual Retirement]]
+  (concept), [[Can One Cycle Make NEXUS Spotless]] (query); [[NEXUS Clinical Platform]] updated to
+  v1.2 state (notes/consent/triage/beds, six residuals retired, 24 calculators, 103/103 tests).
+  Contradiction tracked: the engineering council's own gate prescription (read_chart) was wrong for
+  the patient role; corrected twice via tests — reviewer prescriptions are hypotheses, tests arbitrate.
+  Study artifacts: studies/nexus-v12-polish-cycle/.

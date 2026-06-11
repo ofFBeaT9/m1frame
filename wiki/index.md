@@ -18,6 +18,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 - [[Conway's Law]] — systems mirror team structure; don't make more services than you have teams.
 - [[Premature Decomposition]] — splitting into services too early; the "distributed monolith" trap.
 - [[Clinical Safety Loops]] — close the loops where patients are harmed/saved before adding surface breadth.
+- [[Residual Retirement]] — a release is spotless only when every documented gap is fixed-with-test or re-scoped out loud.
 
 ## Sources
 - [[NEXUS v2 Master Prompt]] — the 21-section council-approved build prompt (raw text immutable in raw/sources).
@@ -25,6 +26,7 @@ Navigation entry point. Never bypass this. Updated after every ingest.
 ## Queries
 - [[Is m1frame v1.3 Production Ready]] — saved question → GO (for its positioning) + the #1 remaining gap.
 - [[Which NEXUS v2 Gaps Close First]] — saved question → the three safety loops; inventory the code before trusting a spec's gap list.
+- [[Can One Cycle Make NEXUS Spotless]] — saved question → yes, by defining spotless as zero unretired residuals + all gates PASS.
 
 ## Lint status
 No orphans (every page is linked here and cross-linked). Confidence: high on the demo verdict and the framework

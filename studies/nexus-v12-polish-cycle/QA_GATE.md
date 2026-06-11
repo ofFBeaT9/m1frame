@@ -14,3 +14,23 @@
 
 Feasibility: confirmed — no seam changes; ~4 new route files, 4 services, 1 pure domain module,
 additive RBAC columns; web agent pattern proven in cycle 1.
+
+## Gate 2 — Results review (post-build, post-council, post-red-team)
+
+**Verdict: PASS**
+
+- Build: server tsc strict clean; web tsc strict clean; vite build clean (116 modules).
+- Tests: 71 (v1.1) → **103 (v1.2)**, all passing — four new modules (notes/consent/triage/beds),
+  six v1.1 residuals each with a regression test, eleven new calculators with worked examples,
+  and a regression test for every council finding (G1-G4, E1-E3) and red-team must-fix (MF-1, MF-2).
+- Council scores (pre-fix): clinical governance 7.5, engineering 7, clinical UX 6.5 (mid-cycle,
+  before the four web pages + polish round landed). All findings folded in-cycle, none caveated.
+- Red-team gate CONCERNS → both must-fixes closed with tests/doc corrections.
+- Contradictions resolved explicitly: (1) council E2's own proposed fix (read_chart gate) was
+  wrong — the patient role's "own" scope is truthy; evidence (a failing test) corrected it to a
+  documentation gate, then the red-team tightened it again to write_soap-only when write_vitals
+  proved too wide. Two-step correction recorded honestly. (2) UX lens reviewed mid-flight and
+  flagged "four missing pages" — resolved by delivery order, recorded as a process note
+  (synchronize council snapshots with parallel dev agents, or brief the lens on in-flight work).
+- Honest residuals for next cycle: patient portal UI (§14), chat/video (§13), print/PDF (§12),
+  imaging (§3.7), HL7 v2 ingest, production substrate (WORM/e-signature/witness hardware).
