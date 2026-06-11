@@ -28,3 +28,10 @@ Append-only chronological record. Never delete entries.
   Process honesty: two council lens agents killed by a session limit — checklists executed directly,
   failure recorded in the study. Red-team caught a forged-urgent-flag path and a stale README count;
   both fixed with tests. Study artifacts: studies/nexus-v13-reach-trust/.
+- 2026-06-11 — Cycle 4 ingested: [[NEXUS v1.4 Companion and Interop Cycle]] (synthesis);
+  [[NEXUS Clinical Platform]] updated to v1.4 (per-user Ed25519 + verifiable cosign chains,
+  commit-flushed audit journal, HL7 ORU ingest, portal Help/explainer, 33 calculators; 149/149).
+  Lens agent spawn-killed twice by session limits (checklist self-executed, recorded); its key
+  catch — locale-dependent signature canonicalization — was folded. Red-team PASS WITH CONCERNS
+  → resolved, incl. implementing co-signatures for real instead of documenting their absence.
+  Study artifacts: studies/nexus-v14-companion-interop/.

@@ -1,7 +1,7 @@
 ---
 title: NEXUS Clinical Platform
 tags: [entity, project, clinical, ehr, fmed]
-related: ["[[NEXUS v2 Master Prompt]]", "[[NEXUS v2 Gap Cycle]]", "[[NEXUS v1.2 Polish Cycle]]", "[[NEXUS v1.3 Reach and Trust Cycle]]", "[[Clinical Safety Loops]]", "[[Residual Retirement]]", "[[Honest Scope Labels]]", "[[m1frame]]"]
+related: ["[[NEXUS v2 Master Prompt]]", "[[NEXUS v2 Gap Cycle]]", "[[NEXUS v1.2 Polish Cycle]]", "[[NEXUS v1.3 Reach and Trust Cycle]]", "[[NEXUS v1.4 Companion and Interop Cycle]]", "[[Clinical Safety Loops]]", "[[Residual Retirement]]", "[[Honest Scope Labels]]", "[[m1frame]]"]
 created: 2026-06-10
 sources: ["nexus-v2-master-prompt"]
 page_type: entity
@@ -36,7 +36,11 @@ A demo-grade, full-stack clinical intelligence platform (repo: **fmed**) impleme
   results with mandatory clinician comments, PHQ-2 with crisis signposting, access-log with
   Code Blue disclosure, care plan), communication hub + call waiting room, imaging scaffold,
   print views — every demo boundary carrying [[Honest Scope Labels]]. 128 tests; v1.3.0.
-- **Deliberately open:** portal emergency/visiting/diagnosis-explainer surfaces, per-user
-  signing keys, HL7 v2 ingest, Postgres adapter — re-scoped per [[NEXUS v2 Gap Cycle]] logic.
+- **v1.4 "Companion & Interop" (per [[NEXUS v1.4 Companion and Interop Cycle]]):** per-user
+  Ed25519 attestation keys with verifiable co-signature chains, commit-flushed audit journal,
+  HL7 v2.5 ORU ingest into the native lab pipeline, portal Help & contact + plain-language
+  diagnosis explainer, calculators 24 → 33. 149 tests; v1.4.0; zero new dependencies.
+- **Deliberately open:** Postgres adapter, MLLP/ACK transport, user-held keys/QES, HL7 SN
+  values, portal i18n/RTL — re-scoped per [[NEXUS v2 Gap Cycle]] logic.
 
 Both the spec and the upgrade cycles were produced by the [[m1frame]] pipeline.
