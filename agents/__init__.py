@@ -1,6 +1,7 @@
 """m1frame — Agent Package"""
 from agents.bmad import BMAD_ROLES, Blueprint, BMADAgent, Story
 from agents.council import BrainstormResult, CouncilVerdict, LLMCouncil, PersonaAssessment
+from agents.guardrails import GuardedLLMClient, GuardrailEngine, GuardResult
 from agents.karpathy import KarpathyEngine, KarpathyResult
 from agents.logger import PillarLogger
 from agents.metrics import MetricsCollector, get_metrics
@@ -22,6 +23,8 @@ __all__ = [
     "LLMWiki", "WikiPage", "LintReport", "ContradictionReport",
     # OpenPlanter
     "OpenPlanterAgent", "InvestigationResult", "Entity", "InvestigationFlag",
+    # Guardrails (content safety)
+    "GuardrailEngine", "GuardResult", "GuardedLLMClient",
     # New v1.1
     "PillarLogger",
     "MetricsCollector", "get_metrics",

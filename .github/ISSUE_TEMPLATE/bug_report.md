@@ -27,7 +27,7 @@ What actually happened. Include full tracebacks.
 - Python version: [e.g. 3.11.4]
 - m1frame version: [e.g. 1.0.0]
 - Backend: [e.g. claude / ollama / openai]
-- Model: [e.g. claude-sonnet-4-20250514]
+- Model: [e.g. claude-sonnet-5]
 
 ## Config
 ```yaml

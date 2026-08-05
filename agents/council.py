@@ -208,6 +208,10 @@ class LLMCouncil:
         self.max_rounds = int(self.cfg.get("max_debate_rounds", 2))
         # An independent red-team runs after the personas in review() and can VETO a pass.
         self.red_team = bool(self.cfg.get("red_team", True))
+        # Per-pillar model routing: only the two heaviest judgment calls (the final
+        # QA synthesis and the red-team veto) use judge_model; personas stay on the
+        # cheaper default model. None ⇒ everything uses the backend's default model.
+        self.judge_model = self.cfg.get("judge_model")
 
     # ── Mode 1: Brainstorm ────────────────────────────────────────────────────
 
@@ -403,7 +407,8 @@ class LLMCouncil:
             f"Output being reviewed (first 2000 chars):\n{output[:2000]}\n\n"
             f"Individual assessments:\n{assessment_text}"
         )
-        raw = self.llm.chat(prompt=prompt, system=REVIEW_SYNTHESIS_SYSTEM, temperature=0.2)
+        raw = self.llm.chat(prompt=prompt, system=REVIEW_SYNTHESIS_SYSTEM, temperature=0.2,
+                            model=self.judge_model)
         try:
             d = _parse_json(raw)
             return CouncilVerdict(
@@ -434,7 +439,8 @@ class LLMCouncil:
             f"score={verdict.consensus_score:.1f}/10, summary={verdict.summary}\n\n"
             "Attack this verdict. What did the council miss?"
         )
-        raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3)
+        raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3,
+                            model=self.judge_model)
         try:
             d = _parse_json(raw)
             return PersonaAssessment(

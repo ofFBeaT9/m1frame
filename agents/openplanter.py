@@ -23,9 +23,9 @@ Tools available (from OpenPlanter's 19-tool suite, abstracted here):
   Analysis tools — entity_resolution, cross_reference, surface_connections
 
 Supported backends (OpenPlanter providers):
-  anthropic  → claude-opus-4-7  (ANTHROPIC_API_KEY)
+  anthropic  → claude-opus-5    (ANTHROPIC_API_KEY)
   openai     → gpt-4o           (OPENAI_API_KEY)
-  openrouter → claude-sonnet    (OPENROUTER_API_KEY)
+  openrouter → claude-sonnet-5  (OPENROUTER_API_KEY)
   cerebras   → qwen-3-235b      (CEREBRAS_API_KEY)
 """
 
@@ -209,9 +209,9 @@ class OpenPlanterAgent:
     """
 
     SUPPORTED_PROVIDERS = {
-        "anthropic":  {"model": "claude-opus-4-7",               "key_env": "ANTHROPIC_API_KEY"},
+        "anthropic":  {"model": "claude-opus-5",                 "key_env": "ANTHROPIC_API_KEY"},
         "openai":     {"model": "gpt-4o",                        "key_env": "OPENAI_API_KEY"},
-        "openrouter": {"model": "anthropic/claude-sonnet-4-5",   "key_env": "OPENROUTER_API_KEY"},
+        "openrouter": {"model": "anthropic/claude-sonnet-5",     "key_env": "OPENROUTER_API_KEY"},
         "cerebras":   {"model": "qwen-3-235b-a22b-instruct-2507","key_env": "CEREBRAS_API_KEY"},
     }
 

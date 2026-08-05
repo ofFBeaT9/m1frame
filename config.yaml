@@ -5,16 +5,16 @@
 # All other settings are backend-specific.
 
 # ── LLM Backend ──────────────────────────────────────────────────
-backend: claude          # claude | claudecli | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
+backend: claude           # claude | claudecli | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
 
 claudecli:                # run on the Claude Code CLI — NO API key needed (uses your `claude` login)
-  model: null             # null = Claude Code's current default model; or e.g. claude-sonnet-4-20250514
+  model: null             # null = Claude Code's current default model; or e.g. claude-sonnet-5
   timeout: 300
   api_key_env: null
 
 claude:
-  model: claude-sonnet-4-20250514
-  max_tokens: 8096
+  model: claude-sonnet-5  # default/high-volume model — BMAD planning, council personas, Karpathy, Miras
+  max_tokens: 16000        # Sonnet 5 / Opus 5 support much larger outputs than the old 4.x default (8096); raise further for long-form synthesis
   temperature: 0.2
   api_key_env: ANTHROPIC_API_KEY
 
@@ -40,14 +40,14 @@ vllm:
   api_key_env: null
 
 lmstudio:
-  model: local-model      # matches model loaded in LM Studio UI
+  model: google/gemma-4-12b   # Gemma 4 12B — higher-precision quant; reliable structured output on 8 GB VRAM
   base_url: http://localhost:1234/v1
   max_tokens: 8096
   temperature: 0.2
   api_key_env: null
 
 openrouter:               # 200+ models through one OpenAI-compatible endpoint
-  model: anthropic/claude-3.5-sonnet   # or openai/gpt-4o, google/gemini-2.0-flash, meta-llama/llama-3.3-70b-instruct, …
+  model: anthropic/claude-sonnet-5   # or openai/gpt-4o, google/gemini-2.0-flash, meta-llama/llama-3.3-70b-instruct, …
   base_url: https://openrouter.ai/api/v1
   max_tokens: 8096
   temperature: 0.2
@@ -101,6 +101,11 @@ council:
       role: "Apply deep technical knowledge. Flag domain-specific risks, best practices, and anti-patterns."
   consensus_threshold: 7   # score ≥ 7/10 → approved
   max_debate_rounds: 2
+  judge_model: claude-opus-5   # per-pillar routing: only the red-team veto and the
+                               # final QA synthesis use this (heavier judgment calls);
+                               # every other council/BMAD/Karpathy call stays on the
+                               # cheaper `claude.model` above. null/omit = same model
+                               # for everything. Only takes effect on claude/claudecli backends.
 
 # ── Pillar: LLM Wiki ─────────────────────────────────────────────
 wiki:
@@ -118,6 +123,24 @@ openplanter:
   # Optional service keys (set in .env):
   #   EXA_API_KEY    — web search (exa-py)
   #   VOYAGE_API_KEY — semantic entity matching (voyageai)
+
+# ── Guardrails (content safety) ──────────────────────────────────
+# Cross-cutting input/output safety — separate from the council (quality), the
+# tool-approval gate, and the SSRF guard. Layer 1 (rules) is offline + zero-VRAM
+# and always on. Layer 2 (ShieldGemma) is optional and OFF by default: the
+# 26B-A4B reasoner already fills an 8 GB GPU, so enable the classifier only when
+# you can spare memory (or run it CPU-pinned / on a second endpoint).
+guardrails:
+  enabled: true
+  on_error: block            # block | allow — behaviour when a check itself errors
+  rules:
+    pii_secrets: true        # redact/block secrets (AWS/OpenAI/GitHub/…) + PII
+    injection_screen: true   # heuristic prompt-injection detection
+  shieldgemma:
+    enabled: false           # turn on to add the Gemma-based safety classifier
+    model: shieldgemma       # an LM Studio / Ollama model id
+    base_url: http://localhost:1234/v1
+    gates: [input, output]   # which gates run the classifier
 
 # ── API Server ───────────────────────────────────────────────────
 api:

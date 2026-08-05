@@ -37,14 +37,21 @@ class LLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         history: list[dict] | None = None,
+        model: str | None = None,
     ) -> str:
-        """Send a chat message and return the assistant reply as a string."""
+        """Send a chat message and return the assistant reply as a string.
+
+        `model` overrides the backend's configured model for this one call —
+        e.g. routing a single expensive judgment call to a stronger model
+        while everything else stays on the cheaper default. Ignored (falls
+        back to the configured default) on backends where that doesn't apply.
+        """
         if self.backend == "claude":
-            return self._claude_chat(prompt, system, temperature, max_tokens, history)
+            return self._claude_chat(prompt, system, temperature, max_tokens, history, model)
         elif self.backend == "claudecli":
-            return self._claudecli_chat(prompt, system, history)
+            return self._claudecli_chat(prompt, system, history, model)
         else:
-            return self._openai_chat(prompt, system, temperature, max_tokens, history)
+            return self._openai_chat(prompt, system, temperature, max_tokens, history, model)
 
     def stream(self, prompt: str, system: str = "", temperature: float | None = None):
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
@@ -80,11 +87,11 @@ class LLMClient:
 
     # ── Claude ────────────────────────────────────────────────────────────────
 
-    def _claude_chat(self, prompt, system, temperature, max_tokens, history) -> str:
+    def _claude_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg["claude"]
         messages = self._build_messages(prompt, history)
         kwargs = dict(
-            model=bcfg["model"],
+            model=model or bcfg["model"],
             max_tokens=max_tokens or bcfg["max_tokens"],
             messages=messages,
         )
@@ -113,7 +120,7 @@ class LLMClient:
             yield from stream.text_stream
 
     # ── Claude Code CLI (no API key — uses your `claude` auth) ────────────────
-    def _claudecli_chat(self, prompt, system, history) -> str:
+    def _claudecli_chat(self, prompt, system, history, model=None) -> str:
         """Run the prompt through the Claude Code CLI headlessly (`claude -p`).
         Lets m1frame run with zero API key by reusing your Claude Code login."""
         import subprocess
@@ -123,8 +130,9 @@ class LLMClient:
             convo = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
             full = convo + "\nuser: " + prompt
         args = ["claude", "-p", "--output-format", "text"]
-        if bcfg.get("model"):
-            args += ["--model", str(bcfg["model"])]
+        model = model or bcfg.get("model")
+        if model:
+            args += ["--model", str(model)]
         if system:
             args += ["--append-system-prompt", system]
         try:
@@ -139,7 +147,7 @@ class LLMClient:
 
     # ── OpenAI-compatible ────────────────────────────────────────────────────
 
-    def _openai_chat(self, prompt, system, temperature, max_tokens, history) -> str:
+    def _openai_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg[self.backend]
         messages = []
         if system:
@@ -149,12 +157,16 @@ class LLMClient:
         messages.append({"role": "user", "content": prompt})
 
         response = self._client.chat.completions.create(
-            model=bcfg["model"],
+            model=model or bcfg["model"],
             messages=messages,
             max_tokens=max_tokens or bcfg["max_tokens"],
             temperature=temperature if temperature is not None else bcfg.get("temperature", 0.2),
         )
-        return response.choices[0].message.content
+        msg = response.choices[0].message
+        # Reasoning models (e.g. Gemma 4 via LM Studio / Ollama) may return an
+        # empty `content` and place the text in `reasoning_content`. Fall back so
+        # the pipeline never silently receives an empty string.
+        return msg.content or getattr(msg, "reasoning_content", None) or ""
 
     def _openai_stream(self, prompt, system, temperature):
         bcfg = self.cfg[self.backend]
@@ -170,7 +182,8 @@ class LLMClient:
             stream=True,
         )
         for chunk in stream:
-            delta = chunk.choices[0].delta.content
+            d = chunk.choices[0].delta
+            delta = d.content or getattr(d, "reasoning_content", None)
             if delta:
                 yield delta
 

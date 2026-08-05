@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.bmad import BMADAgent
 from agents.council import LLMCouncil
+from agents.guardrails import GuardrailEngine
 from agents.karpathy import KarpathyEngine
 from agents.logger import PillarLogger
 from agents.metrics import get_metrics
@@ -73,6 +74,7 @@ def run_workflow(
     skip_council: bool = False,
     skip_wiki: bool = False,
     skip_openplanter: bool = False,
+    skip_guardrails: bool = False,
     verbose: bool = True,
     stream: bool = False,
     parallel: bool = False,
@@ -93,6 +95,10 @@ def run_workflow(
     purpose = Path("purpose.md").read_text() if Path("purpose.md").exists() else ""
     logger = PillarLogger()
     metrics = get_metrics()
+    guard = GuardrailEngine(
+        config=({"enabled": False} if skip_guardrails else cfg.get("guardrails")),
+        logger=logger, emit=emit,
+    )
     emit("run_start", goal=goal, options={
         "backend": backend or cfg.get("backend"),
         "parallel": parallel, "self_critique": self_critique,
@@ -109,6 +115,22 @@ def run_workflow(
         "goal": goal, "blueprint": None, "brainstorm": None,
         "investigation": None, "state": None, "verdict": None, "wiki_page": None,
     }
+
+    # ── Guardrail · INPUT gate ────────────────────────────────────────────────
+    # Screen the goal before any pillar runs; a block short-circuits the run.
+    gin = guard.check_input(goal)
+    emit("guardrail", pillar="guardrails", gate="input",
+         status=gin.action.upper(), categories=gin.categories)
+    if not gin.allowed:
+        refusal = guard.refusal_text(gin)
+        _bar("GUARDRAIL · INPUT BLOCKED")
+        print(refusal)
+        logger.warn("guardrails", "input_blocked", categories=gin.categories)
+        results["blocked"] = True
+        results["output"] = refusal
+        emit("final", output=refusal, score=None, passed=False, blocked=True)
+        emit("done", ms=round((time.perf_counter() - _t_run) * 1000))
+        return results
 
     # ── Skill recall (self-improving): seed planning with prior VETTED approaches ──
     # Defensive throughout: the learning loop must never be able to break a run.
@@ -204,7 +226,13 @@ def run_workflow(
         inv_result = planter.investigate(task=goal)
         print(inv_result.report())
         results["investigation"] = inv_result
-        investigation_context = f"\nInvestigation findings:\n{inv_result.summary}"
+        # ── Guardrail · INGEST gate ── (untrusted web/data: redact + quarantine,
+        # never block — findings are data to analyse, not instructions to obey)
+        ging = guard.check_ingest(inv_result.summary)
+        if ging.action != "allow":
+            emit("guardrail", pillar="guardrails", gate="ingest",
+                 status=ging.action.upper(), categories=ging.categories)
+        investigation_context = f"\nInvestigation findings:\n{ging.text}"
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("openplanter", ms=ms)
         logger.timing("openplanter", ms=ms, web_results=len(inv_result.web_results))
@@ -330,6 +358,18 @@ def run_workflow(
                 logger.warn("council", "skill_learn_error", error=str(e))
 
     # ── 7. LLM Wiki ──────────────────────────────────────────────────────────
+    # ── Guardrail · OUTPUT gate ───────────────────────────────────────────────
+    # Redact PII/secrets from, or block, the final answer before it is printed
+    # and ingested into the knowledge graph.
+    gout = guard.check_output(final_output)
+    emit("guardrail", pillar="guardrails", gate="output",
+         status=gout.action.upper(), categories=gout.categories)
+    if not gout.allowed:
+        final_output = guard.refusal_text(gout)
+        logger.warn("guardrails", "output_blocked", categories=gout.categories)
+    else:
+        final_output = gout.text
+
     page = None
     if not skip_wiki:
         _bar("PILLAR 7 · LLM WIKI  —  Knowledge Graph Ingest")
@@ -378,6 +418,13 @@ def run_workflow(
 
 
 def main() -> None:
+    # Windows consoles default to cp1252; the pillar banners use box-drawing
+    # glyphs (═ — ·). Force UTF-8 so piped/captured runs don't crash on encode.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        except Exception:  # noqa: BLE001 — best-effort; never block the CLI
+            pass
     p = argparse.ArgumentParser(description="m1frame — Portable Multi-Agent Workflow")
     p.add_argument("--goal", required=True, help="High-level goal to accomplish")
     p.add_argument("--backend", default=None,
@@ -387,6 +434,7 @@ def main() -> None:
     p.add_argument("--no-council",      action="store_true", help="Skip Council steps")
     p.add_argument("--no-wiki",         action="store_true", help="Skip Wiki ingest")
     p.add_argument("--no-openplanter",  action="store_true", help="Skip OpenPlanter investigation")
+    p.add_argument("--no-guardrails",   action="store_true", help="Skip the content-safety guardrail gates")
     p.add_argument("--quiet",           action="store_true", help="Minimal output")
     p.add_argument("--stream",          action="store_true", help="Stream Karpathy tokens to stdout")
     p.add_argument("--parallel",        action="store_true", help="Run independent Miras stories in parallel")
@@ -401,6 +449,7 @@ def main() -> None:
         skip_council=args.no_council,
         skip_wiki=args.no_wiki,
         skip_openplanter=args.no_openplanter,
+        skip_guardrails=args.no_guardrails,
         verbose=not args.quiet,
         stream=args.stream,
         parallel=args.parallel,
