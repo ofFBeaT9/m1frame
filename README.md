@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-**Portable multi-agent AI framework** — 7 pillars, 6 source repositories, one pipeline.  
+**Portable multi-agent AI framework** — 7 pillars, 8 source repositories, one pipeline.  
 Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  
 Reach it from **Telegram / Slack / Discord / webhook / CLI**, give it **tools**, deploy with **Docker**.  
 Fully offline-capable. Git-versionable. Zero lock-in.
@@ -17,6 +17,12 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
 > OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **47-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
+>
+> **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
+> close two open loops.** The council could argue about quality but never **measure** it, and a learned
+> skill was **frozen at birth**. Now an objective structural score is reported beside every verdict
+> (advisory — it never overrules the council unless you say so), and a distilled skill is rewritten and
+> kept **only when it scores better**. Both are optional: install nothing and the pipeline is unchanged.
 >
 > **Claude Code native** 🤝 — run m1frame on your Claude Code login with **no API key** (`backend: claudecli`),
 > and an **MCP server** gives Claude Code m1frame as tools. **📱 Use it from your phone** — `make mobile` serves
@@ -35,6 +41,8 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 | **Karpathy Patterns** | [karpathy gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Forced `<thought>` chain-of-thought, deterministic prompting |
 | **LLM Wiki** | [nashsu/llm_wiki](https://github.com/nashsu/llm_wiki) | Persistent three-layer knowledge graph (Analysis→Generation) |
 | **OpenPlanter** | [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter) | Recursive investigation agent — entity resolution, cross-referencing, dataset ingestion |
+| **Sentrux** *(optional)* | [sentrux/sentrux](https://github.com/sentrux/sentrux) | Structural **measurement** of the artefact — an objective score beside the council's subjective one |
+| **SkillOpt** *(optional)* | [microsoft/SkillOpt](https://github.com/microsoft/SkillOpt) | Skill **improvement** — bounded edits kept only when they score better |
 
 ---
 
@@ -140,13 +148,30 @@ Your Goal
 ┌─────────────────────────────────────────────────────────────┐
 │ 6. Council Review  (POST-generation QA gate)                │
 │    Consensus score ≥ 7/10 → approved_output                 │
+│                                                             │
+│    ◈ sensors/  — OBJECTIVE measurement joins here           │
+│      Sentrux scores the artefact 0–10000 → 0–10 and is      │
+│      fused with the council's score. Advisory by default:   │
+│      always reported, never changes the verdict unless      │
+│      you set sensors.enforce: true                          │
 └───────────────────────┬─────────────────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 7. LLM Wiki  —  Knowledge Graph                             │
 │    Analysis → Generation → interlinked Markdown pages       │
 │    entities/ · concepts/ · sources/ · synthesis/            │
+└───────────────────────┬─────────────────────────────────────┘
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│ ◈ optimizers/  —  the run teaches the next one              │
+│    On a PASSING run, skills.learn() distils a skill, then   │
+│    optimizers rewrites it under a scorer and keeps the edit │
+│    ONLY if it scores better. Skills stop being frozen at    │
+│    the quality of the run that produced them.               │
 └─────────────────────────────────────────────────────────────┘
+
+◈ = optional module. Nothing installed → structured `available: false`,
+    and the pipeline behaves exactly as it did before.
 ```
 
 ---
@@ -217,45 +242,122 @@ wiki.lint()    # health check → LintReport (contradictions, orphans, gaps)
 
 ---
 
-## Sensors & Optimizers — optional modules
+## `sensors/` & `optimizers/` — the two modules that close the loop
 
-Two modules integrate external tools. **Neither is a hard dependency.** With nothing installed
-they return a structured `available: false` and m1frame behaves exactly as before.
+Before these, the pipeline could deliberate and it could remember — but it could not **measure
+what it built**, and a skill it learned was **frozen at birth**. Both are feedback loops that were
+open. These two modules close them.
 
-**`sensors/`** — an optional, **advisory** structural measurement via the third-party
-[Sentrux](https://github.com/sentrux/sentrux) CLI (MIT, not bundled). Reported alongside every
-council verdict but **never changes it** unless you set `sensors.enforce: true` in `config.yaml`.
+**Neither is a hard dependency.** With nothing installed, every entry point returns a structured
+`available: false` and m1frame behaves exactly as before — same output, same QA suite, byte for byte.
 
-> **Rust flavour needs a `.sentrux/rules.toml`.** Verified against the real binary (v0.5.7): the
-> `check` subcommand — the only headless, side-effect-free command that prints a score — exits 1
-> with no output unless the target directory has one. Without it you get a reported reason and no
-> reading, not a silent zero. With it, a real run reads `Quality: 8264` → `8.264/10`. The tool's
-> intended agent interface is its MCP server (`sentrux mcp`); m1frame does not consume that yet.
+### What they do
 
-**`optimizers/`** — a skill-improvement step, so a learned skill stops being frozen at the
-quality of the run that produced it. The default tier is **m1frame's own dependency-free
-hill-climber — not Microsoft's SkillOpt**; it shares the accept-on-improvement mechanic of
-[SkillOpt](https://github.com/microsoft/SkillOpt), has no LLM step, and has not been benchmarked
-against the SkillOpt paper. Install `skillopt` and edits are applied by SkillOpt's own
-`optimizer.apply_patch`; the result reports which tier ran.
+| | `sensors/` | `optimizers/` |
+|---|---|---|
+| **Closes** | the *measurement* loop | the *learning* loop |
+| **Question** | "is the artefact actually well-structured?" | "can this skill be written better?" |
+| **Attaches to** | Pillar 6, the QA gate | after a passing run, when `skills.learn()` distils a skill |
+| **Judged by** | measurement (0–10000 → 0–10) | a scorer — the edit is kept **only if it scores higher** |
+| **Backed by** | [Sentrux](https://github.com/sentrux/sentrux) CLI (Rust, MIT, not bundled) | m1frame's own hill-climber, or [SkillOpt](https://github.com/microsoft/SkillOpt) if installed |
+
+### Why this improves the architecture
+
+**A council is a room full of opinions.** Every quality signal m1frame had was an LLM arguing with
+other LLMs — persuasive, but subjective, and unfalsifiable. `sensors/` adds the one thing a
+deliberation cannot produce: a number derived from the artefact itself, computed by a tool with no
+opinion. A verdict now shows *both*, and says which is which:
+
+```
+council 8.00/10 -> PASS
+structural 8.264/10 -> PASS
+advisory (enforce=False) -> reported only, council verdict stands -> PASS
+```
+
+**It is advisory on purpose.** A measurement may not quietly overrule a judgement, in *either*
+direction — a good structure must not upgrade a `CONCERNS`, and a bad one must not downgrade a
+`PASS`. Otherwise installing a binary would silently change the meaning of every run in an
+existing workspace. `sensors.enforce: true` grants a real veto; it is opt-in and visible in
+`GateVerdict.enforced`.
+
+**Skills were write-once.** `skills.learn()` distilled a skill from a passing run and then froze it
+forever at that run's quality — a learning system that only ever learned once per skill.
+`optimizers/` makes each skill improvable under a scorer, with **strict improvement only**: if no
+edit scores better, nothing is persisted (`persisted: false`). The library can get better; it
+cannot get worse.
+
+### How to use
+
+Config — one section each, honoured identically by CLI, HTTP API and MCP:
+
+```yaml
+sensors:
+  enabled: true
+  enforce: false          # true = the measurement can veto a passing council
+  pass_threshold: 7.0
+optimizers:
+  enabled: true
+  prefer: skillopt        # skillopt | local  (falls back to local automatically)
+  rounds: 12
+  seed: 1337              # deterministic
+```
+
+Python:
+
+```python
+from sensors.tools import client, gate
+from optimizers import SkillOptimizer
+
+reading = client().scan("agents")             # never raises — a sensor informs a run, never kills one
+verdict = gate().fuse(council_score=8.0, result=reading)
+print(verdict.verdict, verdict.structural_score, verdict.reasons)
+
+result = SkillOptimizer(seed=1337).optimize(skill_text, scorer, rounds=12)
+print(result.tier, result.before_score, "->", result.after_score, result.persisted)
+```
+
+HTTP (4 routes) and MCP (2 tools):
 
 ```bash
-curl localhost:8080/sensors                     # is a sensor installed, and which flavour
+curl localhost:8080/sensors                     # installed? which flavour?
 curl -X POST localhost:8080/sensors/scan -d '{"path":".","council_score":8.5}'
 curl localhost:8080/optimizers                  # active tier: local | skillopt
+curl -X POST localhost:8080/skills/<id>/optimize -d '{"approve":true}'
+# MCP: m1frame_scan_architecture · m1frame_optimize_skill
+python scripts/qa_validate.py --pillar sensors --pillar optimizers
 ```
+
+Rewriting a stored skill is a real disk write, so `POST /skills/{id}/optimize` **requires
+`approve: true`**. Sensor paths are workspace-jailed, the subprocess is `shell=False` with a
+bounded timeout, and `rounds`/`timeout` are clamped at both the HTTP and tool layers.
+
+### Honest limits
+
+> **The Rust sensor needs a `.sentrux/rules.toml` in the scanned directory.** Verified against the
+> real binary, built from source (v0.5.7): `check` — the only headless, side-effect-free command
+> that prints a score — exits 1 with no output without one. You get a reported reason, not a silent
+> zero. With it, a real run reads `Quality: 8264` → `8.264/10`. The tool's intended agent interface
+> is its MCP server (`sentrux mcp`, 9 tools); **m1frame does not consume that yet** — that is the
+> next real piece of work here.
+
+> **The default optimizer tier is m1frame's own hill-climber, not Microsoft's SkillOpt.** It shares
+> SkillOpt's accept-on-improvement mechanic; it has no LLM step and has not been benchmarked
+> against the SkillOpt paper. With `skillopt` installed, edits are applied by SkillOpt's own
+> `optimizer.apply_patch` and the result reports `tier: skillopt`. On 2 objectives × 40 matched
+> seeds the SkillOpt tier wins 55–13 with 12 ties — the cause is structural, not statistical: its
+> `EditOp` vocabulary includes `insert_after`, a positional splice the local tier cannot perform.
 
 > ⚠️ **`pip install sentrux` does not install `github.com/sentrux/sentrux`.** The PyPI package of
 > that name is an unaffiliated pure-Python tool (no project URLs, Python-only, no MCP server or
-> GUI). The adapter detects which one it is driving and reports it. For the requested Rust
-> project use its own install path (`brew` / `install.sh` / Releases / `cargo build`).
+> GUI). The adapter detects which one it is driving and reports the flavour. For the Rust project
+> use its own install path (`brew` / `install.sh` / Releases / `cargo build --release`).
 
 ---
 
 ## QA
 
 ```bash
-make qa                                         # 156 offline tests, no API key
+make qa                                         # 164 offline tests, no API key
 python scripts/qa_validate.py --pillar sensors
 python scripts/qa_validate.py --pillar optimizers
 python scripts/qa_validate.py --pillar e2e      # full 7-pillar pipeline
@@ -287,6 +389,14 @@ m1frame/
 │   ├── wiki.py             ← LLMWiki, WikiPage, LintReport
 │   ├── openplanter.py      ← OpenPlanterAgent, InvestigationResult, Entity
 │   └── events.py           ← EventBus — thread-safe progress stream for Studio
+├── sensors/                ← ◈ optional structural MEASUREMENT (Sentrux adapter)
+│   ├── sentrux.py          ← SentruxClient, SensorResult — never raises into a run
+│   ├── gate.py             ← StructuralGate — fuses measurement with the council verdict
+│   └── tools.py            ← config-honouring constructors + registered tools
+├── optimizers/             ← ◈ optional skill IMPROVEMENT (strict-improvement-only)
+│   ├── local.py            ← dependency-free hill-climber (the default tier)
+│   ├── skillopt.py         ← binds Microsoft SkillOpt's optimizer.apply_patch when present
+│   └── tools.py            ← tier selection + registered tools
 ├── api/
 │   └── server.py           ← FastAPI: REST + SSE (/run/{id}/events, /chat, /wiki/graph…)
 ├── studio/
@@ -297,7 +407,7 @@ m1frame/
 ├── wiki/                   ← Auto-created knowledge graph
 └── scripts/
     ├── run_workflow.py     ← 7-pillar runner (now emits live progress events)
-    └── qa_validate.py      ← 68-test offline QA suite
+    └── qa_validate.py      ← 164-test offline QA suite (--pillar to run one group)
 ```
 
 ---
