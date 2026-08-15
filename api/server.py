@@ -48,7 +48,7 @@ try:
     from fastapi import Body, FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
-    from pydantic import BaseModel
+    from pydantic import BaseModel, Field
     _FASTAPI = True
 except ImportError:
     _FASTAPI = False
@@ -91,6 +91,20 @@ if _FASTAPI:
         name: str
         args: dict = {}
         approve: bool = False               # required for tools marked dangerous
+
+    # Bounded by construction. These handlers do synchronous, CPU/subprocess-bound
+    # work, so an unclamped `rounds` or `timeout` would let one request stall the
+    # event loop for every other caller and SSE stream. Note there is deliberately
+    # no `binary` field: the sensor binary is never selectable over HTTP.
+    class SensorScanRequest(BaseModel):
+        path: str = "."
+        council_score: float | None = None  # supply to get a fused QA verdict back
+        timeout: int | None = Field(default=None, ge=1, le=600)
+
+    class SkillOptimizeRequest(BaseModel):
+        keywords: list[str] = Field(default_factory=list, max_length=64)
+        rounds: int | None = Field(default=None, ge=1, le=500)
+        approve: bool = False               # persisting a skill is a real disk write
 
     class WikiIngestRequest(BaseModel):
         text: str
@@ -460,6 +474,75 @@ def create_app() -> FastAPI:
         if not _skill_lib().remove(skill_id):
             raise HTTPException(404, "skill_id not found")
         return {"removed": skill_id}
+
+    # ── sensors (objective structural measurement — Sentrux) ──────────────────────
+    def _sensor_cfg() -> dict:
+        return cfg.get("sensors") or {}
+
+    @app.get("/sensors")
+    async def sensors_status():
+        # Routed through sensors.tools so every surface resolves the binary the
+        # same way — "the single constructor" has to mean literally single.
+        from sensors.tools import sensor_config, sentrux_available
+        sc = sensor_config()
+        info = sentrux_available()
+        return {"enabled": bool(sc["enabled"]),
+                "sensors": [{"name": "sentrux", **info}],
+                "enforce": bool(sc["enforce"]),
+                "pass_threshold": float(sc["pass_threshold"]),
+                "concern_threshold": float(sc["concern_threshold"])}
+
+    @app.post("/sensors/scan")
+    async def sensors_scan(req: SensorScanRequest):
+        import asyncio
+
+        from sensors.tools import client as _sensor_client
+        from sensors.tools import gate as _sensor_gate
+        if not _sensor_cfg().get("enabled", True):
+            raise HTTPException(403, "sensors are disabled in config.yaml")
+        try:
+            # subprocess.run blocks; off the event loop so one scan can't stall
+            # every other request and SSE stream.
+            result = await asyncio.to_thread(
+                _sensor_client(req.timeout).scan, req.path)
+        except ValueError as e:                      # path escaped the workspace
+            raise HTTPException(400, str(e)) from e
+        return {"sensor": result.to_dict(),
+                "verdict": _sensor_gate().fuse(req.council_score, result).to_dict()}
+
+    # ── optimizers (skill improvement — SkillOpt) ─────────────────────────────────
+    def _opt_cfg() -> dict:
+        return cfg.get("optimizers") or {}
+
+    @app.get("/optimizers")
+    async def optimizers_status():
+        from optimizers.tools import optimizer_config
+        from optimizers.tools import optimizer_status as _ostat
+        st = _ostat()
+        st["rounds"] = int(optimizer_config().get("rounds", 12))
+        return st
+
+    @app.post("/skills/{skill_id}/optimize")
+    async def optimize_skill(skill_id: str, req: SkillOptimizeRequest):
+        import asyncio
+
+        from optimizers.tools import keyword_scorer, optimizer_config
+        oc = optimizer_config()
+        if not oc.get("enabled", True):
+            raise HTTPException(403, "optimizers are disabled in config.yaml")
+        # Optimising a stored skill REWRITES it on disk, and that text is re-injected
+        # into every future planning prompt — so it needs the same explicit approval
+        # as any other dangerous, side-effecting operation.
+        if not req.approve:
+            raise HTTPException(
+                403, "optimizing a stored skill rewrites it on disk; resend with approve=true")
+        out = await asyncio.to_thread(          # CPU-bound loop, off the event loop
+            _skill_lib().optimize_skill, skill_id, keyword_scorer(req.keywords or []),
+            int(req.rounds or oc.get("rounds", 12)), int(oc.get("seed", 1337)),
+            str(oc.get("prefer", "auto")))
+        if str(out.get("error", "")).startswith("unknown skill"):
+            raise HTTPException(404, out["error"])
+        return out
 
     # ── messaging gateways (one router, many platforms) ───────────────────────────
     from gateways import adapters as _gw_adapters

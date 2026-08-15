@@ -13,6 +13,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["studio/serve.py"],
       "autoPort": true
+    },
+    {
+      "name": "nexus-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3001
     }
   ]
 }

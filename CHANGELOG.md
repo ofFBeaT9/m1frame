@@ -7,6 +7,74 @@ Versioning: [Semantic Versioning](https://semver.org/)
 ---
 
 ## [Unreleased]
+### Added — `sensors/` and `optimizers/`: measurement and improvement
+Two new modules, integrating [Sentrux](https://github.com/sentrux/sentrux) and
+[Microsoft SkillOpt](https://github.com/microsoft/SkillOpt) (both MIT). **Neither is a hard
+dependency** — with nothing installed every entry point returns a structured `available: false`
+and m1frame behaves exactly as before.
+
+- **`sensors/`** adds an optional, **advisory** structural measurement (via the third-party
+  Sentrux CLI, not bundled) — reported alongside the council verdict but **never changing it**
+  unless you explicitly set `sensors.enforce: true`. A `sensor_reading` event is emitted at the
+  QA gate of every run. Scores 0–10000 across modularity/acyclicity/depth/equality/redundancy,
+  rescaled to m1frame's 0–10.
+- **`optimizers/`** adds skill improvement, closing the write-once skill library: a skill
+  distilled by `learn()` is now optimised after a passing run instead of frozen forever.
+  **The default tier is m1frame's own dependency-free hill-climber — not Microsoft's SkillOpt.**
+  It shares SkillOpt's accept-on-improvement mechanic; it has no LLM step and has not been
+  benchmarked against the SkillOpt paper. When the real `skillopt` package is installed, edits
+  are applied by **SkillOpt's own `optimizer.apply_patch`** and the result reports `tier: skillopt`.
+- **Surfaces**: tool registry 40 → 47; `GET /sensors`, `POST /sensors/scan`, `GET /optimizers`,
+  `POST /skills/{id}/optimize`; MCP tools `m1frame_scan_architecture`, `m1frame_optimize_skill`;
+  `sensors:` / `optimizers:` sections in `config.yaml`, honoured identically by all three surfaces.
+- **QA 111 → 163 tests**, all passing offline with neither package installed.
+
+### Fixed — Windows / encoding robustness (pre-existing, found by end-to-end verification)
+- **`run_workflow()` crashed whenever stdout was not a UTF-8 terminal.** The UTF-8 guard ran only
+  in `main()`, but `api/server.py` and `mcp_server.py` import and call `run_workflow` directly, so
+  any piped, redirected or server-hosted run died with `UnicodeEncodeError` on the first pillar
+  banner. The guard now runs on every entry path, and printing degrades instead of raising.
+- **`verbose=False` did not actually silence output** — only 7 of 35 print sites checked it, and
+  both servers pass `verbose=False` to keep banners out of their logs. Output now routes through a
+  thread-local `say()` (thread-local because the API server can run workflows concurrently). The
+  CLI default is unchanged, so CLI output is byte-identical.
+- **The wiki layer performed text I/O without naming an encoding**, so on Windows it wrote cp1252
+  bytes into UTF-8 files; `wiki/log.md` had become unreadable and pillar 7 could not complete.
+  All 26 sites now specify `encoding="utf-8"`, and reads go through a helper that repairs legacy
+  cp1252 bytes rather than crashing on an existing workspace.
+- A new `encoding` QA pillar (5 tests) pins all of the above; each was confirmed to fail against
+  the pre-fix code.
+
+### Fixed — CI lint / type-check (this cycle would have turned CI red)
+The QA suite passes on Python 3.13 locally, but CI also runs `ruff check .` and `mypy` across
+3.10–3.12. Both were checked before commit and both had regressed:
+- **`tools/registry.py`: `def names(self) -> list[str]` resolved `list` to the class's own `list()`
+  method, not the builtin.** Latent since the registry was written, and invisible until this cycle
+  made `agents/skills.py` import `optimizers`, which pulls `tools/registry.py` into mypy's scope.
+  Harmless at runtime under postponed annotations, but it breaks `typing.get_type_hints()` on the
+  class. Now annotated `builtins.list[str]`, with a comment so the prefix is not "cleaned up".
+- Fixing that unmasked two more: `sensors/tools.py` typed a `None` binary path as `str`, and
+  `tools/extra.py` let mypy join 25 distinct handlers into bare `function`, which no longer
+  matched `Tool`'s `Callable` field.
+- Five Ruff errors: an unsorted import block in `api/server.py`, `E741` (`l`) and a redundant
+  `.encode("utf-8")` in the QA suite, and two `UP038` `isinstance` tuples in `sensors/sentrux.py`.
+  The QA suite's redundant encoding argument is kept with a `noqa` and a reason — naming the
+  encoding is precisely what that test exists to enforce.
+- Every file in this commit was additionally re-parsed against the **3.10** grammar, since the dev
+  machine is 3.13 and a 3.11+ feature would compile locally while breaking three CI jobs.
+
+### Security / correctness notes for this change
+- `POST /skills/{id}/optimize` rewrites a stored skill on disk and therefore **requires
+  `approve: true`**, matching the `dangerous` convention used by `write_file` and `sentrux_gate`.
+- `rounds`, `timeout` and keyword-list length are clamped at both the HTTP and tool layers, and
+  the blocking work runs off the event loop, so one request cannot stall the server.
+- Sensor paths are workspace-jailed (null bytes rejected) and the subprocess is `shell=False`
+  with a bounded timeout. Reported `command` strings are scrubbed of absolute paths.
+- **`pip install sentrux` does not install `github.com/sentrux/sentrux`.** The PyPI package of
+  that name is an unaffiliated pure-Python tool (no project URLs, 22 kB, Python-only). The
+  adapter detects which one it is driving and reports the flavour; use the Rust project's own
+  install path (`brew`/`install.sh`/Releases/`cargo build`) if you want the requested tool.
+
 ### Added — phone / internet access without a tunnel
 - **GitHub Pages deploy** (`.github/workflows/pages.yml`): publishes the mobile-responsive Studio as a public,
   key-less demo at `https://<owner>.github.io/m1frame/` — open it from any phone over the internet, zero setup.

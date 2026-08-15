@@ -203,6 +203,19 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
                       convert_temp, {"value": "number", "to": "F|C"}))
     from .extra import register_extras
     register_extras(reg)        # the rest of the auditable toolbelt (→ 40+)
+    # Optional-dependency modules. Both degrade to a structured "unavailable"
+    # result rather than raising, so registration is safe even with nothing
+    # installed — but guard anyway: a tool module must never break the registry.
+    try:
+        from sensors.tools import register_sensor_tools
+        register_sensor_tools(reg)          # Sentrux architectural sensor
+    except Exception:                       # noqa: BLE001
+        pass
+    try:
+        from optimizers.tools import register_optimizer_tools
+        register_optimizer_tools(reg)       # SkillOpt skill optimiser
+    except Exception:                       # noqa: BLE001
+        pass
     return reg
 
 

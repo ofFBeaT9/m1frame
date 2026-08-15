@@ -11,7 +11,7 @@ import yaml
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -135,14 +135,22 @@ class LLMClient:
             args += ["--model", str(model)]
         if system:
             args += ["--append-system-prompt", system]
+        # Claude Code refuses to launch inside another Claude Code session. That guard
+        # exists to stop an interactive session spawning itself; a headless `-p` call is
+        # a separate short-lived process, so drop the marker for the child only. Without
+        # this, the claudecli backend cannot be used from the m1frame MCP server.
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         try:
             res = subprocess.run(args, input=full, capture_output=True, text=True,
-                                 timeout=bcfg.get("timeout", 300))
+                                 timeout=bcfg.get("timeout", 300), env=env)
         except FileNotFoundError:
             raise RuntimeError("Claude Code CLI ('claude') not found on PATH. "
                                "Install Claude Code, or set backend to 'claude' with an API key.") from None
         if res.returncode != 0:
-            raise RuntimeError(f"claude CLI error: {(res.stderr or '').strip()[:300]}")
+            # The CLI reports some failures (auth, entitlement) on stdout with an empty
+            # stderr, which used to surface here as a blank error message.
+            detail = (res.stderr or "").strip() or (res.stdout or "").strip()
+            raise RuntimeError(f"claude CLI error (exit {res.returncode}): {detail[:300]}")
         return (res.stdout or "").strip()
 
     # ── OpenAI-compatible ────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-m1frame — QA Validation Suite  (65 tests, zero API key required)
+m1frame — QA Validation Suite  (offline, zero API key required)
 Usage:
   python scripts/qa_validate.py
   python scripts/qa_validate.py --pillar openplanter
@@ -10,6 +10,9 @@ Usage:
   python scripts/qa_validate.py --pillar scheduler
   python scripts/qa_validate.py --pillar parallel
   python scripts/qa_validate.py --pillar self_critique
+  python scripts/qa_validate.py --pillar sensors      # Sentrux structural sensor
+  python scripts/qa_validate.py --pillar optimizers   # SkillOpt skill optimiser
+  python scripts/qa_validate.py --pillar hardening    # red-team fixes
 """
 from __future__ import annotations
 
@@ -221,7 +224,7 @@ def t_config(m):
         assert k in cfg, f"missing: {k}"
 
 def t_purpose(m):
-    p=Path("purpose.md"); assert p.exists() and len(p.read_text())>50
+    p=Path("purpose.md"); assert p.exists() and len(p.read_text(encoding="utf-8"))>50
 
 def t_claude_md(m):
     p=Path("CLAUDE.md"); assert p.exists()
@@ -406,12 +409,12 @@ def t_wiki_ingest(m):
 def t_wiki_log(m):
     from agents.wiki import LLMWiki
     tmp=Path(tempfile.mkdtemp()); LLMWiki(m,config=_wc(tmp)).ingest("Test","t")
-    assert "ingest" in (tmp/"wiki"/"log.md").read_text().lower()
+    assert "ingest" in (tmp/"wiki"/"log.md").read_text(encoding="utf-8").lower()
 
 def t_wiki_index(m):
     from agents.wiki import LLMWiki
     tmp=Path(tempfile.mkdtemp()); LLMWiki(m,config=_wc(tmp)).ingest("Quantum","q")
-    assert "[[" in (tmp/"wiki"/"index.md").read_text()
+    assert "[[" in (tmp/"wiki"/"index.md").read_text(encoding="utf-8")
 
 def t_wiki_search(m):
     from agents.wiki import LLMWiki
@@ -436,9 +439,9 @@ def t_wiki_decay_confidence(m):
     # ingest a page, then manually set its created date to old
     pg=w.ingest("Old content","old")
     page_path=tmp/"wiki"/pg.filename
-    content=page_path.read_text()
+    content=page_path.read_text(encoding="utf-8")
     old_content=content.replace("created: 2026-05-06","created: 2025-12-01")
-    page_path.write_text(old_content)
+    page_path.write_text(old_content, encoding="utf-8")
     # decay should update confidence for old pages
     updated=w.decay_confidence(medium_after_days=30)
     assert isinstance(updated,int)  # returns count (0 is ok if already medium)
@@ -516,7 +519,7 @@ def t_logger_valid_json(m):
     tmp=Path(tempfile.mkdtemp())
     lg=PillarLogger(log_dir=str(tmp))
     lg.info("miras","event",stories=3)
-    lines=(list(tmp.glob("*.jsonl"))[0]).read_text().strip().splitlines()
+    lines=(list(tmp.glob("*.jsonl"))[0]).read_text(encoding="utf-8").strip().splitlines()
     parsed=json.loads(lines[0])
     assert parsed["pillar"]=="miras" and parsed["event"]=="event"
 
@@ -531,7 +534,7 @@ def t_logger_timing(m):
     tmp=Path(tempfile.mkdtemp())
     lg=PillarLogger(log_dir=str(tmp))
     lg.timing("karpathy",ms=123.4)
-    lines=(list(tmp.glob("*.jsonl"))[0]).read_text().strip().splitlines()
+    lines=(list(tmp.glob("*.jsonl"))[0]).read_text(encoding="utf-8").strip().splitlines()
     d=json.loads(lines[0])
     assert d["latency_ms"]==123.4
 
@@ -905,7 +908,7 @@ def t_mcp_server(m):
     import py_compile
     py_compile.compile("mcp_server.py", doraise=True)        # FastMCP server is syntactically sound
     import json
-    j=json.load(open(".mcp.json")); assert "m1frame" in j["mcpServers"]
+    j=json.load(open(".mcp.json", encoding="utf-8")); assert "m1frame" in j["mcpServers"]
     assert Path(".claude/commands/m1-studio.md").exists()
 def t_mobile_studio(m):
     # mobile-responsive UI (phone layout) — text checks, no browser needed
@@ -976,6 +979,475 @@ def t_guard_shieldgemma_off_by_default(m):
     g=GuardrailEngine()
     assert g.sg_enabled is False                 # optional LLM layer is opt-in
     assert g.check_input("hello world").allowed  # no network call when off
+
+
+# ══ Tests — SENSORS (Sentrux architectural measurement) ═══════════════════════
+# The Sentrux binary is an optional dependency and is NOT installed in CI. To test
+# the real subprocess/JSON/timeout paths anyway we point the client at a throwaway
+# Python script that behaves like the binary — the same trick MockLLMClient plays.
+def _fake_sentrux(tmp: Path, stdout: str = '{"quality_signal":7342,"files":139,"bottleneck":"modularity"}',
+                  code: int = 0, stderr: str = "", sleep: float = 0.0) -> list:
+    script = tmp/"fake_sentrux.py"
+    script.write_text(
+        "import sys,time\n"
+        f"time.sleep({sleep})\n"
+        f"sys.stdout.write({stdout!r})\n"
+        f"sys.stderr.write({stderr!r})\n"
+        f"sys.exit({code})\n", encoding="utf-8")
+    return [sys.executable, str(script)]
+
+def t_sensor_absent_degrades(m):
+    from sensors import SentruxClient
+    c=SentruxClient(binary="definitely-not-a-real-binary-xyz")
+    assert c.resolve() is None and c.available() is False
+    r=c.scan(".")                                  # must NOT raise — a sensor never kills a run
+    assert r.available is False and r.ok is False and "pip install sentrux" in r.error
+
+def t_sensor_fake_scan(m):
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        c=SentruxClient(binary=_fake_sentrux(Path(d)))
+        assert c.available() is True
+        r=c.scan(".")
+        assert r.ok and r.available and r.exit_code==0
+        assert r.data["quality_signal"]==7342 and r.data["files"]==139
+        assert r.quality_signal==7342 and r.duration_ms>=0
+
+def t_sensor_nonjson_stdout(m):
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="not json at all")).scan(".")
+        assert r.ok and r.data=={} and r.raw=="not json at all"   # raw kept, no crash
+
+def t_sensor_nonzero_exit(m):
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="{}", code=2, stderr="rule violated")).check(".")
+        assert r.available and r.ok is False and r.exit_code==2 and "rule violated" in r.error
+
+def t_sensor_timeout(m):
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        r=SentruxClient(binary=_fake_sentrux(Path(d), sleep=5), timeout=1).scan(".")
+        assert r.available and r.ok is False and "timed out" in r.error
+
+def t_sensor_path_jail(m):
+    from sensors import SentruxClient
+    from sensors.sentrux import _safe_path
+    c=SentruxClient(binary="nope")
+    for bad in ("../../etc", "../.."):
+        try: c.scan(bad); raise AssertionError(f"traversal allowed: {bad}")
+        except ValueError: pass                    # rejected BEFORE any subprocess spawns
+    assert _safe_path(".").exists()
+
+def t_sensor_raw_truncated(m):
+    from sensors import SentruxClient
+    from sensors.sentrux import _MAX_RAW
+    with tempfile.TemporaryDirectory() as d:
+        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="x"*(_MAX_RAW+500))).scan(".")
+        assert r.truncated is True and len(r.raw)==_MAX_RAW
+
+def t_sensor_result_serialisable(m):
+    from sensors import SentruxClient
+    d=SentruxClient(binary="nope").scan(".").to_dict()
+    json.dumps(d)                                  # the API returns this verbatim
+    assert set(d) >= {"sensor","available","ok","data","raw","error","duration_ms","command"}
+
+def t_sensor_env_var(m):
+    import os
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        argv=_fake_sentrux(Path(d)); os.environ["SENTRUX_BIN"]=argv[1]
+        try:
+            assert SentruxClient().resolve() is not None       # $SENTRUX_BIN honoured
+        finally: os.environ.pop("SENTRUX_BIN",None)
+
+def t_gate_score_mapping(m):
+    from sensors import SensorResult, StructuralGate
+    g=StructuralGate()
+    assert g.structural_score(SensorResult(available=True,data={"quality_signal":7342}))==7.342
+    assert g.structural_score(SensorResult(available=True,data={"quality_signal":99999}))==10.0  # clamped
+    assert g.structural_score(SensorResult(available=True,data={}))is None
+
+def t_gate_thresholds(m):
+    from sensors import SensorResult, StructuralGate
+    g=StructuralGate()
+    def v(qs): return g.judge(SensorResult(available=True,ok=True,data={"quality_signal":qs})).verdict
+    assert v(7000)=="PASS" and v(6999)=="CONCERNS" and v(5000)=="CONCERNS" and v(4999)=="FAIL"
+
+def t_gate_advisory_cannot_veto(m):
+    from sensors import SensorResult, StructuralGate
+    bad=SensorResult(available=True,ok=True,data={"quality_signal":2000})
+    r=StructuralGate().fuse(9.0,bad)               # council PASS, structure FAIL
+    assert r.verdict=="PASS" and r.basis=="fused" and r.structural_score==2.0
+
+def t_gate_advisory_cannot_upgrade(m):
+    from sensors import SensorResult, StructuralGate
+    good=SensorResult(available=True,ok=True,data={"quality_signal":9500})
+    r=StructuralGate().fuse(5.5,good)              # a metric may not overrule judgement upward
+    assert r.verdict=="CONCERNS"
+
+def t_gate_enforce_vetoes(m):
+    from sensors import SensorResult, StructuralGate
+    bad=SensorResult(available=True,ok=True,data={"quality_signal":2000})
+    r=StructuralGate(enforce=True).fuse(9.0,bad)
+    assert r.verdict=="FAIL" and r.enforced is True
+
+def t_gate_unavailable_is_neutral(m):
+    from sensors import SensorResult, StructuralGate
+    r=StructuralGate(enforce=True).fuse(9.0,SensorResult(available=False,error="not installed"))
+    assert r.verdict=="PASS" and r.basis=="council-only"   # even enforcing, absence changes nothing
+
+def t_sensor_tools_registered(m):
+    from tools import default_registry
+    reg=default_registry()
+    for t in ("sentrux_available","sentrux_scan","sentrux_check","sentrux_gate","structural_verdict"):
+        assert t in reg, t
+    assert reg.call("sentrux_available")["available"] in (True,False)
+    try: reg.call("sentrux_gate",{"save":True}); raise AssertionError("baseline write not gated")
+    except PermissionError: pass                   # writes .sentrux/ — needs approval
+
+# ══ Tests — OPTIMIZERS (SkillOpt skill improvement) ═══════════════════════════
+def _kw_scorer(words):
+    return lambda t: sum(w in t.lower() for w in words) - 0.02*len(t.split())
+
+def t_opt_local_improves(m):
+    from optimizers import LocalOptimizer
+    s=_kw_scorer(["falsify","acceptance","cheap"])
+    r=LocalOptimizer(seed=7).optimize("Do the work. Ship it fast.", s, rounds=30)
+    assert r.tier=="local" and r.improved and r.after_score>r.before_score and r.accepted>0
+
+def t_opt_deterministic(m):
+    from optimizers import LocalOptimizer
+    s=_kw_scorer(["falsify","cheap","grounded"])
+    a=LocalOptimizer(seed=99).optimize("Start here. Then finish.", s, rounds=25)
+    b=LocalOptimizer(seed=99).optimize("Start here. Then finish.", s, rounds=25)
+    assert a.signature()==b.signature()            # excludes wall-clock fields by construction
+
+def t_opt_global_rng_untouched(m):
+    import random
+    from optimizers import LocalOptimizer
+    random.seed(4242); before=[random.random() for _ in range(3)]
+    LocalOptimizer(seed=1).optimize("A. B. C.", _kw_scorer(["cheap"]), rounds=20)
+    random.seed(4242); assert [random.random() for _ in range(3)]==before
+
+def t_opt_never_worse(m):
+    from optimizers import LocalOptimizer
+    for seed in (1,2,3,17):
+        r=LocalOptimizer(seed=seed).optimize("Alpha beta. Gamma delta.", _kw_scorer(["zzz"]), rounds=20)
+        assert r.after_score>=r.before_score       # the core guarantee, under the same scorer
+
+def t_opt_all_edit_ops(m):
+    from optimizers import LocalOptimizer
+    r=LocalOptimizer(seed=5).optimize("One. Two. Three. Four.", _kw_scorer(["cheap","grounded"]), rounds=60)
+    assert {e.op for e in r.history}=={"add","delete","replace"}   # bounded edits, all three
+
+def t_opt_raising_scorer_survives(m):
+    from optimizers import SkillOptimizer
+    def boom(t): raise RuntimeError("scorer exploded")
+    r=SkillOptimizer().optimize("text", boom, rounds=5)
+    assert r.error and r.after=="text"             # degraded, not crashed
+
+def t_opt_skillopt_probe(m):
+    from optimizers import SkillOptAdapter
+    st=SkillOptAdapter().probe()
+    assert st["tier"]=="skillopt" and isinstance(st["available"],bool)
+    assert st["probed"] and "skillopt" in st["probed"][0]
+    if not st["available"]:
+        assert "pip install skillopt" in st["reason"] or "entry point" in st["reason"]
+
+def t_opt_no_module_shadowing(m):
+    # A repo-root sentrux/ or skillopt/ package would shadow the real libraries.
+    import optimizers.skillopt as adapter
+    for name in ("sentrux","skillopt"):
+        assert not (Path(name)/"__init__.py").exists(), f"repo-root {name}/ shadows the real package"
+    assert "optimizers" in adapter.__file__.replace("\\","/")
+
+def t_opt_tier_fallback(m):
+    from optimizers import SkillOptimizer
+    o=SkillOptimizer(prefer="skillopt")
+    r=o.optimize("Alpha. Beta.", _kw_scorer(["cheap"]), rounds=10)
+    assert r.tier in ("local","skillopt")
+    if not o.remote.available(): assert o.pick()=="local" and r.tier=="local"
+    assert SkillOptimizer(prefer="local").pick()=="local"
+
+def t_opt_library_persists(m):
+    from agents.skills import Skill, SkillLibrary
+    with tempfile.TemporaryDirectory() as d:
+        lib=SkillLibrary(path=str(Path(d)/"s.json"))
+        lib.skills.append(Skill(id="abc123",title="T",goal="g",domain="x",keywords=["g"],
+                                roles=["dev"],steps=[],approach="Do it. Then stop.",score=9.0))
+        out=lib.optimize_skill("abc123", _kw_scorer(["falsify","cheap"]), rounds=30)
+        assert out["persisted"] and out["after_score"]>out["before_score"]
+        assert SkillLibrary(path=str(Path(d)/"s.json")).skills[0].approach==out["after"]
+        assert "unknown skill" in lib.optimize_skill("nope", _kw_scorer(["x"]))["error"]
+
+def t_opt_library_scorer_cannot_corrupt(m):
+    from agents.skills import Skill, SkillLibrary
+    with tempfile.TemporaryDirectory() as d:
+        p=str(Path(d)/"s.json"); lib=SkillLibrary(path=p)
+        lib.skills.append(Skill(id="z1",title="T",goal="g",domain="x",keywords=["g"],
+                                roles=[],steps=[],approach="Original text.",score=9.0)); lib.save()
+        lib.optimize_skill("z1", lambda t:(_ for _ in ()).throw(ValueError("bad")), rounds=5)
+        assert SkillLibrary(path=p).skills[0].approach=="Original text."   # store intact
+
+def t_opt_tools_registered(m):
+    from tools import default_registry
+    reg=default_registry()
+    assert "optimizer_status" in reg and "skill_optimize" in reg
+    out=reg.call("skill_optimize",{"text":"Go fast.","keywords":["cheap","grounded"],"rounds":20})
+    assert out["after_score"]>=out["before_score"] and out["tier"] in ("local","skillopt")
+    assert reg.call("optimizer_status")["active_tier"] in ("local","skillopt")
+
+def t_modules_config_and_api(m):
+    from llm_client import load_config
+    c=load_config()
+    assert c["sensors"]["enforce"] is False and c["sensors"]["timeout"]==60      # advisory by default
+    assert c["optimizers"]["prefer"]=="auto" and c["optimizers"]["seed"]==1337
+    src=Path("api/server.py").read_text(encoding="utf-8")
+    for route in ('@app.get("/sensors")','@app.post("/sensors/scan")',
+                  '@app.get("/optimizers")','@app.post("/skills/{skill_id}/optimize")'):
+        assert route in src, route
+    mcp=Path("mcp_server.py").read_text(encoding="utf-8")
+    assert "m1frame_scan_architecture" in mcp and "m1frame_optimize_skill" in mcp
+
+def t_modules_no_hard_dependency(m):
+    # m1frame's whole pitch is zero lock-in: neither package may become required.
+    req=Path("requirements.txt").read_text(encoding="utf-8").lower()
+    for pkg in ("sentrux","skillopt"):
+        for line in req.splitlines():
+            s=line.strip()
+            if s and not s.startswith("#"):
+                assert not s.split("[")[0].split("=")[0].split(">")[0].strip()==pkg, \
+                    f"{pkg} must stay optional"
+    from optimizers import SkillOptimizer          # both import fine with nothing installed
+    from sensors import SentruxClient
+    assert SentruxClient() is not None and SkillOptimizer().pick() in ("local","skillopt")
+
+
+def t_sensor_quality_signal_shapes(m):
+    # Three real encodings of the 0-10000 score. All must be read.
+    from sensors import SensorResult
+    a=SensorResult(available=True,data={"quality_signal":7342})                  # sentrux MCP (Rust)
+    b=SensorResult(available=True,data={"quality_score":{"overall_score":8467}})  # PyPI sentrux --json
+    c=SensorResult(available=True,raw="sentrux check\n\nQuality: 6120\n")         # Rust check/gate CLI
+    assert (a.quality_signal,b.quality_signal,c.quality_signal)==(7342,8467,6120)
+    assert SensorResult(available=True,data={},raw="no score here").quality_signal is None
+
+def t_sensor_flavour_detection(m):
+    # The Rust project's `scan` opens a GUI; only the PyPI package's takes --json.
+    from sensors import SentruxClient
+    from sensors.sentrux import FLAVOUR_PYTHON, FLAVOUR_RUST
+    with tempfile.TemporaryDirectory() as d:
+        py=SentruxClient(binary=_fake_sentrux(Path(d), stdout="Options:\n  --json  Output in JSON format\n"))
+        assert py.flavour()==FLAVOUR_PYTHON
+        rs=SentruxClient(binary=_fake_sentrux(Path(d), stdout="Usage: sentrux scan [PATH]\n"))
+        assert rs.flavour()==FLAVOUR_RUST
+
+def t_sensor_never_launches_gui(m):
+    # Against the Rust flavour, scan() must route to `check` — never the GUI subcommand.
+    from sensors import SentruxClient
+    from sensors.sentrux import FLAVOUR_RUST
+    with tempfile.TemporaryDirectory() as d:
+        c=SentruxClient(binary=_fake_sentrux(Path(d), stdout="Usage: sentrux scan [PATH]\n"))
+        assert c.flavour()==FLAVOUR_RUST
+        r=c.scan(".")
+        assert "check" in r.command and "--json" not in r.command
+        assert r.command.count("scan")==0            # the GUI subcommand is never invoked
+
+def t_sensor_mcp_command(m):
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        assert SentruxClient(binary=_fake_sentrux(Path(d))).mcp_command()[-1]=="mcp"
+    assert SentruxClient(binary="nope-not-real").mcp_command() is None
+
+def t_sensor_config_honoured_everywhere(m):
+    # A safety flag read on one surface and ignored on two others is a bug.
+    from sensors.tools import client, gate, sensor_config
+    c=sensor_config()
+    assert set(c)>={"enabled","binary","timeout","pass_threshold","concern_threshold","enforce"}
+    assert client().timeout==c["timeout"]
+    g=gate(); assert g.enforce is bool(c["enforce"]) and g.pass_threshold==float(c["pass_threshold"])
+    assert gate(enforce=True).enforce is True and gate(enforce=False).enforce is False
+
+def t_opt_config_honoured_everywhere(m):
+    from optimizers.tools import optimizer, optimizer_config
+    c=optimizer_config()
+    assert set(c)>={"enabled","prefer","rounds","seed"}
+    o=optimizer(); assert o.seed==int(c["seed"]) and o.prefer==str(c["prefer"])
+    assert optimizer(prefer="local").pick()=="local"
+
+def t_opt_skillopt_real_api_binding(m):
+    # If skillopt is installed it must bind to its REAL edit API, not a guess.
+    from optimizers import SkillOptAdapter
+    from optimizers.skillopt import SKILLOPT_OPS
+    assert SKILLOPT_OPS==("append","insert_after","replace","delete")   # its EditOp vocabulary
+    st=SkillOptAdapter().probe()
+    assert st["probed"][0]=="skillopt.optimizer.apply_patch"
+    if st["available"]:
+        assert st["entry_point"].startswith("skillopt.optimizer.")      # real library, real API
+        r=SkillOptAdapter().optimize("Do the work. Ship it.", _kw_scorer(["cheap","grounded"]), rounds=25)
+        assert r.tier=="skillopt" and not r.error and r.after_score>=r.before_score
+
+def t_sensor_real_binary_when_present(m):
+    # Every other sensor test drives a FAKE binary, so all of them would stay green
+    # if the real tool renamed its output keys tomorrow. This one exercises the
+    # actual installed binary when there is one, and self-skips when there isn't.
+    from sensors.tools import client
+    c=client()
+    if not c.available():
+        return                                        # no binary on this box — nothing to assert
+    r=c.scan("sensors")
+    assert r.available and r.ok, f"real sentrux failed: {r.error[:120]}"
+    assert isinstance(r.quality_signal,int), \
+        f"real binary produced no readable score (flavour={c.flavour()}, data keys={list(r.data)})"
+    assert 0 <= r.quality_signal <= 10000
+
+def t_pipeline_enforce_actually_vetoes(m):
+    # enforce=true must change what the pipeline DOES, not just a display string.
+    # `passed` is what gates skill-learning and what every caller reads.
+    src=Path("scripts/run_workflow.py").read_text(encoding="utf-8")
+    assert "verdict.passed = False" in src, "enforce never flips the run's passed flag"
+    assert "structural_veto" in src and "required_fixes" in src
+    i_veto=src.index("verdict.passed = False"); i_learn=src.index("skills.learn(")
+    assert i_veto < i_learn, "veto must be applied BEFORE skill learning reads passed"
+
+def t_pipeline_wired(m):
+    # Both modules must run inside the pipeline, not merely be reachable by endpoint.
+    src=Path("scripts/run_workflow.py").read_text(encoding="utf-8")
+    for token in ("from sensors.tools import","sensor_reading","skill_optimized",
+                  "optimize_skill","_sv.enforced"):
+        assert token in src, token
+    assert src.index("sensor_reading") < src.index('emit("qa_gate"')   # reported AT the gate
+
+
+# ══ Tests — MODULE HARDENING (red-team findings) ══════════════════════════════
+def t_sec_null_byte_rejected(m):
+    from sensors.sentrux import _safe_path
+    try: _safe_path("a\x00b"); raise AssertionError("null byte accepted")
+    except ValueError as e: assert "null" in str(e).lower()
+
+def t_sec_timeout_clamped(m):
+    # An unclamped caller-supplied timeout pins a worker for as long as it likes.
+    from sensors import SentruxClient
+    from sensors.sentrux import MAX_TIMEOUT
+    assert SentruxClient(timeout=10**9).timeout==MAX_TIMEOUT
+    assert SentruxClient(timeout=-5).timeout==1 and SentruxClient(timeout="x").timeout==60
+
+def t_sec_argv_scrubbed(m):
+    # to_dict() is returned over HTTP; an absolute binary path leaks the OS username.
+    from sensors import SentruxClient
+    with tempfile.TemporaryDirectory() as d:
+        out=SentruxClient(binary=_fake_sentrux(Path(d))).scan(".").to_dict()
+        for part in out["command"]:
+            assert not Path(part).is_absolute(), f"absolute path leaked: {part}"
+        assert "Users" not in " ".join(out["command"])
+
+def t_sec_rounds_clamped(m):
+    # skill_optimize is reachable via /tools/call and MCP, so it clamps its own inputs.
+    from optimizers.tools import MAX_ROUNDS, skill_optimize
+    out=skill_optimize("A. B.", ["cheap"], rounds=10**9)
+    assert out["rounds"]<=MAX_ROUNDS
+    assert skill_optimize("A. B.", ["cheap"], rounds="junk")["rounds"]<=MAX_ROUNDS
+
+def t_sec_probe_rejects_classes(m):
+    # callable() is true for classes; probing one would INSTANTIATE third-party code.
+    import inspect
+
+    from optimizers.skillopt import CANDIDATE_ENTRY_POINTS, SkillOptAdapter
+    a=SkillOptAdapter(); a.probe()
+    if a._entry is not None:
+        assert inspect.isroutine(a._entry), "probe bound a non-routine (class?)"
+    assert any("apply_" in f"{m_}.{at}" for m_,at in CANDIDATE_ENTRY_POINTS)
+
+def t_sec_shadow_guard_by_path(m):
+    # The guard must compare resolved paths, not match on the checkout's name.
+    src=Path("optimizers/skillopt.py").read_text(encoding="utf-8")
+    assert "resolve().parent" in src and 'origin.replace' not in src
+
+def t_sec_api_optimize_requires_approve(m):
+    # Optimising a stored skill rewrites it on disk -> same approval bar as write_file.
+    from fastapi.testclient import TestClient
+
+    from api.server import create_app
+    c=TestClient(create_app())
+    assert c.post("/skills/anything/optimize", json={"keywords":["x"]}).status_code==403
+    assert c.post("/skills/nope/optimize", json={"keywords":["x"],"approve":True}).status_code==404
+    assert c.post("/sensors/scan", json={"path":".","timeout":10**9}).status_code==422  # clamped
+    assert c.post("/skills/x/optimize", json={"keywords":["a"],"rounds":10**9,"approve":True}).status_code==422
+
+
+# ══ Tests — WINDOWS / ENCODING ROBUSTNESS ════════════════════════════════════
+# Found by running the real pipeline with stdout redirected (cp1252, not a tty).
+
+def t_enc_verbose_actually_silences(m):
+    # verbose=False is what api/server.py and mcp_server.py pass; it must silence
+    # ALL console output, not the 7-of-35 sites that once checked the flag.
+    import io
+    from contextlib import redirect_stdout
+
+    import scripts.run_workflow as rw
+    rw._out_state.verbose=False
+    buf=io.StringIO()
+    with redirect_stdout(buf):
+        rw._bar("SHOULD NOT APPEAR"); rw._step("NOR THIS"); rw.say("NOR THIS EITHER")
+    assert buf.getvalue()=="", f"verbose=False still printed: {buf.getvalue()[:120]!r}"
+    rw._out_state.verbose=True
+    buf=io.StringIO()
+    with redirect_stdout(buf):
+        rw._bar("SHOULD APPEAR")
+    assert "SHOULD APPEAR" in buf.getvalue()
+
+def t_enc_run_workflow_guards_utf8(m):
+    # The UTF-8 guard used to live only in main(); the API and MCP servers import
+    # run_workflow directly and crashed on the first box-drawing character.
+    src=Path("scripts/run_workflow.py").read_text(encoding="utf-8")
+    i_def=src.index("def run_workflow("); i_main=src.index("def main(")
+    assert "_force_utf8()" in src[i_def:i_main], "run_workflow() must force UTF-8 itself"
+    assert "_force_utf8()" in src[i_main:], "main() must still force UTF-8"
+
+def t_enc_safe_print_survives_cp1252(m):
+    # A console that cannot encode the glyph must degrade, never raise.
+    import io
+    from contextlib import redirect_stdout
+
+    import scripts.run_workflow as rw
+
+    class Cp1252Stream(io.StringIO):
+        encoding="cp1252"
+        def write(self, s):
+            s.encode("cp1252")     # raises exactly like a real Windows console
+            return super().write(s)
+
+    rw._out_state.verbose=True
+    with redirect_stdout(Cp1252Stream()):
+        rw._safe_print("box ═ arrow → check ✓")   # must not raise
+
+def t_enc_wiki_io_is_explicit(m):
+    # Every text read/write in the wiki layer must name its encoding: the default
+    # is cp1252 on Windows, which corrupted wiki/index.md with a stray 0x97.
+    import re
+    src=Path("agents/wiki.py").read_text(encoding="utf-8")
+    bad=[]
+    for i,line in enumerate(src.splitlines(),1):
+        if re.search(r'\.(read_text|write_text)\(', line) and "encoding" not in line:
+            window="\n".join(src.splitlines()[i-1:i+5])
+            if "encoding=" not in window and "_read_text" not in line:
+                bad.append(f"{i}: {line.strip()[:70]}")
+    assert not bad, "unencoded wiki file I/O: "+"; ".join(bad)
+
+def t_enc_wiki_reads_legacy_mixed_encoding(m):
+    # An existing workspace may already hold cp1252 bytes written by the old code.
+    # Reading must repair them, not crash — and not lose the character.
+    from agents.wiki import _read_text
+    tmp=Path(tempfile.mkdtemp())/"legacy.md"
+    # The redundant "utf-8" is deliberate: naming the encoding is the very thing
+    # this test exists to enforce, so spelling it out beats the terser default.
+    tmp.write_bytes("clean utf-8 — dash\n".encode("utf-8")+b"legacy \x97 dash\n")  # noqa: UP012
+    out=_read_text(tmp)
+    assert "—" in out, "valid UTF-8 em-dash lost"
+    assert "legacy" in out and "dash" in out
+    assert out.count("—")>=2, f"cp1252 0x97 not repaired to em-dash: {out!r}"
 
 
 # ══ Registry ══════════════════════════════════════════════════════════════════
@@ -1090,6 +1562,58 @@ ALL: dict[str,list] = {
                  ("Disabled = no-op",          t_guard_disabled_noop),
                  ("GuardResult truthiness",    t_guard_result_bool),
                  ("ShieldGemma off default",   t_guard_shieldgemma_off_by_default)],
+    "sensors":  [("Absent binary degrades",    t_sensor_absent_degrades),
+                 ("Fake-binary scan + JSON",   t_sensor_fake_scan),
+                 ("Non-JSON stdout kept raw",  t_sensor_nonjson_stdout),
+                 ("Non-zero exit -> error",    t_sensor_nonzero_exit),
+                 ("Timeout bounded",           t_sensor_timeout),
+                 ("Path jailed pre-spawn",     t_sensor_path_jail),
+                 ("Raw stdout truncated",      t_sensor_raw_truncated),
+                 ("Result JSON-serialisable",  t_sensor_result_serialisable),
+                 ("$SENTRUX_BIN honoured",     t_sensor_env_var),
+                 ("0-10000 -> 0-10 mapping",   t_gate_score_mapping),
+                 ("Verdict thresholds exact",  t_gate_thresholds),
+                 ("Advisory cannot veto",      t_gate_advisory_cannot_veto),
+                 ("Advisory cannot upgrade",   t_gate_advisory_cannot_upgrade),
+                 ("enforce=True vetoes",       t_gate_enforce_vetoes),
+                 ("Absent sensor is neutral",  t_gate_unavailable_is_neutral),
+                 ("Tools + baseline gated",    t_sensor_tools_registered),
+                 ("Score: all 3 encodings",    t_sensor_quality_signal_shapes),
+                 ("Flavour detection",         t_sensor_flavour_detection),
+                 ("Never launches the GUI",    t_sensor_never_launches_gui),
+                 ("MCP command exposed",       t_sensor_mcp_command),
+                 ("Config honoured (sensor)",  t_sensor_config_honoured_everywhere),
+                 ("REAL binary (if present)",  t_sensor_real_binary_when_present)],
+    "optimizers":[("Local optimiser improves", t_opt_local_improves),
+                 ("Deterministic under seed",  t_opt_deterministic),
+                 ("Global RNG untouched",      t_opt_global_rng_untouched),
+                 ("Never returns worse text",  t_opt_never_worse),
+                 ("All 3 edit ops exercised",  t_opt_all_edit_ops),
+                 ("Raising scorer survives",   t_opt_raising_scorer_survives),
+                 ("SkillOpt capability probe", t_opt_skillopt_probe),
+                 ("No module shadowing",       t_opt_no_module_shadowing),
+                 ("Tier fallback to local",    t_opt_tier_fallback),
+                 ("SkillLibrary persists",     t_opt_library_persists),
+                 ("Bad scorer can't corrupt",  t_opt_library_scorer_cannot_corrupt),
+                 ("Optimizer tools wired",     t_opt_tools_registered),
+                 ("Config + API + MCP wired",  t_modules_config_and_api),
+                 ("No hard dependency added",  t_modules_no_hard_dependency),
+                 ("Config honoured (optim.)",  t_opt_config_honoured_everywhere),
+                 ("SkillOpt real API binding", t_opt_skillopt_real_api_binding),
+                 ("Wired into the pipeline",   t_pipeline_wired),
+                 ("enforce ACTUALLY vetoes",   t_pipeline_enforce_actually_vetoes)],
+    "hardening":[("Null byte rejected",        t_sec_null_byte_rejected),
+                 ("Timeout clamped",           t_sec_timeout_clamped),
+                 ("argv scrubbed (no leak)",   t_sec_argv_scrubbed),
+                 ("Rounds clamped at tool",    t_sec_rounds_clamped),
+                 ("Probe rejects classes",     t_sec_probe_rejects_classes),
+                 ("Shadow guard by path",      t_sec_shadow_guard_by_path),
+                 ("API needs approve + bounds", t_sec_api_optimize_requires_approve)],
+    "encoding": [("verbose=False silences all", t_enc_verbose_actually_silences),
+                 ("run_workflow forces UTF-8",  t_enc_run_workflow_guards_utf8),
+                 ("Print survives cp1252",      t_enc_safe_print_survives_cp1252),
+                 ("Wiki I/O names encoding",    t_enc_wiki_io_is_explicit),
+                 ("Legacy mixed encoding read", t_enc_wiki_reads_legacy_mixed_encoding)],
     "e2e":      [("Full 7-pillar pipeline",   t_e2e)],
 }
 
@@ -1106,6 +1630,11 @@ def run_all(pillar: str | None=None) -> bool:
     return suite.summary()
 
 def main():
+    # A failure message can carry the same box-drawing glyphs the pipeline prints;
+    # on a cp1252 console the reporter itself then crashes and hides the failure.
+    for _s in (sys.stdout, sys.stderr):
+        try: _s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception: pass
     p=argparse.ArgumentParser()
     p.add_argument("--pillar",choices=list(ALL.keys()))
     args=p.parse_args()

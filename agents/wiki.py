@@ -34,6 +34,33 @@ from pathlib import Path
 
 import yaml
 
+
+def _read_text(path: Path) -> str:
+    """Read wiki markdown as UTF-8, tolerating legacy mixed-encoding files.
+
+    Earlier versions called `read_text()` with no encoding, so on Windows they
+    wrote cp1252 bytes (an em-dash became 0x97) into files that were otherwise
+    UTF-8. Reading such a file strictly would now raise where the old code
+    silently produced mojibake — turning a cosmetic bug into a crash on an
+    existing workspace. Invalid bytes are therefore decoded as cp1252, which is
+    where they actually came from, and the file heals on its next write.
+    """
+    raw = path.read_bytes()
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        out, i = [], 0
+        while i < len(raw):
+            try:
+                out.append(raw[i:].decode("utf-8"))
+                break
+            except UnicodeDecodeError as e:
+                out.append(raw[i:i + e.start].decode("utf-8"))
+                out.append(raw[i + e.start:i + e.end].decode("cp1252", errors="replace"))
+                i += e.end
+        return "".join(out)
+
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 ANALYSIS_SYSTEM = """You are a Wiki Analysis Agent (Step 1 of two-step ingest).
@@ -245,7 +272,7 @@ class LLMWiki:
         # Save raw source
         if source_name:
             raw_path = self.wiki_dir / "raw" / "sources" / f"{_slugify(source_name)}.md"
-            raw_path.write_text(raw_text)
+            raw_path.write_text(raw_text, encoding="utf-8")
 
         # Step 1: Analysis
         index_snapshot = self._read_index_snapshot()
@@ -288,7 +315,7 @@ class LLMWiki:
         for page in relevant:
             context_parts.append(f"\n### {page.title}\n{page.excerpt(600)}")
 
-        index = self.index_file.read_text() if self.index_file.exists() else ""
+        index = _read_text(self.index_file) if self.index_file.exists() else ""
         prompt = "\n".join(context_parts)
         system = (
             "You are a Wiki Query Agent. Answer the question using only the wiki pages provided. "
@@ -309,7 +336,7 @@ class LLMWiki:
             f"- [[{p.title}]] (type={p.page_type}, tags={p.tags}): {p.excerpt(150)}"
             for p in pages[:30]   # limit to avoid token overflow
         )
-        index = self.index_file.read_text() if self.index_file.exists() else ""
+        index = _read_text(self.index_file) if self.index_file.exists() else ""
         prompt = (
             f"Wiki index:\n{index[:1000]}\n\n"
             f"Page summaries:\n{page_summaries}"
@@ -353,7 +380,7 @@ class LLMWiki:
                 continue
             if "raw" in md_file.parts:
                 continue
-            content = md_file.read_text(encoding="utf-8")
+            content = _read_text(md_file)
             page = WikiPage.from_markdown(content, filename=md_file.name)
             current = page.confidence
             age = page.age_days
@@ -426,7 +453,7 @@ class LLMWiki:
                 continue
             if "raw" in md_file.parts:
                 continue
-            text = md_file.read_text()
+            text = _read_text(md_file)
             if q in text.lower():
                 results.append(WikiPage.from_markdown(text, filename=str(md_file.relative_to(self.wiki_dir))))
             if len(results) >= max_results:
@@ -436,7 +463,7 @@ class LLMWiki:
     def get_page(self, title: str) -> WikiPage | None:
         slug = _slugify(title)
         for md_file in self.wiki_dir.rglob(f"{slug}*.md"):
-            return WikiPage.from_markdown(md_file.read_text(), filename=md_file.name)
+            return WikiPage.from_markdown(_read_text(md_file), filename=md_file.name)
         return None
 
     def list_pages(self) -> list[str]:
@@ -447,7 +474,7 @@ class LLMWiki:
         ]
 
     def read_purpose(self) -> str:
-        return self.purpose_file.read_text() if self.purpose_file.exists() else ""
+        return _read_text(self.purpose_file) if self.purpose_file.exists() else ""
 
     # ── LanceDB semantic search ───────────────────────────────────────────────
 
@@ -521,11 +548,11 @@ class LLMWiki:
 
     # BETA: overview regeneration heuristic — output quality varies by model
     def _update_overview(self):
-        index = self.index_file.read_text() if self.index_file.exists() else ""
+        index = _read_text(self.index_file) if self.index_file.exists() else ""
         prompt = f"Current wiki index:\n{index[:3000]}\n\nDate: {datetime.date.today().isoformat()}"
         overview_text = self.llm.chat(prompt=prompt, system=OVERVIEW_SYSTEM, temperature=0.3)
         overview_path = self.wiki_dir / "overview.md"
-        overview_path.write_text(overview_text)
+        overview_path.write_text(overview_text, encoding="utf-8")
 
     def _write_contradictions(self, report: ContradictionReport) -> None:
         path = self.wiki_dir / "contradictions.md"
@@ -553,34 +580,34 @@ class LLMWiki:
             ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             filename = f"{slug}_{ts}{suffix}.md"
             path = target_dir / filename
-        path.write_text(content)
+        path.write_text(content, encoding="utf-8")
         return f"{subdir}/{filename}" if subdir else filename
 
     def _update_index(self, page: WikiPage):
-        existing = self.index_file.read_text() if self.index_file.exists() else "# Wiki Index\n\n"
+        existing = _read_text(self.index_file) if self.index_file.exists() else "# Wiki Index\n\n"
         entry = (
             f"- [[{page.title}]] ({page.page_type}) — {page.excerpt(120)}"
             f" *(tags: {', '.join(page.tags)})*\n"
         )
-        self.index_file.write_text(existing + entry)
+        self.index_file.write_text(existing + entry, encoding="utf-8")
 
     def _append_log(self, operation: str, detail: str):
         """Append-only chronological log (Karpathy pattern)."""
         log_path = self.wiki_dir / "log.md"
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         entry = f"## [{ts}] {operation} | {detail}\n\n"
-        existing = log_path.read_text() if log_path.exists() else "# Wiki Log\n\n"
-        log_path.write_text(existing + entry)
+        existing = _read_text(log_path) if log_path.exists() else "# Wiki Log\n\n"
+        log_path.write_text(existing + entry, encoding="utf-8")
 
     def _read_index_snapshot(self) -> str:
-        return self.index_file.read_text() if self.index_file.exists() else "Empty index."
+        return _read_text(self.index_file) if self.index_file.exists() else "Empty index."
 
     def _load_all_pages(self) -> list[WikiPage]:
         pages = []
         for f in sorted(self.wiki_dir.rglob("*.md")):
             if f.name in ("index.md", "log.md", "overview.md", "contradictions.md") or "raw" in f.parts:
                 continue
-            pages.append(WikiPage.from_markdown(f.read_text(), filename=f.name))
+            pages.append(WikiPage.from_markdown(_read_text(f), filename=f.name))
         return pages
 
     def _init_structure(self):
@@ -590,11 +617,12 @@ class LLMWiki:
         if not self.index_file.exists():
             self.index_file.write_text(
                 "# Wiki Index\n\n"
-                "> Content catalog. Updated on every ingest. LLM reads this first when querying.\n\n"
+                "> Content catalog. Updated on every ingest. LLM reads this first when querying.\n\n",
+                encoding="utf-8",
             )
         log_path = self.wiki_dir / "log.md"
         if not log_path.exists():
-            log_path.write_text("# Wiki Log\n\n> Append-only chronological record of operations.\n\n")
+            log_path.write_text("# Wiki Log\n\n> Append-only chronological record of operations.\n\n", encoding="utf-8")
 
     @staticmethod
     def _subdir_for_type(page_type: str) -> str:

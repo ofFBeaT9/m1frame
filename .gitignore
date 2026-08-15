@@ -33,3 +33,23 @@ dist/
 
 # Personal local Claude Code settings (never commit)
 .claude/settings.local.json
+
+# --- Tritone hardware IP: version-controlled LOCALLY, never in this public repo ---
+# Each has (or should have) its own standalone git repo. Publishing hardware
+# source from here would also re-release the pre-fix v1 datapath (risk R6).
+tritone_v2/
+tritone_complete/
+Tritone-companion-code/
+task1_clinical_risk/
+# ...including the loose assembly guides, which the directory patterns above miss.
+Tritone_*.md
+Tritone_*.html
+
+# Generated locally, never committed — rebuild with `python m1frame/build_dashboard.py`.
+m1frame/dashboard.html
+
+# Workflow run logs (webhook/metrics traces from real runs).
+logs/
+
+# Third-party datasets: large, publicly available, and not this repo's to redistribute.
+ptb-xl-*/

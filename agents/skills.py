@@ -174,6 +174,36 @@ class SkillLibrary:
         self.save()
         return skill
 
+    # ── optimisation ────────────────────────────────────────────────────────
+
+    def optimize_skill(self, skill_id: str, scorer, rounds: int = 12,
+                       seed: int = 1337, prefer: str = "auto",
+                       pool: list[str] | None = None):
+        """Improve a stored skill's `approach` text and persist it.
+
+        This is the half `learn()` never had: learning remembers what passed,
+        optimisation makes it better. Returns the optimiser's result dict, or a
+        dict with `error` — it never raises, so a bad scorer can't corrupt the
+        store or kill a run (same contract as the rest of the skill loop).
+        """
+        skill = next((s for s in self.skills if s.id == skill_id), None)
+        if skill is None:
+            return {"error": f"unknown skill '{skill_id}'"}
+        try:
+            from optimizers import SkillOptimizer
+            result = SkillOptimizer(seed=seed, prefer=prefer).optimize(
+                skill.approach, scorer, rounds=rounds, pool=pool)
+        except Exception as e:      # noqa: BLE001 — optimisation is best-effort, always
+            return {"error": f"optimizer unavailable: {e}"}
+        # Only persist a strict improvement; ties leave the store untouched.
+        if result.improved and result.after and result.after != skill.approach:
+            skill.approach = result.after
+            self.save()
+        out = result.to_dict()
+        out["persisted"] = bool(result.improved and result.after != result.before)
+        out["skill_id"] = skill_id
+        return out
+
     def reinforce(self, skill_id: str) -> bool:
         for s in self.skills:
             if s.id == skill_id:

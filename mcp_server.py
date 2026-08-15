@@ -148,6 +148,61 @@ def m1frame_list_skills() -> list:
 
 
 @mcp.tool()
+def m1frame_scan_architecture(path: str = ".", council_score: float | None = None) -> str:
+    """Measure the architectural quality of code with the Sentrux sensor, and fuse the
+    measurement with a council score into one QA verdict.
+
+    Gives objective structural evidence (0-10000 across modularity, acyclicity, depth,
+    equality, redundancy) next to m1frame's LLM judgement. Requires the optional
+    Sentrux binary (`pip install sentrux`); without it this reports availability
+    cleanly rather than failing.
+
+    Args:
+        path: Directory to scan, inside the workspace (default: repo root).
+        council_score: Optional 0-10 council score to fuse the measurement with.
+    """
+    import json
+
+    # Use the config-honouring constructors so this surface agrees with the HTTP
+    # API and the ToolRegistry — sensors.enforce must not mean different things
+    # depending on which door you came through.
+    from sensors.tools import client, gate
+    try:
+        result = client().scan(path)
+    except ValueError as e:
+        return f"path rejected: {e}"
+    verdict = gate().fuse(council_score, result)
+    if not result.available:
+        return (f"Sentrux is not installed — no structural measurement taken.\n"
+                f"Install with: pip install sentrux\n"
+                f"Verdict basis: {verdict.basis} ({verdict.verdict})")
+    return json.dumps({"sensor": result.to_dict(), "verdict": verdict.to_dict()}, indent=2)
+
+
+@mcp.tool()
+def m1frame_optimize_skill(text: str, keywords: list[str] | None = None,
+                           rounds: int = 12) -> str:
+    """Improve a skill document so it covers the given keywords concisely, keeping an
+    edit only when it measurably scores better (the SkillOpt mechanic).
+
+    Runs on m1frame's dependency-free optimiser by default; delegates to Microsoft
+    SkillOpt when that package is installed and exposes a compatible entry point.
+
+    Args:
+        text: The skill text to improve.
+        keywords: Concepts the optimised skill should cover.
+        rounds: How many bounded edits to propose (default 12).
+    """
+    import json
+
+    from optimizers.tools import skill_optimize
+    out = skill_optimize(text, keywords or [], rounds=rounds)
+    return json.dumps({k: out[k] for k in
+                       ("tier", "before_score", "after_score", "improved",
+                        "accepted", "rounds", "after", "error")}, indent=2)
+
+
+@mcp.tool()
 def m1frame_open_studio(port: int = 8080) -> str:
     """Launch the interactive m1frame Studio UI (real-time deliberation theatre)
     in the background and return its URL. Open the URL in a browser to watch runs,

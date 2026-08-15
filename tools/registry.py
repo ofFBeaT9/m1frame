@@ -8,6 +8,7 @@ MCP servers can register their tools alongside the built-ins.
 """
 from __future__ import annotations
 
+import builtins
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -44,7 +45,11 @@ class ToolRegistry:
     def list(self) -> list[dict]:
         return [t.spec() for t in self._tools.values()]
 
-    def names(self) -> list[str]:
+    # `builtins.` is load-bearing: `list` is a method of this class (above), so a
+    # bare `list[str]` here resolves to that method, not the builtin. Harmless at
+    # runtime thanks to postponed annotations, but it breaks mypy and anything
+    # calling `typing.get_type_hints()` on the class.
+    def names(self) -> builtins.list[str]:
         return list(self._tools)
 
     def call(self, name: str, args: dict | None = None, approved: bool = False) -> Any:

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -46,13 +47,55 @@ from agents.wiki import LLMWiki
 from llm_client import LLMClient, load_config
 
 
+def _force_utf8() -> None:
+    """Windows consoles default to cp1252; the pillar banners use box-drawing
+    glyphs (═ ▶ ✓ ·). Force UTF-8 so piped/captured runs don't crash on encode.
+
+    Called from `main()` *and* from `run_workflow()`, because the API server and
+    the MCP server import and call `run_workflow` directly — they never go
+    through `main()`, so guarding only the CLI left every programmatic caller
+    one box-drawing character away from a UnicodeEncodeError.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        except Exception:  # noqa: BLE001 — best-effort; never block a run
+            pass
+
+
+# Verbosity is per-run, and the API server can run workflows concurrently in
+# threads — so this is thread-local rather than a module global.
+_out_state = threading.local()
+
+
+def _safe_print(*args, **kwargs) -> None:
+    """print() that degrades instead of raising on an un-encodable console."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "ascii"
+        clean = [str(a).encode(enc, "replace").decode(enc, "replace") for a in args]
+        print(*clean, **kwargs)
+
+
+def say(*args, **kwargs) -> None:
+    """Console output that honours the run's `verbose` flag.
+
+    `verbose=False` is what `api/server.py` and `mcp_server.py` pass to keep
+    pillar banners out of their logs; before this, only 7 of 35 output sites
+    actually checked it.
+    """
+    if getattr(_out_state, "verbose", True):
+        _safe_print(*args, **kwargs)
+
+
 def _bar(text: str) -> None:
-    print(f"\n{'═'*62}\n  {text}\n{'═'*62}")
+    say(f"\n{'═'*62}\n  {text}\n{'═'*62}")
 
 def _step(label: str, detail: str = "") -> None:
-    print(f"\n  ▶  {label}")
+    say(f"\n  ▶  {label}")
     if detail:
-        print(f"     {detail}")
+        say(f"     {detail}")
 
 
 def _fire_webhook(url: str, payload: dict) -> None:
@@ -65,7 +108,7 @@ def _fire_webhook(url: str, payload: dict) -> None:
               headers={"Content-Type": "application/json"}, method="POST")
         urllib.request.urlopen(req, timeout=10)
     except Exception as exc:
-        print(f"  ⚠  Webhook delivery failed: {exc}")
+        _safe_print(f"  ⚠  Webhook delivery failed: {exc}")
 
 
 def run_workflow(
@@ -84,6 +127,11 @@ def run_workflow(
     emit: Callable[..., None] | None = None,
     learn_skills: bool = True,
 ) -> dict:
+    # Protect every entry path, not just the CLI (see `_force_utf8`), and scope
+    # this run's verbosity so `say()` can honour it at all 35 output sites.
+    _force_utf8()
+    _out_state.verbose = bool(verbose)
+
     # `emit(type, pillar=..., **data)` streams progress to the Studio UI.
     # Default no-op ⇒ byte-identical CLI behaviour and the QA suite is unaffected.
     if emit is None:
@@ -92,7 +140,7 @@ def run_workflow(
 
     cfg = load_config()
     client = LLMClient(override_backend=backend)
-    purpose = Path("purpose.md").read_text() if Path("purpose.md").exists() else ""
+    purpose = Path("purpose.md").read_text(encoding="utf-8") if Path("purpose.md").exists() else ""
     logger = PillarLogger()
     metrics = get_metrics()
     guard = GuardrailEngine(
@@ -109,7 +157,7 @@ def run_workflow(
 
     if metrics_port:
         metrics.expose_http(port=metrics_port)
-        print(f"  📊  Prometheus metrics at http://localhost:{metrics_port}/metrics")
+        say(f"  📊  Prometheus metrics at http://localhost:{metrics_port}/metrics")
 
     results: dict = {
         "goal": goal, "blueprint": None, "brainstorm": None,
@@ -124,7 +172,7 @@ def run_workflow(
     if not gin.allowed:
         refusal = guard.refusal_text(gin)
         _bar("GUARDRAIL · INPUT BLOCKED")
-        print(refusal)
+        say(refusal)
         logger.warn("guardrails", "input_blocked", categories=gin.categories)
         results["blocked"] = True
         results["output"] = refusal
@@ -156,7 +204,7 @@ def run_workflow(
     bmad = BMADAgent(client, config=cfg.get("bmad"))
     blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], skill_ctx])))
     issues = bmad.validate(blueprint)
-    print(f"  {'✓ Blueprint valid' if not issues else '⚠  ' + str(issues)}")
+    say(f"  {'✓ Blueprint valid' if not issues else '⚠  ' + str(issues)}")
     if verbose:
         print(blueprint.summary())
     results["blueprint"] = blueprint
@@ -190,7 +238,7 @@ def run_workflow(
         brainstorm = council.brainstorm(
             task=goal, on_persona_start=_on_persona_start, on_persona_done=_on_persona_done,
         )
-        print(brainstorm.summary())
+        say(brainstorm.summary())
         results["brainstorm"] = brainstorm
         emit("council_brainstorm", pillar="council",
              plan=brainstorm.recommended_plan,
@@ -222,9 +270,9 @@ def run_workflow(
             config=op_cfg,
             workspace=op_cfg.get("workspace", "workspace"),
         )
-        print(f"  Mode: {planter.mode}")
+        say(f"  Mode: {planter.mode}")
         inv_result = planter.investigate(task=goal)
-        print(inv_result.report())
+        say(inv_result.report())
         results["investigation"] = inv_result
         # ── Guardrail · INGEST gate ── (untrusted web/data: redact + quarantine,
         # never block — findings are data to analyse, not instructions to obey)
@@ -254,7 +302,7 @@ def run_workflow(
         emit("story_start", pillar="miras", id=story.id, role=story.role, title=story.title)
 
     def on_done(story, result):
-        print(f"     ✓  {result[:100].replace(chr(10),' ')}...")
+        say(f"     ✓  {result[:100].replace(chr(10),' ')}...")
         emit("story_done", pillar="miras", id=story.id, role=story.role,
              preview=result[:200].replace(chr(10), " "))
 
@@ -285,22 +333,22 @@ def run_workflow(
 
     if stream:
         # Streaming mode: print tokens in real time, then parse the full response
-        print("  ▶  Streaming Karpathy refinement...")
+        say("  ▶  Streaming Karpathy refinement...")
         chunks = []
         for chunk in client.stream(
             prompt=synthesis_prompt,
             system=engine.cfg.get("extra_system", purpose[:300]),
             temperature=engine.temperature,
         ):
-            print(chunk, end="", flush=True)
+            _safe_print(chunk, end="", flush=True)
             chunks.append(chunk)
             emit("karpathy_token", pillar="karpathy", chunk=chunk)
-        print()
+        _safe_print()
         full_raw = "".join(chunks)
         refined = engine._parse(full_raw)
     elif self_critique:
         refined = engine.self_critique(synthesis_prompt, extra_system=purpose[:300])
-        print("  ✓  Self-critique complete")
+        say("  ✓  Self-critique complete")
     else:
         refined = engine.run(
             prompt=synthesis_prompt,
@@ -308,7 +356,7 @@ def run_workflow(
             refine=True,
         )
 
-    print(f"  ✓  CoT extracted: {'yes' if refined.had_thought_tag else 'no'}")
+    say(f"  ✓  CoT extracted: {'yes' if refined.had_thought_tag else 'no'}")
     if verbose and refined.answer:
         print(f"  Preview: {refined.answer[:180]}...")
     ms = (time.perf_counter() - t0) * 1000
@@ -328,7 +376,7 @@ def run_workflow(
             task=goal, output=refined.answer,
             on_persona_start=_on_persona_start, on_persona_done=_on_persona_done,
         )
-        print(verdict.report())
+        say(verdict.report())
         results["verdict"] = verdict
         final_output = verdict.approved_output
         ms = (time.perf_counter() - t0) * 1000
@@ -338,9 +386,49 @@ def run_workflow(
              score=verdict.consensus_score, verdict=verdict.verdict,
              passed=verdict.passed, summary=verdict.summary,
              required_fixes=verdict.required_fixes)
+        # ── Structural sensor: objective evidence beside the council's judgement ──
+        # Advisory by default — the measurement is reported, the council's verdict
+        # stands. Set sensors.enforce in config.yaml to give it veto power. Wholly
+        # best-effort: a missing binary or a sensor error can never affect a run.
+        gate_status = "PASS" if verdict.passed else "CONCERNS"
+        try:
+            from sensors.tools import client as _sensor_client
+            from sensors.tools import gate as _sensor_gate
+            from sensors.tools import sensor_config as _sensor_config
+            if _sensor_config().get("enabled", True) and _sensor_client().available():
+                _sr = _sensor_client().scan(".")
+                _sv = _sensor_gate().fuse(verdict.consensus_score, _sr)
+                emit("sensor_reading", pillar="council", sensor="sentrux",
+                     structural_score=_sv.structural_score, verdict=_sv.verdict,
+                     basis=_sv.basis, enforced=_sv.enforced)
+                results["structural"] = _sv.to_dict()
+                if _sv.enforced and _sv.verdict != "PASS" and verdict.passed:
+                    # Opt-in veto, and it has to be a REAL one. Writing the fused
+                    # result into a display string only would make `enforce: true`
+                    # a label that changes nothing — worse than not offering it,
+                    # because it advertises a safety mechanism that doesn't act.
+                    # `passed` is what gates skill-learning here and what every
+                    # caller (incl. mcp_server.m1frame_run) reads.
+                    verdict.passed = False
+                    verdict.required_fixes = list(verdict.required_fixes) + [
+                        f"structural score {_sv.structural_score}/10 "
+                        f"({_sv.verdict}) — sensor veto, sensors.enforce=true"]
+                    results["structural_veto"] = True
+                    logger.warn("council", "structural_veto",
+                                structural=_sv.structural_score, verdict=_sv.verdict)
+                    if verbose:
+                        print(f"  ✗ STRUCTURAL VETO: {_sv.verdict} "
+                              f"({_sv.structural_score}/10) overrides a passing council")
+                if _sv.enforced:
+                    gate_status = _sv.verdict
+                if verbose and _sv.structural_score is not None:
+                    print(f"  ◆ structural {_sv.structural_score:.3f}/10 "
+                          f"({_sv.basis}, {'enforced' if _sv.enforced else 'advisory'})")
+        except Exception as e:  # noqa: BLE001 — a sensor must never break a run
+            logger.warn("council", "sensor_error", error=str(e))
+
         emit("qa_gate", pillar="council", gate="results-review",
-             status="PASS" if verdict.passed else "CONCERNS",
-             score=verdict.consensus_score)
+             status=gate_status, score=verdict.consensus_score)
         emit("pillar_done", pillar="council", ms=round(ms), phase="review")
 
         # ── Skill learning (vetted): remember HOW, only when the council passed ──
@@ -354,6 +442,36 @@ def run_workflow(
                     results["skill"] = learned
                     if verbose:
                         print(f"  ★ learned vetted skill: {learned.title} ({learned.score:.1f}/10)")
+                    # Learning remembers what passed; optimisation makes it better.
+                    # Runs automatically here so the loop is actually closed, scored
+                    # on coverage of the goal's own keywords.
+                    try:
+                        import re as _re
+
+                        from agents.skills import _keywords
+                        from optimizers.tools import keyword_scorer, optimizer_config
+                        if optimizer_config().get("enabled", True):
+                            # Candidates must come from THIS run's own material.
+                            # With only the optimiser's generic phrase pool, a scorer
+                            # rewarding goal-specific terms can never be satisfied and
+                            # every edit is rejected — optimisation that cannot succeed.
+                            _src = f"{refined.answer or ''} {verdict.summary or ''}"
+                            _pool = [s.strip() for s in _re.split(r"(?<=[.!?])\s+|\n+", _src)
+                                     if 20 <= len(s.strip()) <= 300][:24]
+                            _opt = skills.optimize_skill(
+                                learned.id, keyword_scorer(_keywords(goal)[:6]),
+                                rounds=int(optimizer_config().get("rounds", 12)),
+                                pool=_pool or None)
+                            if _opt.get("persisted"):
+                                emit("skill_optimized", pillar="council", id=learned.id,
+                                     tier=_opt.get("tier"), before=_opt.get("before_score"),
+                                     after=_opt.get("after_score"))
+                                if verbose:
+                                    print(f"  ⟳ optimised skill ({_opt.get('tier')}): "
+                                          f"{_opt.get('before_score'):.2f} → "
+                                          f"{_opt.get('after_score'):.2f}")
+                    except Exception as e:  # noqa: BLE001 — optimisation is best-effort
+                        logger.warn("council", "skill_optimize_error", error=str(e))
             except Exception as e:  # noqa: BLE001 — learning is best-effort, never fatal
                 logger.warn("council", "skill_learn_error", error=str(e))
 
@@ -377,7 +495,7 @@ def run_workflow(
         t0 = time.perf_counter()
         wiki = LLMWiki(client, config=cfg.get("wiki"))
         page = wiki.ingest(raw_text=final_output, topic_hint=goal[:100])
-        print(f"  ✓  Saved: wiki/{page.filename}  [{page.page_type}]  tags={page.tags}")
+        say(f"  ✓  Saved: wiki/{page.filename}  [{page.page_type}]  tags={page.tags}")
         results["wiki_page"] = page
         ms = (time.perf_counter() - t0) * 1000
         metrics.record("wiki", ms=ms)
@@ -389,7 +507,7 @@ def run_workflow(
         emit("pillar_done", pillar="wiki", ms=round(ms))
 
     _bar("FINAL OUTPUT")
-    print(final_output)
+    say(final_output)
 
     logger.info("system", "workflow_complete", goal=goal[:80])
     emit("final", output=final_output[:8000],
@@ -412,19 +530,13 @@ def run_workflow(
             "trace_id": logger.trace_id,
         }
         _fire_webhook(webhook_url, payload)
-        print(f"  ✓  Webhook delivered to {webhook_url}")
+        say(f"  ✓  Webhook delivered to {webhook_url}")
 
     return results
 
 
 def main() -> None:
-    # Windows consoles default to cp1252; the pillar banners use box-drawing
-    # glyphs (═ — ·). Force UTF-8 so piped/captured runs don't crash on encode.
-    for _stream in (sys.stdout, sys.stderr):
-        try:
-            _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
-        except Exception:  # noqa: BLE001 — best-effort; never block the CLI
-            pass
+    _force_utf8()
     p = argparse.ArgumentParser(description="m1frame — Portable Multi-Agent Workflow")
     p.add_argument("--goal", required=True, help="High-level goal to accomplish")
     p.add_argument("--backend", default=None,

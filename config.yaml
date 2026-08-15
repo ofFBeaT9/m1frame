@@ -8,7 +8,7 @@
 backend: claude           # claude | claudecli | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
 
 claudecli:                # run on the Claude Code CLI — NO API key needed (uses your `claude` login)
-  model: null             # null = Claude Code's current default model; or e.g. claude-sonnet-5
+  model: claude-sonnet-5  # null = Claude Code's current default model; or e.g. claude-sonnet-5
   timeout: 300
   api_key_env: null
 
@@ -183,3 +183,27 @@ studio:
   default_mode: auto         # auto | live | demo  (auto = live if a key is set)
   accent: "#34e7e4"          # signal colour (overridable in Settings)
   demo_speed: 1.0            # demo replay speed multiplier
+
+# ── Sensors: objective structural measurement (Sentrux) ──────────
+# Adapter for https://github.com/sentrux/sentrux (MIT) — a Rust analyser that
+# scores a codebase 0-10000. OPTIONAL: `pip install sentrux`. With nothing
+# installed every sensor call returns available=false and m1frame is unaffected.
+sensors:
+  enabled: true
+  binary: null               # null = $SENTRUX_BIN, else `sentrux` on PATH
+  timeout: 60                # seconds; a scan is bounded, never open-ended
+  pass_threshold: 7.0        # structural score (0-10) at/above which structure passes
+  concern_threshold: 5.0     # below this it FAILs
+  enforce: false             # false = ADVISORY (reported, never applied).
+                             # true  = the sensor can veto a passing council run.
+
+# ── Optimizers: make skills better, not just more numerous ───────
+# Mechanic from https://github.com/microsoft/SkillOpt (MIT). Two tiers:
+#   local    — dependency-free seeded hill-climber; always available
+#   skillopt — the real package, if `pip install skillopt` and a compatible
+#              entry point is found (probed, never assumed)
+optimizers:
+  enabled: true
+  prefer: auto               # auto | local | skillopt
+  rounds: 12                 # bounded edits proposed per optimisation
+  seed: 1337                 # fixed seed = reproducible optimisation

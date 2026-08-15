@@ -17,6 +17,8 @@ import io
 import re
 import secrets
 import statistics
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import quote, unquote
 
 from .registry import Tool, ToolRegistry
@@ -198,7 +200,9 @@ def grep_files(pattern: str, path: str = ".", glob: str = "*", limit: int = 50) 
 
 
 def register_extras(reg: ToolRegistry) -> ToolRegistry:
-    specs = [
+    # Annotated explicitly: without it mypy joins the 25 distinct function types
+    # into bare `function`, which then fails to match `Tool`'s Callable field.
+    specs: list[tuple[str, str, Callable[..., Any], dict]] = [
         ("md5", "MD5 hex digest of text.", md5, {"text": "string"}),
         ("hex_encode", "Hex-encode text.", hex_encode, {"text": "string"}),
         ("hex_decode", "Hex-decode to text.", hex_decode, {"hexstr": "string"}),

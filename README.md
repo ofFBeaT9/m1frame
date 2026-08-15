@@ -217,11 +217,41 @@ wiki.lint()    # health check → LintReport (contradictions, orphans, gaps)
 
 ---
 
+## Sensors & Optimizers — optional modules
+
+Two modules integrate external tools. **Neither is a hard dependency.** With nothing installed
+they return a structured `available: false` and m1frame behaves exactly as before.
+
+**`sensors/`** — an optional, **advisory** structural measurement via the third-party
+[Sentrux](https://github.com/sentrux/sentrux) CLI (MIT, not bundled). Reported alongside every
+council verdict but **never changes it** unless you set `sensors.enforce: true` in `config.yaml`.
+
+**`optimizers/`** — a skill-improvement step, so a learned skill stops being frozen at the
+quality of the run that produced it. The default tier is **m1frame's own dependency-free
+hill-climber — not Microsoft's SkillOpt**; it shares the accept-on-improvement mechanic of
+[SkillOpt](https://github.com/microsoft/SkillOpt), has no LLM step, and has not been benchmarked
+against the SkillOpt paper. Install `skillopt` and edits are applied by SkillOpt's own
+`optimizer.apply_patch`; the result reports which tier ran.
+
+```bash
+curl localhost:8080/sensors                     # is a sensor installed, and which flavour
+curl -X POST localhost:8080/sensors/scan -d '{"path":".","council_score":8.5}'
+curl localhost:8080/optimizers                  # active tier: local | skillopt
+```
+
+> ⚠️ **`pip install sentrux` does not install `github.com/sentrux/sentrux`.** The PyPI package of
+> that name is an unaffiliated pure-Python tool (no project URLs, Python-only, no MCP server or
+> GUI). The adapter detects which one it is driving and reports it. For the requested Rust
+> project use its own install path (`brew` / `install.sh` / Releases / `cargo build`).
+
+---
+
 ## QA
 
 ```bash
-make qa                                         # all 43 tests
-python scripts/qa_validate.py --pillar openplanter
+make qa                                         # 156 offline tests, no API key
+python scripts/qa_validate.py --pillar sensors
+python scripts/qa_validate.py --pillar optimizers
 python scripts/qa_validate.py --pillar e2e      # full 7-pillar pipeline
 ```
 
