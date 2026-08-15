@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "m1frame"
-version = "1.7.0"
+version = "1.8.0"
 description = "Portable multi-agent AI framework with a real-time Studio UI: BMAD · Council · Miras · Karpathy · LLM Wiki"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,10 +31,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mahdadshakiba/m1frame"
-Documentation = "https://github.com/mahdadshakiba/m1frame#readme"
-"Bug Tracker" = "https://github.com/mahdadshakiba/m1frame/issues"
-Changelog = "https://github.com/mahdadshakiba/m1frame/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/ofFBeaT9/m1frame"
+Documentation = "https://github.com/ofFBeaT9/m1frame#readme"
+"Bug Tracker" = "https://github.com/ofFBeaT9/m1frame/issues"
+Changelog = "https://github.com/ofFBeaT9/m1frame/blob/main/CHANGELOG.md"
 
 [project.scripts]
 m1frame = "scripts.run_workflow:main"

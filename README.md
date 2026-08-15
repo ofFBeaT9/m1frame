@@ -1,6 +1,6 @@
 # m1frame
 
-[![CI](https://github.com/mahdadshakiba/m1frame/actions/workflows/ci.yml/badge.svg)](https://github.com/mahdadshakiba/m1frame/actions)
+[![CI](https://github.com/ofFBeaT9/m1frame/actions/workflows/ci.yml/badge.svg)](https://github.com/ofFBeaT9/m1frame/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
@@ -15,7 +15,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > key (gorgeous demo mode) or wire a key for live runs.
 >
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **40-tool** agent surface, and
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **47-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
 >
 > **Claude Code native** 🤝 — run m1frame on your Claude Code login with **no API key** (`backend: claudecli`),
@@ -44,7 +44,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
-python scripts/qa_validate.py  # 101 tests, no key needed
+python scripts/qa_validate.py  # 164 tests, no key needed
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
@@ -87,7 +87,7 @@ Seven surfaces, one renderer:
 
 It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
-`emit=None` by default, so the CLI and the **101/101** QA suite are byte-for-byte unaffected.
+`emit=None` by default, so the CLI and the **164/164** QA suite are byte-for-byte unaffected.
 On a phone it's fully responsive — the rail becomes a bottom tab bar (run `make mobile` for phone access).
 
 ### Why m1frame is the most *auditable* multi-agent workspace
@@ -308,4 +308,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.7.0 "Pocket Studio" — Mahdad Shakiba, June 2026* · [Manual](MANUAL.md)
+*m1frame v1.8.0 "Closed Loop" — Mahdad Shakiba, August 2026* · [Manual](MANUAL.md)

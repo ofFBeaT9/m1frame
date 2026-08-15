@@ -40,7 +40,7 @@ in a live knowledge graph, and *see* memory and skills accumulate. All offline-c
 lock-in.
 
 **What it is not:** it is not (yet) a broad replacement for a mature agent *product*. v1.3–1.5 added messaging
-gateways, a **40-tool** surface + MCP, persistent runs, and Docker — so it's on par with Hermes by tool *count*,
+gateways, a **47-tool** surface + MCP, persistent runs, and Docker — so it's on par with Hermes by tool *count*,
 but Hermes still ships **heavier capabilities** (arbitrary shell, cloud browser, image/TTS) we deliberately omit
 for safety/auditability, plus ~10k-commit *maturity*. See [§11](#11-m1frame-vs-hermes-agent-honest) for the honest comparison.
 
@@ -163,7 +163,7 @@ claude mcp add m1frame -- python mcp_server.py     # needs: pip install mcp
 ```
 
 It surfaces six tools: `m1frame_run` (full 7-pillar deliberation), `m1frame_ask` (grounded, cited recall),
-`m1frame_call_tool` (any of the 40 tools), `m1frame_list_tools`, `m1frame_list_skills`, and `m1frame_open_studio`
+`m1frame_call_tool` (any of the 47 tools), `m1frame_list_tools`, `m1frame_list_skills`, and `m1frame_open_studio`
 (launch the interactive UI). Slash commands: **`/m1frame`** runs the pipeline, **`/m1-studio`** launches the UI.
 
 **3. Use m1frame from your phone (Claude Code on iPhone / Android).** One command turns m1frame into a remote

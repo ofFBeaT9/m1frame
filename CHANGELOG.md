@@ -6,7 +6,7 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
-## [Unreleased]
+## [1.8.0] — 2026-08-15 — "Closed Loop" (measure the artefact, improve the skill)
 ### Added — `sensors/` and `optimizers/`: measurement and improvement
 Two new modules, integrating [Sentrux](https://github.com/sentrux/sentrux) and
 [Microsoft SkillOpt](https://github.com/microsoft/SkillOpt) (both MIT). **Neither is a hard
@@ -27,7 +27,7 @@ and m1frame behaves exactly as before.
 - **Surfaces**: tool registry 40 → 47; `GET /sensors`, `POST /sensors/scan`, `GET /optimizers`,
   `POST /skills/{id}/optimize`; MCP tools `m1frame_scan_architecture`, `m1frame_optimize_skill`;
   `sensors:` / `optimizers:` sections in `config.yaml`, honoured identically by all three surfaces.
-- **QA 111 → 163 tests**, all passing offline with neither package installed.
+- **QA 111 → 164 tests**, all passing offline with neither package installed.
 
 ### Fixed — Windows / encoding robustness (pre-existing, found by end-to-end verification)
 - **`run_workflow()` crashed whenever stdout was not a UTF-8 terminal.** The UTF-8 guard ran only
@@ -278,5 +278,7 @@ shares the name. The Rust tool this adapter was written for was built here from 
 
 ---
 
-[Unreleased]: https://github.com/mahdadshakiba/m1frame/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/mahdadshakiba/m1frame/releases/tag/v1.0.0
+[Unreleased]: https://github.com/ofFBeaT9/m1frame/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/ofFBeaT9/m1frame/releases/tag/v1.8.0
+[1.7.0]: https://github.com/ofFBeaT9/m1frame/releases/tag/v1.7.0
+[1.0.0]: https://github.com/ofFBeaT9/m1frame/releases/tag/v1.0.0

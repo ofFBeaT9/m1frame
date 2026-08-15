@@ -10,5 +10,5 @@ Start the m1frame Studio and open it for the user.
 3. If a preview/browser tool is available, open it and show the Studio.
 
 The Studio has seven surfaces: live **Studio** deliberation, grounded **Chat**, the knowledge **Graph**,
-replayable **Runs**, learned **Skills**, the **Wiki**, and **Settings** (backend switch, 40 tools, gateways,
+replayable **Runs**, learned **Skills**, the **Wiki**, and **Settings** (backend switch, 47 tools, gateways,
 model registry).

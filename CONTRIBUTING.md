@@ -7,7 +7,7 @@ Thank you for helping improve m1frame. This guide gets you from zero to first PR
 ## Quick setup
 
 ```bash
-git clone https://github.com/mahdadshakiba/m1frame.git
+git clone https://github.com/ofFBeaT9/m1frame.git
 cd m1frame
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -104,5 +104,5 @@ def experimental_feature() -> str:
 
 ## Getting help
 
-Open a [Discussion](https://github.com/mahdadshakiba/m1frame/discussions) for questions.  
-Use [Issues](https://github.com/mahdadshakiba/m1frame/issues) for bugs and feature requests only.
+Open a [Discussion](https://github.com/ofFBeaT9/m1frame/discussions) for questions.  
+Use [Issues](https://github.com/ofFBeaT9/m1frame/issues) for bugs and feature requests only.
