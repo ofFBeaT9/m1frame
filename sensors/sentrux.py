@@ -45,7 +45,12 @@ DEFAULT_TIMEOUT = 60                             # a full-repo scan is bounded, 
 # We detect which one is on PATH and drive it correctly, rather than assuming.
 FLAVOUR_RUST, FLAVOUR_PYTHON, FLAVOUR_UNKNOWN = "rust", "python", "unknown"
 
-_QUALITY_LINE = re.compile(r"Quality:\s*(\d+)")
+# `check` and `gate --save` print a single number (`Quality: 7342`), but the `gate`
+# comparison prints both sides: `Quality:      6891 -> 7342` (before -> after — see
+# print_gate_results in sentrux-bin/src/main_impl.rs). Taking the first number there
+# would report the PRE-session score and silently miss the regression the gate exists
+# to catch, so the post-arrow value wins whenever there is one.
+_QUALITY_LINE = re.compile(r"Quality:\s*(\d+)(?:\s*->\s*(\d+))?")
 
 
 MAX_TIMEOUT = 600        # hard ceiling: a caller-supplied timeout can't pin a worker
@@ -123,10 +128,13 @@ class SensorResult:
     def quality_signal(self) -> int | None:
         """The 0–10000 structural score, whichever shape the tool reported it in.
 
-        Three known encodings, checked in order:
-          1. `quality_signal`                    — sentrux MCP (the Rust project)
+        Four known encodings, checked in order. All verified against the tools'
+        own source rather than assumed:
+          1. `quality_signal`                    — sentrux MCP (mcp_server/handlers.rs)
           2. `quality_score.overall_score`       — PyPI `sentrux` JSON
-          3. a `Quality: NNNN` line on stdout    — Rust `check` / `gate` CLI
+          3. `Quality: NNNN`                     — Rust `check` / `gate --save`
+          4. `Quality:  BBBB -> AAAA`            — Rust `gate` comparison; the
+             AFTER value is the current state and the one that matters.
         """
         v = self.data.get("quality_signal")
         if isinstance(v, int | float):
@@ -135,7 +143,9 @@ class SensorResult:
         if isinstance(qs, dict) and isinstance(qs.get("overall_score"), int | float):
             return int(qs["overall_score"])
         m = _QUALITY_LINE.search(self.raw or "")
-        return int(m.group(1)) if m else None
+        if not m:
+            return None
+        return int(m.group(2) or m.group(1))     # `before -> after`: after wins
 
 
 class SentruxClient:
@@ -197,8 +207,11 @@ class SentruxClient:
         if argv_prefix is None:
             return SensorResult(
                 command=list(args), available=False, ok=False,
-                error="sentrux not found — install with: pip install sentrux "
-                      "(or set $SENTRUX_BIN to the binary path)")
+                error="sentrux not found. This adapter targets the Rust project "
+                      "(github.com/sentrux/sentrux) — install it via Homebrew, its "
+                      "install.sh, or a GitHub release binary, then set $SENTRUX_BIN "
+                      "if it is not on PATH. Note that `pip install sentrux` fetches "
+                      "a DIFFERENT project that merely shares the name.")
         argv = argv_prefix + list(args)
         started = time.perf_counter()
         try:
@@ -258,6 +271,17 @@ class SentruxClient:
         Never invokes the Rust project's `scan` subcommand: that opens a GUI and
         would hang here until the timeout. For that flavour we use `check`, which
         is the CI-safe command and prints the same `Quality: NNNN` signal.
+
+        KNOWN LIMIT, measured against the real Rust binary (v0.5.7): `check` refuses
+        to run unless `<path>/.sentrux/rules.toml` exists — it prints "No
+        .sentrux/rules.toml found" on stderr, exits 1, and emits no Quality line at
+        all. So on the Rust flavour this returns no signal in any repo that has not
+        been set up for sentrux, which is most of them. The tool's intended headless
+        agent interface is the MCP server (`sentrux mcp`, see `mcp_command`), whose
+        `scan` tool returns `quality_signal` with no config and no side effects;
+        wiring m1frame to it is the real fix and is tracked as such. Meanwhile the
+        stderr reason is carried through to the gate's `reasons` rather than being
+        swallowed, so the sensor's silence is at least explained.
         """
         target = str(_safe_path(path))
         if self.flavour() == FLAVOUR_PYTHON:

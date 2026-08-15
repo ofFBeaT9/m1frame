@@ -63,6 +63,33 @@ The QA suite passes on Python 3.13 locally, but CI also runs `ruff check .` and 
 - Every file in this commit was additionally re-parsed against the **3.10** grammar, since the dev
   machine is 3.13 and a 3.11+ feature would compile locally while breaking three CI jobs.
 
+### Verified against the REAL Rust binary (first time — and it found a blocker)
+Until now every structural number m1frame reported came from the unrelated PyPI package that
+shares the name. The Rust tool this adapter was written for was built here from source
+(v0.5.7, MSVC 14.50, `cargo build --release`) and driven end to end. Results:
+
+- **The Rust sensor could never produce a measurement in an ordinary repo.** `scan()` routes the
+  Rust flavour to `check`, and `check` refuses to run unless `<path>/.sentrux/rules.toml` exists —
+  it prints `No .sentrux/rules.toml found`, exits 1, and emits **no `Quality:` line at all**. So
+  `quality_signal` was `None`, the gate silently fell back to council-only, and nothing said why.
+  With a `rules.toml` present the whole path works: real output `Quality: 8264` → `8.264/10` →
+  `PASS`, `basis: fused`. The tool's intended headless agent interface is the MCP server
+  (`sentrux mcp` → `scan` tool → `quality_signal`, no config, no side effects); wiring m1frame's
+  MCP client to it is the actual fix and remains outstanding.
+- **The gate reported the score from BEFORE the regression.** `gate` prints
+  `Quality:      {before} -> {after}`, and the parser took the first number. Confirmed on real
+  output: the binary printed `Quality:      8564 -> 5491` and `✗ DEGRADED`, while m1frame would
+  have reported **8564** — the healthy pre-degradation value. Now reads the post-arrow value;
+  `check` and `gate --save` single-number output is unchanged.
+- **A no-signal result now explains itself.** `StructuralGate` was discarding `result.error` — the
+  one string that says how to fix it — in favour of a generic line. The tool's own words are now
+  carried into `reasons`.
+- Assumptions that turned out **correct** and were left alone: `scan` really is a GUI subcommand;
+  `mcp` really is a subcommand (`--mcp` is a `hide = true` alias, absent from `--help`); the
+  `Quality: NNNN` regex; the `quality_signal` MCP key; the 0–10000 scale; and the gate ignoring
+  exit codes — which matters, because real `check` exits 1 on any rule violation while still
+  printing a usable score.
+
 ### Security / correctness notes for this change
 - `POST /skills/{id}/optimize` rewrites a stored skill on disk and therefore **requires
   `approve: true`**, matching the `dangerous` convention used by `write_file` and `sentrux_gate`.

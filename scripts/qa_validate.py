@@ -1001,7 +1001,11 @@ def t_sensor_absent_degrades(m):
     c=SentruxClient(binary="definitely-not-a-real-binary-xyz")
     assert c.resolve() is None and c.available() is False
     r=c.scan(".")                                  # must NOT raise — a sensor never kills a run
-    assert r.available is False and r.ok is False and "pip install sentrux" in r.error
+    assert r.available is False and r.ok is False
+    # The hint must name the project this adapter actually targets. `pip install
+    # sentrux` fetches an unrelated package of the same name, so recommending it
+    # (as this message used to) sends the user to the wrong tool entirely.
+    assert "github.com/sentrux/sentrux" in r.error and "DIFFERENT project" in r.error
 
 def t_sensor_fake_scan(m):
     from sensors import SentruxClient
@@ -1226,13 +1230,24 @@ def t_modules_no_hard_dependency(m):
 
 
 def t_sensor_quality_signal_shapes(m):
-    # Three real encodings of the 0-10000 score. All must be read.
+    # Four real encodings of the 0-10000 score. The CLI strings below are the exact
+    # formats emitted by sentrux-bin/src/main_impl.rs, not invented examples.
     from sensors import SensorResult
     a=SensorResult(available=True,data={"quality_signal":7342})                  # sentrux MCP (Rust)
     b=SensorResult(available=True,data={"quality_score":{"overall_score":8467}})  # PyPI sentrux --json
-    c=SensorResult(available=True,raw="sentrux check\n\nQuality: 6120\n")         # Rust check/gate CLI
+    c=SensorResult(available=True,raw="sentrux check - 12 rules checked\n\nQuality: 6120\n")
     assert (a.quality_signal,b.quality_signal,c.quality_signal)==(7342,8467,6120)
     assert SensorResult(available=True,data={},raw="no score here").quality_signal is None
+    # `gate` prints BOTH sides: "Quality:      {before} -> {after}". Reading the first
+    # number would report the pre-session score and hide the exact regression the gate
+    # exists to catch, so the AFTER value must win.
+    g=SensorResult(available=True,
+                   raw="sentrux gate - structural regression check\n\n"
+                       "Quality:      7342 -> 6891\nCoupling:     0.31 -> 0.44\n")
+    assert g.quality_signal==6891, f"gate reported the BEFORE score: {g.quality_signal}"
+    # And `gate --save` still prints a single number, which must keep working.
+    s=SensorResult(available=True,raw="Baseline saved to .sentrux/baseline.json\nQuality: 7342\n")
+    assert s.quality_signal==7342
 
 def t_sensor_flavour_detection(m):
     # The Rust project's `scan` opens a GUI; only the PyPI package's takes --json.
@@ -1260,6 +1275,24 @@ def t_sensor_mcp_command(m):
     with tempfile.TemporaryDirectory() as d:
         assert SentruxClient(binary=_fake_sentrux(Path(d))).mcp_command()[-1]=="mcp"
     assert SentruxClient(binary="nope-not-real").mcp_command() is None
+
+def t_sensor_no_signal_explains_itself(m):
+    # Measured against the real Rust sentrux v0.5.7: `check` refuses to run without a
+    # `.sentrux/rules.toml` in the target dir -- exit 1, that message on stderr, and NO
+    # Quality line. The gate must carry the tool's own words through, or the sensor
+    # goes silent with nothing to act on.
+    from sensors import SensorResult
+    from sensors.gate import StructuralGate
+    r=SensorResult(available=True, ok=False, exit_code=1,
+                   error="No .sentrux/rules.toml found in C:/proj\nCreate one to define "
+                         "architectural constraints.")
+    v=StructuralGate(enforce=False).fuse(council_score=8.0, result=r)
+    assert v.verdict=="PASS" and v.basis=="council-only"      # still never kills a run
+    blob=" ".join(v.reasons)
+    assert "rules.toml" in blob, f"actionable reason was swallowed: {v.reasons}"
+    # A no-signal result carrying no error must still read cleanly.
+    v2=StructuralGate().fuse(council_score=8.0, result=SensorResult(available=True, ok=True))
+    assert "no quality_signal" in " ".join(v2.reasons)
 
 def t_sensor_config_honoured_everywhere(m):
     # A safety flag read on one surface and ignored on two others is a bug.
@@ -1582,6 +1615,7 @@ ALL: dict[str,list] = {
                  ("Flavour detection",         t_sensor_flavour_detection),
                  ("Never launches the GUI",    t_sensor_never_launches_gui),
                  ("MCP command exposed",       t_sensor_mcp_command),
+                 ("No-signal explains itself", t_sensor_no_signal_explains_itself),
                  ("Config honoured (sensor)",  t_sensor_config_honoured_everywhere),
                  ("REAL binary (if present)",  t_sensor_real_binary_when_present)],
     "optimizers":[("Local optimiser improves", t_opt_local_improves),

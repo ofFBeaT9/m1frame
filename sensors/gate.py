@@ -102,7 +102,14 @@ class StructuralGate:
             if not s_available and result is not None:
                 reasons.append(result.error or "sensor unavailable — council score stands")
             elif result is not None:
-                reasons.append("sensor returned no quality_signal — council score stands")
+                # Keep the tool's own words when it has any. The Rust `check`
+                # subcommand refuses to run without a `.sentrux/rules.toml` in the
+                # target directory and says exactly that on stderr — dropping it for
+                # a generic line turns a fixable setup problem into a silent blank.
+                reasons.append(
+                    f"sensor returned no quality_signal ({result.error}) — council score stands"
+                    if result.error else
+                    "sensor returned no quality_signal — council score stands")
             if c_verdict is None:
                 return GateVerdict("CONCERNS", "none", None, None, self.enforce,
                                    reasons or ["no council score and no sensor reading"])

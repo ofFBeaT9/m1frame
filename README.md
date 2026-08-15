@@ -226,6 +226,12 @@ they return a structured `available: false` and m1frame behaves exactly as befor
 [Sentrux](https://github.com/sentrux/sentrux) CLI (MIT, not bundled). Reported alongside every
 council verdict but **never changes it** unless you set `sensors.enforce: true` in `config.yaml`.
 
+> **Rust flavour needs a `.sentrux/rules.toml`.** Verified against the real binary (v0.5.7): the
+> `check` subcommand — the only headless, side-effect-free command that prints a score — exits 1
+> with no output unless the target directory has one. Without it you get a reported reason and no
+> reading, not a silent zero. With it, a real run reads `Quality: 8264` → `8.264/10`. The tool's
+> intended agent interface is its MCP server (`sentrux mcp`); m1frame does not consume that yet.
+
 **`optimizers/`** — a skill-improvement step, so a learned skill stops being frozen at the
 quality of the run that produced it. The default tier is **m1frame's own dependency-free
 hill-climber — not Microsoft's SkillOpt**; it shares the accept-on-improvement mechanic of
