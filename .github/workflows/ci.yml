@@ -33,6 +33,9 @@ jobs:
       - name: Run QA suite (offline mock — no API key needed)
         run: python scripts/qa_validate.py
 
+      - name: Scientific module integration tests
+        run: python -m unittest scripts.test_scientific
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest

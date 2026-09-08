@@ -216,6 +216,8 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
         register_optimizer_tools(reg)       # SkillOpt skill optimiser
     except Exception:                       # noqa: BLE001
         pass
+    from scientific.tools import register_scientific_tools
+    register_scientific_tools(reg)
     return reg
 
 

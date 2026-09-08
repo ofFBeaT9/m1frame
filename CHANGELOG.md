@@ -6,6 +6,21 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [Unreleased]
+
+### Added — Scientific Agent Skills
+- Optional `scientific/` module integrates all 163 skills at pinned K-Dense upstream
+  commit `9cf7d9aea7d84754db4c167ab04b299d33c444bc`, including supporting resources.
+- Complete selected instructions reach BMAD planning and Miras stories in sequential
+  and parallel modes; configuration supports explicit selection and keyword recall.
+- Four shared HTTP/MCP tools expose discovery, paginated reading, resource listing,
+  and static dependency auditing. The registry now contains 51 tools.
+- Pinned sparse-checkout installer, per-skill compatibility audit, README setup guide,
+  and eight offline integration tests in CI. Existing 164-test QA remains passing.
+- External instructions remain separate from council-vetted learned skills. Scientific
+  packages, credentials and execution tools are workflow-specific dependencies;
+  installing the catalog does not certify end-to-end scientific execution.
+
 ## [1.8.0] — 2026-08-15 — "Closed Loop" (measure the artefact, improve the skill)
 ### Added — `sensors/` and `optimizers/`: measurement and improvement
 Two new modules, integrating [Sentrux](https://github.com/sentrux/sentrux) and

@@ -125,12 +125,16 @@ class MirasOrchestrator:
         config: dict | None = None,
         on_subtask_start: Callable[[Story], None] | None = None,
         on_subtask_done: Callable[[Story, str], None] | None = None,
+        scientific_library=None,
+        scientific_config: dict | None = None,
     ):
         self.llm = llm_client
         self.cfg = config or {}
         self.max_agents = self.cfg.get("max_agents", 5)
         self.on_subtask_start = on_subtask_start
         self.on_subtask_done = on_subtask_done
+        self.scientific_library = scientific_library
+        self.scientific_config = scientific_config or {}
 
     # ── Sequential execution (original behaviour) ─────────────────────────────
 
@@ -242,6 +246,7 @@ class MirasOrchestrator:
 
     def route_single(self, task: str, role: str = "other", context: str = "") -> str:
         """Execute a single task without a Blueprint — useful for quick one-off calls."""
+        context = self._scientific_context(task, context)
         system = AGENT_SYSTEM_TEMPLATE.format(
             role=ROLE_MAP.get(role, ROLE_MAP["other"]),
             context=context or "No additional context.",
@@ -251,7 +256,17 @@ class MirasOrchestrator:
 
     # ── Private ───────────────────────────────────────────────────────────────
 
+    def _scientific_context(self, task: str, context: str) -> str:
+        if self.scientific_library is None:
+            return context
+        reference, _ = self.scientific_library.context(
+            task, names=self.scientific_config.get("skills"),
+            max_chars=int(self.scientific_config.get("max_context_chars", 60000)))
+        return "\n\n".join(filter(None, [context, reference]))
+
     def _execute_story(self, story: Story, state: AgentState, context: str) -> str:
+        context = self._scientific_context(
+            f"{state.goal} {story.title} {story.description}", context)
         role_key = story.role or story.type or "other"
         role_desc = ROLE_MAP.get(role_key, ROLE_MAP["other"])
 

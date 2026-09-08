@@ -1,0 +1,2416 @@
+{
+  "available": true,
+  "source": "https://github.com/k-dense-ai/scientific-agent-skills.git",
+  "expected_revision": "9cf7d9aea7d84754db4c167ab04b299d33c444bc",
+  "installation_record": {
+    "revision": "9cf7d9aea7d84754db4c167ab04b299d33c444bc",
+    "files_verified": 2053
+  },
+  "root": ".external/scientific-skills",
+  "skill_count": 163,
+  "errors": [],
+  "standalone_agents": "This module loads Agent Skills, not standalone agents.",
+  "audit_scope": "Static parsing and top-level import discovery only. Optional imports, package versions, executables, R/system dependencies, services, datasets, hardware and credential validity require workflow-specific validation.",
+  "skills": [
+    {
+      "name": "adaptyv",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, an Adaptyv Foundry account, and an API key from foundry.adaptyvbio.com. Install adaptyv-sdk from GitHub with uv pip install.",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "ADAPTYV_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "aeon",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and the aeon package (uv pip install). Optional aeon[all_extras] for deep learning and extended dependencies.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 12,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "analytical-method-validation",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+. Scripts use only the standard library - no numpy, scipy, or network access. Statistical distributions are computed from first principles so results are reproducible in any conforming interpreter.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 17,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "anndata",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ and uv. Examples target AnnData 0.12.16, with experimental APIs clearly marked where used.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "arbor",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash Agent",
+      "resources": 6,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "arboreto",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 5,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "arboreto": false,
+        "pandas": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "astropy",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ with astropy installed (uv for package installation). Some features (object name resolution, site lookups, remote FITS reads, IERS updates) need network access.",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "autoskill",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 15,
+      "python_scripts": 10,
+      "syntax_errors": [],
+      "import_probes": {
+        "httpx": true,
+        "sentence_transformers": false,
+        "yaml": true
+      },
+      "credential_hints": {
+        "ANTHROPIC_API_KEY": false,
+        "DEEPGRAM_API_KEY": false,
+        "FOUNDRY_API_KEY": false,
+        "GOOGLE_API_KEY": false,
+        "OPENAI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "benchling-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires a Benchling account, tenant URL, and API key or OAuth app credentials. Install benchling-sdk with uv pip install.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "BENCHLING_API_KEY": false,
+        "BENCHLING_PROD_API_KEY": false,
+        "BENCHLING_STAGING_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "bgpt-paper-search",
+      "instructions_readable": true,
+      "compatibility": "Requires the BGPT MCP server configured in the agent host (npx mcp-remote or npx bgpt-mcp), internet access to bgpt.pro, and an optional BGPT API key for paid usage.",
+      "allowed_tools": "Not declared",
+      "resources": 1,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "bids",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "biopython",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, NumPy, and Biopython. Entrez and web BLAST examples require network access; local BLAST/MUSCLE examples require those command-line tools installed separately.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "NCBI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "bioservices",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9\u20133.12 and internet access to 40+ bioinformatics web APIs. NCBI BLAST requires a contact email (`NCBI_EMAIL` env var or explicit parameter).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "bioservices": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "bulk-rnaseq",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "pandas": true,
+        "pytximport": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "cellxgene-census",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.10,<3.13. Examples target cellxgene-census 1.17.x and the 2025-11-08 stable LTS Census; spatial workflows need the spatial extra and TileDB-SOMA >=1.15.5. No authentication is required for public Census data.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 4,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "cirq",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "IONQ_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "citation-management",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ with requests. Google Scholar search additionally needs scholarly. Needs network access to api.openalex.org, api.crossref.org, eutils.ncbi.nlm.nih.gov, export.arxiv.org, and api.datacite.org.",
+      "allowed_tools": "Read Write Edit Bash WebSearch WebFetch",
+      "resources": 21,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true,
+        "scholarly": false
+      },
+      "credential_hints": {
+        "NCBI_API_KEY": false,
+        "YOUR_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "clinical-decision-support",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+; local files only; bundled scripts use the standard library and require no network, credentials, API keys, LLMs, or image services.",
+      "allowed_tools": "Not declared",
+      "resources": 28,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "clinical-reports",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ only for optional dependency-free local scripts; no network access, credentials, external models, or image services.",
+      "allowed_tools": "Not declared",
+      "resources": 36,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "cobrapy",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ (cobra 0.30+ dropped 3.8). Install with uv pip install. GLPK (swiglpk) is the default solver; CPLEX/Gurobi optional. load_model fetches from bundled data, BiGG, or BioModels (network required for remote models).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 3,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "consciousness-council",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "dask",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and dask 2025.1+. DataFrame workflows need pandas 2+ and PyArrow 16+. Cloud paths (s3://, gcs://) need s3fs or gcsfs. Cluster deployment uses dask.distributed (included with dask[complete]).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "database-lookup",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Bash",
+      "resources": 81,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "ADDGENE_API_KEY": false,
+        "ALPHAVANTAGE_API_KEY": false,
+        "BEA_API_KEY": false,
+        "BIOGRID_API_KEY": false,
+        "BLS_API_KEY": false,
+        "CENSUS_API_KEY": false,
+        "CLUE_API_KEY": false,
+        "DATACOMMONS_API_KEY": false,
+        "DISGENET_API_KEY": false,
+        "FRED_API_KEY": false,
+        "MP_API_KEY": false,
+        "NASA_API_KEY": false,
+        "NCBI_API_KEY": false,
+        "NOAA_API_KEY": false,
+        "OMIM_API_KEY": false,
+        "OPENFDA_API_KEY": false,
+        "OPENWEATHERMAP_API_KEY": false,
+        "PATENTSVIEW_API_KEY": false,
+        "YOUR_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "datamol",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.8+ and datamol (uv pip install). RDKit is installed automatically as a datamol dependency (since 0.12.2). Optional s3fs/gcsfs for cloud I/O via fsspec.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "deepchem",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.7\u20133.11 (PyPI 2.8.0 caps at <3.12). Install PyTorch, TensorFlow, or JAX before the matching deepchem extra. RDKit is a core dependency.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "deepchem": false,
+        "numpy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "deepspot-m",
+      "instructions_readable": true,
+      "compatibility": "Needs deepspotm 1.0.0 from PyPI (Python 3.10 to 3.13) plus PyTorch. Weights at ratschlab/DeepSpotM on Hugging Face are gated and licensed CC-BY-NC-SA-4.0, so request access on the model page and then run huggingface-cli login. A CUDA GPU speeds up batched inference.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 3,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "deeptools",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >3.8 and deepTools 3.5.6-compatible dependencies. The upstream project recommends conda/bioconda for full dependency resolution; repo examples use uv with pinned PyPI installs for reproducible command-line workflows.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "depmap",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "dhdna-profiler",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "diffdock",
+      "instructions_readable": true,
+      "compatibility": "Requires the DiffDock repository, Python 3.9 environment from upstream environment.yml or the official Docker image, RDKit, PyTorch/PyG, and optional CUDA GPU acceleration. Current guidance targets DiffDock v1.1.3 / DiffDock-L.",
+      "allowed_tools": "Read Write Edit Bash Glob Grep",
+      "resources": 9,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "esm": false,
+        "pandas": true,
+        "rdkit": false,
+        "torch": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "dnanexus-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires a DNAnexus account, network access, Python 3.11+, and dx-toolkit/dxpy; some workflow and infrastructure features require organization licenses or policies.",
+      "allowed_tools": "Not declared",
+      "resources": 12,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "docx",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 61,
+      "python_scripts": 15,
+      "syntax_errors": [],
+      "import_probes": {
+        "defusedxml": true,
+        "lxml": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "esm",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "ESM_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "etetoolkit",
+      "instructions_readable": true,
+      "compatibility": "Bundled scripts require Python 3.10+ and ete4 4.4.0 (upstream ete4 supports Python >=3.7). Taxonomy setup and SmartView exploration need network access; static SmartView PNG rendering needs ete4[render-sm], and Qt PDF/SVG rendering needs ete4[treeview].",
+      "allowed_tools": "Read Write Edit Bash Python",
+      "resources": 8,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "ete4": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "exa-search",
+      "instructions_readable": true,
+      "compatibility": "Requires exa-py Python SDK, an EXA_API_KEY, and internet access.",
+      "allowed_tools": "Not declared",
+      "resources": 5,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "exa_py": false
+      },
+      "credential_hints": {
+        "EXA_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "experimental-design",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.10. Scripts use numpy, pandas, and pyDOE3 (DOE matrices). Install with uv as shown below.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "pandas": true,
+        "pyDOE3": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "exploratory-data-analysis",
+      "instructions_readable": true,
+      "compatibility": "Bundled core CLIs require Python 3.11+ and are local/network-free; the complete pinned optional snapshot requires Python 3.12+, uv, and format-specific libraries listed below.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 21,
+      "python_scripts": 13,
+      "syntax_errors": [],
+      "import_probes": {
+        "Bio": false,
+        "PIL": true,
+        "h5py": true,
+        "numpy": true,
+        "tifffile": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "flowio",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9-3.13, uv, and FlowIO 1.4.0. NumPy is installed with FlowIO; pandas is optional for DataFrame workflows. Runtime parsing is local and needs no credentials or network access.",
+      "allowed_tools": "Read Write Bash",
+      "resources": 7,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "flowio": false,
+        "numpy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "fluidsim",
+      "instructions_readable": true,
+      "compatibility": "Bundled CLIs require Python 3.11+ and use the standard library; HDF5/netCDF4 metadata tools lazily use h5py when available. Simulation examples target fluidsim 0.9.0, fluidfft 0.4.5, and pyFFTW 0.15.1. MPI/native FFT use requires a site-compatible MPI implementation, development headers, FFTW/PFFT/P3DFFT libraries, compilers, and an approved scheduler workflow. No GPU backend is assumed.",
+      "allowed_tools": "Read Write Bash Glob Python",
+      "resources": 16,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {
+        "h5py": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "generate-image",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ and network access to openrouter.ai. The bundled script uses only the standard library. Image generation requires the OPENROUTER_API_KEY credential and bills per request; listing models, inspecting a model, and --dry-run do not. Targets the OpenRouter Image API (POST /api/v1/images) as verified on 2026-07-31.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 3,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "geniml",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and uv. Guidance targets geniml 0.8.4 with gtars 0.9.2; ML workflows need the pinned ml extra and compatible native wheels. Bundled planners and inspectors are dependency-free, local-only, and make no network requests.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 14,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "genomic-coordinates",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+. Scripts use only the standard library - no third-party packages and no network access. Variant normalisation needs a reference FASTA, and uses its .fai index when one is present.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 10,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "genomic-intelligence",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+ with the `requests` library for the REST path (no dedicated SDK). Network access required. The REST `/v1` API needs a `GI_API_KEY` (a `gi_` bearer); the hosted MCP server at mcp.genomicintelligence.ai/mcp works keyless against a capped public demo quota, key optional.",
+      "allowed_tools": "Not declared",
+      "resources": 5,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "GI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "geomaster",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 16,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "YOUR_ACCESS_TOKEN": false,
+        "YOUR_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "geopandas",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and uv. Bundled CLIs are local-only; runtime analysis requires the pinned GeoPandas stack below.",
+      "allowed_tools": "Read Write Bash Glob Grep",
+      "resources": 14,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "geopandas": false,
+        "pyarrow": true,
+        "pyogrio": false,
+        "pyproj": false,
+        "shapely": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "get-available-resources",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ on Linux, macOS, or Windows; standard library by default, optional psutil 7.2.2; accelerator and scheduler CLIs are optional read-only probes.",
+      "allowed_tools": "Not declared",
+      "resources": 9,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "gget",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.8 and gget 0.30.5-compatible APIs. Optional setup modules may install scientific dependencies that lag the newest Python releases; use Python 3.9 or 3.10 if `gget setup cellxgene` or `gget setup alphafold` fails.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "gget": false,
+        "pandas": true
+      },
+      "credential_hints": {
+        "OPENAI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "ginkgo-cloud-lab",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read",
+      "resources": 18,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "glycoengineering",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "gtars",
+      "instructions_readable": true,
+      "compatibility": "Python bindings require Python 3.10+ and gtars 0.9.2. The Rust meta-crate and gtars-cli are 0.9.0 and require a Rust toolchain supporting Edition 2024; upstream declares no rust-version. Bundled audit CLIs use only Python 3.10+ standard library and are local/network-free. Remote constructors, pretrained tokenizers, refget, and BEDbase caching require explicit network and storage approval.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 15,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "histolab",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.8\u20133.11 (histolab 0.7.0), OpenSlide system libraries, and Linux or macOS. Sample data via histolab.data requires pooch.",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "hugging-science",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "hypogenic",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and uv for the pinned upstream package. Bundled local audit tools use only the Python standard library for JSON; YAML input requires exactly PyYAML 6.0.2. Actual HypoGeniC runs may require a separately approved LLM provider, credentials, Redis, local model resources, and network access.",
+      "allowed_tools": "Read Write Edit Bash Glob Grep",
+      "resources": 18,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "yaml": true
+      },
+      "credential_hints": {
+        "ANTHROPIC_API_KEY": false,
+        "OPENAI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "hypothesis-generation",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ standard library. Bundled CLIs are deterministic and local-only; they accept bounded JSON, CSV, or Markdown and require no network, credentials, models, image services, or external packages.",
+      "allowed_tools": "Not declared",
+      "resources": 27,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "imaging-data-commons",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 15,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "idc_index": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "infographics",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "iso-standards-readiness",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+; bundled CLIs use only the standard library and bounded local JSON/Markdown files, with no network access or credentials.",
+      "allowed_tools": "Read Write Bash Glob",
+      "resources": 32,
+      "python_scripts": 10,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "lab-hardware-cad",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10-3.14 with build123d 0.11.1 and matplotlib for snapshots. Geometry commands require build123d; the standards lookup and the interface check run on the standard library alone. No network access needed.",
+      "allowed_tools": "Read Write Edit Bash Glob Grep",
+      "resources": 13,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "OCP": false,
+        "build123d": false,
+        "matplotlib": true,
+        "mpl_toolkits": true,
+        "numpy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "labarchive-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ and uv for bundled local tools, plus network access for official documentation or remote API calls. LabArchives issues an Access Key ID and Access Password; user-scoped calls also need a UID, and Inventory calls require Inventory API permission and a Lab ID. Bundled scripts read only named LABARCHIVES_* environment variables and never load .env files.",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "lamindb",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "latchbio-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires network access and a Latch account. The current stable SDK requires Python 3.9+; Python 3.12 is recommended. Uses uv for installation. Docker is needed for local image builds, while remote registration is the CLI default.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 11,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "latex-posters",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 17,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "liteparse",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+. Optional LibreOffice (Office formats) and ImageMagick (images). Bundled Tesseract for OCR. All processing is local \u2014 no cloud API required.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "liteparse": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "literature-review",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 12,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "markdown-mermaid-writing",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 37,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "market-research-reports",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ standard library for optional offline CLIs. The optional LaTeX template uses XeLaTeX or LuaLaTeX. Online research requires user-approved network access and source-specific terms; bundled scripts make no network, LLM, or image calls.",
+      "allowed_tools": "Not declared",
+      "resources": 26,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "markitdown",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+ and uv. Examples target MarkItDown 0.1.6. Core local conversion can run offline; URL, YouTube, audio transcription, LLM, Azure, and MCP workflows may use network or external services.",
+      "allowed_tools": "Not declared",
+      "resources": 11,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "markitdown": false
+      },
+      "credential_hints": {
+        "AZURE_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "matchms",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.10,<3.15, uv, and matchms 0.33.1. Local file workflows need no credentials; metabolomics-USI loading requires network access.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "matchms": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "matlab",
+      "instructions_readable": true,
+      "compatibility": "Documentation is pinned where noted to proprietary MATLAB R2026a and free GNU Octave 11.3.0. Bundled Python CLIs require Python 3.11+ and run locally without MATLAB or Octave; optional MAT inventory uses scipy and/or h5py.",
+      "allowed_tools": "Read Write Bash Glob Python",
+      "resources": 20,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {
+        "h5py": true,
+        "scipy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "matplotlib",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and Matplotlib 3.10.x. Use `uv add matplotlib` in projects; interactive Jupyter widgets require `ipympl`.",
+      "allowed_tools": "Read Write Bash",
+      "resources": 7,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "scipy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "medchem",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ and datamol (installed with medchem). Optional Lilly demerit filter requires separate `lilly-medchem-rules` conda package.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 4,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "datamol": false,
+        "medchem": false,
+        "pandas": true,
+        "rdkit": false,
+        "tqdm": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "modal",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 13,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "OPENAI_API_KEY": false,
+        "WANDB_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "molecular-dynamics",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "molfeat",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9\u20133.10 (molfeat 0.11.0 does not support 3.11+). Requires datamol, PyTorch, and optional extras for GNN/transformer models.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 5,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "ncats-arax",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and outbound HTTPS access to arax.transltr.io. The client uses only the Python standard library and needs no API key. Queries and caller metadata may be publicly visible; never submit sensitive or patient-specific content.",
+      "allowed_tools": "Read Bash",
+      "resources": 4,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "networkx",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "neurokit2",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+ and uv; pinned workflows use NeuroKit2 0.2.13. Core processing needs NumPy, SciPy, pandas, scikit-learn, matplotlib, PyWavelets, requests, and setuptools; selected EEG, cvxEDA, plotting, file-format, and RQA features need separately locked optional packages.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 20,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "neurokit2": false,
+        "numpy": true,
+        "pandas": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "neuropixels-analysis",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 18,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "probeinterface": false,
+        "scipy": true,
+        "spikeinterface": false
+      },
+      "credential_hints": {
+        "ANTHROPIC_API_KEY": false,
+        "OPENAI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "nextflow",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "TOWER_ACCESS_TOKEN": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "omero-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires network access to a user-selected OMERO.server for remote operations. The 2026-07-23 snapshot uses OMERO.py 5.22.1 with ZeroC IcePy 3.6.5; OMERO supports Python 3.10-3.12 (3.12 recommended) while 3.13-3.14 remain upcoming in its support matrix. Bundled local planners require Python 3.10+ and read only named OMERO_* variables; they never load .env files.",
+      "allowed_tools": "Not declared",
+      "resources": 15,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {
+        "omero": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "onekgpd",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.11. Variant and sample queries require outbound network access to the public 1000 Genomes query endpoint over TLS; the sample/population metadata commands run fully offline over a data file bundled in the skill. No credentials, API keys, or environment variables are used.",
+      "allowed_tools": "Write Bash",
+      "resources": 6,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "dnaerys": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "ontology-term-resolution",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+. Scripts use only the standard library - no third-party packages. Needs network access to https://www.ebi.ac.uk/ols4 (public, no API key).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "open-notebook",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "ANTHROPIC_API_KEY": false,
+        "ELEVENLABS_API_KEY": false,
+        "GOOGLE_API_KEY": false,
+        "GROQ_API_KEY": false,
+        "MISTRAL_API_KEY": false,
+        "OPENAI_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "openpiv",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ with openpiv installed (uv pip install openpiv). numpy, scipy, scikit-image, and matplotlib arrive as dependencies. No network access needed after install.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "openpiv": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "opentrons-integration",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and uv for local simulation. Flex examples target opentrons 9.1.1 and API 2.29; the separate OT-2 line targets API 2.28 and uses opentrons 9.0.0 as its local compatibility simulator. Physical execution requires compatible hardware, current robot software, and the appropriate Opentrons App.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 16,
+      "python_scripts": 6,
+      "syntax_errors": [],
+      "import_probes": {
+        "opentrons": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "optimize-for-gpu",
+      "instructions_readable": true,
+      "compatibility": "Requires an NVIDIA CUDA-capable GPU for GPU execution. RAPIDS 26.06 requires Python 3.11+ on Linux or WSL2 and matching CUDA 12 or 13 wheels. Package installation needs network access.",
+      "allowed_tools": "Not declared",
+      "resources": 16,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pacsomatic",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "paper-lookup",
+      "instructions_readable": true,
+      "compatibility": "Needs network access and curl. The bundled scripts require Python 3.11+ and use only the standard library. No credentials are required; NCBI_API_KEY, S2_API_KEY, CORE_API_KEY, and OPENALEX_API_KEY raise rate limits or unlock full text where noted.",
+      "allowed_tools": "Read Bash",
+      "resources": 17,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "CORE_API_KEY": false,
+        "NCBI_API_KEY": false,
+        "OPENALEX_API_KEY": false,
+        "S2_API_KEY": false,
+        "YOUR_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "paperclip",
+      "instructions_readable": true,
+      "compatibility": "Requires macOS or Linux with a POSIX shell and network access; the native installer does not support Windows (use the hosted MCP server there). Installs a self-contained CLI under ~/.paperclip \u2014 no Python environment of your own is needed. Authenticate with a PAPERCLIP_API_KEY exported from a .env file or the environment; browser OAuth is an interactive fallback the user must run. Verified against paperclip 0.7.14 and 0.7.15.",
+      "allowed_tools": "Bash Read Write",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "PAPERCLIP_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "paperzilla",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 1,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "parallel-web",
+      "instructions_readable": true,
+      "compatibility": "Requires parallel-cli and internet access.",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "PARALLEL_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pathml",
+      "instructions_readable": true,
+      "compatibility": "PathML 3.0.5 is the latest PyPI release and targets Python 3.10-3.12; installation needs uv plus platform libraries for OpenSlide, BLAS/LAPACK, and Java/Bio-Formats. Bundled Python 3.10+ CLIs are local, bounded, dependency-free, and network-free.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 13,
+      "python_scripts": 6,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "openslide": false,
+        "pydicom": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pathogen-variant-surveillance",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+. Scripts use only the standard library - no third-party packages. Needs network access to the public GenSpectrum LAPIS instances (lapis.cov-spectrum.org, lapis.genspectrum.org, lapis.pathoplexus.org) and to raw.githubusercontent.com for pango-designation. No API key.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pathway-enrichment",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 5,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "gseapy": false,
+        "numpy": true,
+        "pandas": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pdf",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 12,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "pdf2image": false,
+        "pdfplumber": false,
+        "pypdf": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "peer-review",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ standard library. Bundled CLIs are deterministic and local-only; they accept bounded JSON, CSV, or Markdown and make no network, model, image, or external-service calls.",
+      "allowed_tools": "Not declared",
+      "resources": 24,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pennylane",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Bash Python",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "phylogenetics",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 3,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "ete3": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pi-agent",
+      "instructions_readable": true,
+      "compatibility": "Requires Node.js >= 22.19 and npm for Pi CLI and SDK usage. Pi package name is @earendil-works/pi-coding-agent.",
+      "allowed_tools": "Not declared",
+      "resources": 35,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "AI_GATEWAY_API_KEY": false,
+        "ANTHROPIC_API_KEY": false,
+        "ANT_LING_API_KEY": false,
+        "ANYSEARCH_API_KEY": false,
+        "AZURE_OPENAI_API_KEY": false,
+        "BASETEN_API_KEY": false,
+        "BOCHA_API_KEY": false,
+        "BRAVE_API_KEY": false,
+        "BRIGHTDATA_API_KEY": false,
+        "CEREBRAS_API_KEY": false,
+        "CLOUDFLARE_API_KEY": false,
+        "DATALAB_API_KEY": false,
+        "DEEPSEEK_API_KEY": false,
+        "EXA_API_KEY": false,
+        "FIRECRAWL_API_KEY": false,
+        "FIREWORKS_API_KEY": false,
+        "GEMINI_API_KEY": false,
+        "GROQ_API_KEY": false,
+        "JINA_API_KEY": false,
+        "KAGI_API_KEY": false,
+        "KIMI_API_KEY": false,
+        "LLAMA_API_KEY": false,
+        "MINIMAX_API_KEY": false,
+        "MINIMAX_CN_API_KEY": false,
+        "MISTRAL_API_KEY": false,
+        "MY_API_KEY": false,
+        "NVIDIA_API_KEY": false,
+        "OLLAMA_API_KEY": false,
+        "OPENAI_API_KEY": false,
+        "OPENCODE_API_KEY": false,
+        "OPENROUTER_API_KEY": false,
+        "PARALLEL_API_KEY": false,
+        "PERPLEXITY_API_KEY": false,
+        "QUERIT_API_KEY": false,
+        "QWEN_TOKEN_PLAN_API_KEY": false,
+        "QWEN_TOKEN_PLAN_CN_API_KEY": false,
+        "RADIUS_API_KEY": false,
+        "SEARCH1API_KEY": false,
+        "SEARCHINFINITY_API_KEY": false,
+        "SERPBASE_API_KEY": false,
+        "SERPDIVE_API_KEY": false,
+        "TAVILY_API_KEY": false,
+        "TINYFISH_API_KEY": false,
+        "TOGETHER_API_KEY": false,
+        "XAI_API_KEY": false,
+        "XIAOMI_API_KEY": false,
+        "XIAOMI_TOKEN_PLAN_AMS_API_KEY": false,
+        "XIAOMI_TOKEN_PLAN_CN_API_KEY": false,
+        "XIAOMI_TOKEN_PLAN_SGP_API_KEY": false,
+        "ZAI_API_KEY": false,
+        "ZAI_CODING_CN_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pkpd-modeling",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ with numpy and scipy. No network access and no proprietary software. The estimation tools this skill orients you towards (NONMEM, Monolix, Phoenix, Simcyp, GastroPlus) are licensed separately and are never invoked by these scripts.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 28,
+      "python_scripts": 11,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "scipy": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "polars",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ for polars 1.41.x. Install with uv pip install; optional extras enable Excel, database, cloud, pandas/NumPy, and GPU integrations.",
+      "allowed_tools": "Read",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "polars-bio",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11\u20133.14 and polars-bio (uv pip install). Cloud I/O uses standard AWS/GCS/Azure SDK env vars when paths use s3://, gs://, or az:// URIs.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pptx",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 56,
+      "python_scripts": 15,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "defusedxml": true,
+        "lxml": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pptx-posters",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, uv, and exact generation pins python-pptx 1.0.2, Pillow 12.3.0, and lxml 6.1.1. Validation and PPTX ZIP/XML inspection are local and network-free; final PowerPoint, accessibility, PDF, printer, and author review are manual.",
+      "allowed_tools": "Read Write Bash Glob Grep Python",
+      "resources": 21,
+      "python_scripts": 10,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "pptx": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "primekg",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "pandas": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "protocolsio-integration",
+      "instructions_readable": true,
+      "compatibility": "Bundled CLIs require Python 3.11+ and use only the standard library. Offline validation and planning need no credentials or network. REST reads require HTTPS access to official protocols.io hosts and usually a named bearer token; network access is disabled unless --execute is supplied. The scripts never load .env files or execute mutations.",
+      "allowed_tools": "Read Write Python",
+      "resources": 15,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "PROTOCOLS_IO_ACCESS_TOKEN": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pufferlib",
+      "instructions_readable": true,
+      "compatibility": "Bundled CLIs require Python 3.10+ and use only the standard library. Published pufferlib 3.0.0 supports Python >=3.9 but ships as a native-code source archive; current 4.0 source requires Python >=3.10, Torch >=2.9, and an audited CPU/CUDA toolchain. Network, GPU, native builds, environment plug-ins, assets, checkpoints, and external logging are never required by the bundled CLIs.",
+      "allowed_tools": "Read Bash Grep Python",
+      "resources": 15,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "WANDB_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pydeseq2",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.11 and PyDESeq2 0.5.4-compatible dependencies. Examples target PyDESeq2 0.5.x, formulaic design strings, explicit contrasts, and uv-based installs.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "pydeseq2": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pydicom",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+ with pydicom 3.0.2; optional pinned NumPy, Pillow, and pixel plugins. Helper CLIs are local-only and require authorized data.",
+      "allowed_tools": "Not declared",
+      "resources": 13,
+      "python_scripts": 10,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "numpy": true,
+        "pydicom": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pyhealth",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 8,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "pyhealth": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pylabrobot",
+      "instructions_readable": true,
+      "compatibility": "Verified against PyLabRobot 0.2.1 on Python 3.9+. Bundled planning CLIs require only Python 3.11+ and make no serial, USB, or network connections. Physical devices need model-specific extras, configuration, calibration, and trained operator approval.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 15,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "pylabrobot": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pymatgen",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ with uv. The verified snapshot uses pymatgen 2026.5.4, pymatgen-core 2026.7.16, and mp-api 0.46.4. Bundled help and planning CLIs use only the standard library; local scientific execution lazily requires the pinned pymatgen packages. Materials Project access additionally requires explicit network approval and the single named secret MP_API_KEY.",
+      "allowed_tools": "Read Write Bash Glob Python",
+      "resources": 15,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {
+        "mp_api": false,
+        "pymatgen": false
+      },
+      "credential_hints": {
+        "MP_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pymc",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.12+ and PyMC 6.0.1-compatible dependencies. Install reproducible environments with `uv pip install \"pymc[nutpie]==6.0.1\"`; optional NumPyro or BlackJAX samplers require separately pinned JAX-compatible dependencies.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 10,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "arviz": true,
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "pymc": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pymoo",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and pymoo (uv pip install). Optional matplotlib for visualization plots; optional autograd for gradient-based features; optional joblib for JoblibParallelization.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 13,
+      "python_scripts": 5,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pymoo": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pyopenms",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ and uv. Examples and scripts target pyOpenMS 3.5.0.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 23,
+      "python_scripts": 16,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "pyopenms": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pysam",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.8\u20133.14 and pysam 0.24.0. Bundled scripts use local files. CRAM decoding may require the matching reference FASTA or an explicitly configured REF_PATH/REF_CACHE.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 14,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "pysam": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pytdc",
+      "instructions_readable": true,
+      "compatibility": "Requires uv, CPython 3.11, PyTDC 1.1.15, and setuptools 80.9.0 for its legacy pkg_resources runtime import. Dataset, benchmark, checkpoint, and remote-oracle operations require network/storage review and explicit user approval.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 11,
+      "python_scripts": 6,
+      "syntax_errors": [],
+      "import_probes": {
+        "tdc": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "pytorch-lightning",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and lightning 2.6+ (or pytorch-lightning 2.6+). GPU training needs CUDA-capable PyTorch. Optional loggers (wandb, mlflow, comet-ml) and DeepSpeed require separate installs.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 11,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "lightning": false,
+        "torch": false
+      },
+      "credential_hints": {
+        "YOUR_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "pyzotero",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and pyzotero 1.13+. Web API access needs a Zotero API key. Optional CLI and MCP extras require Zotero 7 with local API access enabled.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 15,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "ZOTERO_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "qiskit",
+      "instructions_readable": true,
+      "compatibility": "Python 3.10+ on a supported 64-bit platform. Local SDK workflows need qiskit; noisy simulation needs qiskit-aer; IBM QPU access needs qiskit-ibm-runtime, network access, an IBM Quantum Platform account, and an API key.",
+      "allowed_tools": "Not declared",
+      "resources": 15,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "qiskit": false,
+        "qiskit_ibm_runtime": false
+      },
+      "credential_hints": {
+        "IBM_QUANTUM_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "qutip",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+, uv, and qutip==5.3.0 for executable simulations. Bundled planners and all script help run with the Python standard library; plotting requires the pinned graphics extra. No network service or credentials are used.",
+      "allowed_tools": "Not declared",
+      "resources": 13,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "qutip": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "rdkit",
+      "instructions_readable": true,
+      "compatibility": "Examples target RDKit 2026.03.x. Use conda-forge for the broadest binary support or PyPI package `rdkit` for supported platform wheels; `rdkit-pypi` is the legacy PyPI name.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "rdkit": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "relsa-severity-assessment",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.10 with numpy, pandas, and scipy; statsmodels >=0.14 for forecasting and matplotlib for figures. Tested with numpy 2.5, pandas 3.0, scipy 1.18, statsmodels 0.14.6. No network access needed.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "scipy": true,
+        "statsmodels": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "research-grants",
+      "instructions_readable": true,
+      "compatibility": "Works in Agent Skills-compatible hosts. Grant-writing guidance needs no network; optional figures via the scientific-schematics skill require OPENROUTER_API_KEY and outbound API access.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 16,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "research-lookup",
+      "instructions_readable": true,
+      "compatibility": "Requires network access to api.parallel.ai through parallel-cli 0.7.1+ for Search, Extract, and Research; explicit Chat uses api.parallel.ai with PARALLEL_API_KEY; optional Perplexity requests use openrouter.ai and require OPENROUTER_API_KEY.",
+      "allowed_tools": "Not declared",
+      "resources": 4,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false,
+        "PARALLEL_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "rowan",
+      "instructions_readable": true,
+      "compatibility": "Python 3.12+, API key required",
+      "allowed_tools": "Not declared",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "ROWAN_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "scanpy",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 25,
+      "python_scripts": 16,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "scanpy": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scholar-evaluation",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ for optional bundled standard-library CLIs. All tooling is local JSON/CSV processing with no network, credentials, external models, or subprocesses.",
+      "allowed_tools": "Read Write Bash Glob Python",
+      "resources": 19,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-brainstorming",
+      "instructions_readable": true,
+      "compatibility": "Core guidance works in any Agent Skills-compatible host. Optional bundled CLIs require Python 3.11+ and use only the standard library; they make no network or LLM calls and require no credentials.",
+      "allowed_tools": "Not declared",
+      "resources": 10,
+      "python_scripts": 4,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-critical-thinking",
+      "instructions_readable": true,
+      "compatibility": "Analytical guidance needs no network. Optional figures via the scientific-schematics skill require OPENROUTER_API_KEY and outbound API access to OpenRouter.",
+      "allowed_tools": "Read Write Edit",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-schematics",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-slides",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 24,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "PyPDF2": false,
+        "fitz": false,
+        "pptx": false,
+        "pypdf": true,
+        "requests": true
+      },
+      "credential_hints": {
+        "OPENROUTER_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-visualization",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ and uv for pinned examples. Bundled CLIs are network-free and load Matplotlib, Pillow, or pypdf only when needed. Plotly static export with Kaleido v1 requires a compatible Chrome/Chromium installation.",
+      "allowed_tools": "Read Write Edit Bash Glob Grep",
+      "resources": 18,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "matplotlib": true,
+        "pypdf": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scientific-writing",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ only for optional dependency-free local CLIs; core guidance is platform-neutral. Bundled tools are offline and require no API keys.",
+      "allowed_tools": "Not declared",
+      "resources": 31,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scikit-bio",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ and scikit-bio 0.7+ (uv pip install scikit-bio). NumPy 2.0+ is required. Optional matplotlib/seaborn/plotly for plotting; biom-format for BIOM tables; polars/anndata for table interoperability.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scikit-learn",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ and scikit-learn 1.7+. NumPy and SciPy are required dependencies. Optional matplotlib/seaborn for bundled example scripts that save plots.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 11,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "sklearn": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scikit-survival",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+, uv, and the pinned scikit-survival 0.28.0 stack for executable examples. Bundled CLIs are local and network-free by default.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 13,
+      "python_scripts": 6,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "pandas": true,
+        "sklearn": true,
+        "sksurv": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scvelo",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ with scvelo, scanpy, and anndata. Verified against scvelo 0.3.4, whose dynamical model and pl.scatter need pandas<3 and whose stochastic estimator needs numpy<2; the deterministic estimator works on current releases.",
+      "allowed_tools": "Not declared",
+      "resources": 3,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "scanpy": false,
+        "scvelo": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "scvi-tools",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 9,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "seaborn",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.8+ and seaborn 0.13.2-compatible dependencies. Install with uv pip install seaborn==0.13.2; use seaborn[stats]==0.13.2 when advanced regression or clustering examples need scipy/statsmodels.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "shap",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.12+ and uv for SHAP 0.52.0; model-specific libraries are optional.",
+      "allowed_tools": "Read Bash",
+      "resources": 10,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "shap": false,
+        "sklearn": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "simpy",
+      "instructions_readable": true,
+      "compatibility": "Upstream SimPy 4.1.2 supports Python 3.8+; bundled CLIs require Python 3.10+, uv, and SimPy 4.1.2. They use only SimPy and the standard library, operate on local bounded inputs, and make no network calls.",
+      "allowed_tools": "Read Write Edit Bash Glob",
+      "resources": 16,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "simpy": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "stable-baselines3",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, PyTorch >= 2.3, and stable-baselines3 2.8+. Gymnasium environments; optional extras for TensorBoard and Atari (ale-py).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 8,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {
+        "gymnasium": false,
+        "numpy": true,
+        "stable_baselines3": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "statistical-analysis",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 1,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "scipy": true,
+        "seaborn": true,
+        "statsmodels": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "statistical-power",
+      "instructions_readable": true,
+      "compatibility": "Requires Python >=3.10. Examples target statsmodels >=0.14.6, scipy >=1.11, pingouin >=0.6, numpy >=1.26, and matplotlib. Optional extras are statsmodels mixed models and lifelines for simulation-based power.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "scipy": true,
+        "statsmodels": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "statsmodels",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ and statsmodels 0.14.6-compatible dependencies. Use `uv pip install statsmodels==0.14.6`; optional predictive-metric examples also need scikit-learn.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "sympy",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.9+ and SymPy 1.14+. Optional NumPy/SciPy/Matplotlib for lambdify examples; C/Fortran compiler for autowrap/codegen.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "tamarind",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, a Tamarind Bio account, and an API key from app.tamarind.bio. Uses the `requests` library against the public REST API (no dedicated Python SDK exists). Network access required. Optional MCP server at mcp.tamarind.bio/mcp for agent hosts.",
+      "allowed_tools": "Not declared",
+      "resources": 5,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {
+        "TAMARIND_API_KEY": false
+      },
+      "execution_verified": false
+    },
+    {
+      "name": "tiledbvcf",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 1,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "timesfm-forecasting",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 31,
+      "python_scripts": 9,
+      "syntax_errors": [],
+      "import_probes": {
+        "PIL": true,
+        "matplotlib": true,
+        "numpy": true,
+        "pandas": true,
+        "timesfm": false,
+        "torch": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "torch-geometric",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, PyTorch 2.6+, and torch-geometric 2.7.x. Optional extension wheels (pyg-lib, torch-scatter, torch-sparse, torch-cluster) must match your PyTorch/CUDA build from https://data.pyg.org/whl.",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "torchdrug",
+      "instructions_readable": true,
+      "compatibility": "TorchDrug 0.2.1 requires Python 3.7-3.10 and supports PyTorch 1.8-2.0. Apple Silicon is CPU-only; MPS is unsupported.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "transformers",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+, PyTorch 2.4+, and transformers 5.x. Gated or private Hub models need an HF token (`hf auth login` or `HF_TOKEN`).",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 6,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "treatment-plans",
+      "instructions_readable": true,
+      "compatibility": "Python 3.11+ standard library; local JSON files only. Bundled CLIs require no network, external services, models, images, credentials, environment variables, or third-party packages.",
+      "allowed_tools": "Not declared",
+      "resources": 23,
+      "python_scripts": 8,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "umap-learn",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "uncertainty-and-units",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.12+. The numeric CLIs need pint, uncertainties, NumPy, and SciPy; the static auditor is standard-library only. All bundled tooling runs locally with no network access.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 14,
+      "python_scripts": 7,
+      "syntax_errors": [],
+      "import_probes": {
+        "numpy": true,
+        "pint": false,
+        "scipy": true,
+        "uncertainties": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "usfiscaldata",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 9,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "vaex",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ (3.12+ recommended with vaex 4.19.0). Install with uv pip install vaex. Optional s3fs/gcsfs/adlfs for cloud I/O.",
+      "allowed_tools": "Read Write Edit Bash Grep Glob",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "venue-templates",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.11+ for helper scripts; LaTeX and Poppler command-line tools are optional for compilation and PDF inspection.",
+      "allowed_tools": "Not declared",
+      "resources": 31,
+      "python_scripts": 3,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "waypoint-bio",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.10+ with `waypoint-bio` (pulls torch, transformers, datasets, peft, scikit-learn). Needs network access and a Hugging Face token with access granted to the gated outpost-bio repos. A GPU is strongly recommended for pretraining and benchmarking.",
+      "allowed_tools": "Not declared",
+      "resources": 7,
+      "python_scripts": 2,
+      "syntax_errors": [],
+      "import_probes": {
+        "pandas": true,
+        "transformers": false,
+        "waypoint_bio": false
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "what-if-oracle",
+      "instructions_readable": true,
+      "compatibility": "Not declared",
+      "allowed_tools": "Not declared",
+      "resources": 2,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "xlsx",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.8+, LibreOffice (soffice on PATH), and gcc only when Unix sockets are restricted",
+      "allowed_tools": "Read Write Edit Bash Grep Glob",
+      "resources": 53,
+      "python_scripts": 12,
+      "syntax_errors": [],
+      "import_probes": {
+        "defusedxml": true,
+        "lxml": true,
+        "openpyxl": true
+      },
+      "credential_hints": {},
+      "execution_verified": false
+    },
+    {
+      "name": "zarr-python",
+      "instructions_readable": true,
+      "compatibility": "Requires Python 3.12+ and zarr 3.x. Cloud I/O needs zarr[remote] plus pinned s3fs or gcsfs. Legacy Zarr v2 workflows need exact 2.x pins on older Python.",
+      "allowed_tools": "Read Write Edit Bash",
+      "resources": 7,
+      "python_scripts": 0,
+      "syntax_errors": [],
+      "import_probes": {},
+      "credential_hints": {},
+      "execution_verified": false
+    }
+  ],
+  "audit_environment": {
+    "python": "3.13.9",
+    "platform": "win32",
+    "date": "2026-09-08"
+  }
+}

@@ -53,3 +53,7 @@ logs/
 
 # Third-party datasets: large, publicly available, and not this repo's to redistribute.
 ptb-xl-*/
+
+# Optional upstream skill libraries (install with python -m scientific install).
+.external/
+.mypy_cache/

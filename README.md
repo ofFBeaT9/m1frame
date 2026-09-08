@@ -4,10 +4,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-**Portable multi-agent AI framework** — 7 pillars, 8 source repositories, one pipeline.  
+**Portable multi-agent AI framework** — 7 pillars, 9 source repositories, one pipeline.
+
 Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  
 Reach it from **Telegram / Slack / Discord / webhook / CLI**, give it **tools**, deploy with **Docker**.  
 Fully offline-capable. Git-versionable. Zero lock-in.
+
+> **New: [Scientific Agent Skills](#scientific-module)** — 163 scientific skills available
+> to planning and Miras agents, with supporting scripts, references, and four discovery/audit
+> tools. The pinned catalog is fully readable; scientific workflow execution may require
+> additional packages, credentials, data, or hardware. [Read the compatibility audit](scientific/AUDIT.md).
 
 > **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
 > *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
@@ -15,7 +21,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > key (gorgeous demo mode) or wire a key for live runs.
 >
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **47-tool** agent surface, and
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **51-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
 >
 > **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
@@ -43,6 +49,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 | **OpenPlanter** | [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter) | Recursive investigation agent — entity resolution, cross-referencing, dataset ingestion |
 | **Sentrux** *(optional)* | [sentrux/sentrux](https://github.com/sentrux/sentrux) | Structural **measurement** of the artefact — an objective score beside the council's subjective one |
 | **SkillOpt** *(optional)* | [microsoft/SkillOpt](https://github.com/microsoft/SkillOpt) | Skill **improvement** — bounded edits kept only when they score better |
+| **Scientific Agent Skills** *(optional)* | [k-dense-ai/scientific-agent-skills](https://github.com/k-dense-ai/scientific-agent-skills) | Scientific workflow instructions, scripts and references available to planning, Miras agents and tool clients |
 
 ---
 
@@ -52,7 +59,8 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
-python scripts/qa_validate.py  # 164 tests, no key needed
+python scripts/qa_validate.py  # 164 core tests, no key needed
+python -m unittest scripts.test_scientific  # 8 scientific integration tests
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
@@ -61,6 +69,56 @@ Or with Make:
 make install && make qa
 make run GOAL="Investigate vendor payments against lobbying disclosures"
 ```
+
+### Scientific module
+
+Install the pinned upstream library and inspect its capabilities:
+
+```bash
+python -m scientific install
+python -m scientific list "genomics"
+python -m scientific read biopython
+python -m scientific audit --output scientific-audit.json
+```
+
+The `scientific/` module loads all upstream `skills/**/SKILL.md` entries and exposes
+their supporting resources. The pinned revision contains 163 skills. In `config.yaml`,
+set exact skills or leave `skills: null` for keyword selection:
+
+```yaml
+scientific:
+  enabled: true
+  path: null
+  skills: [biopython, scanpy]
+  max_context_chars: 60000
+```
+
+Complete instructions fitting the configured budget are supplied to BMAD planning
+and each Miras story, in sequential and parallel mode. Set `enabled: false` in this
+section to disable the integration.
+
+MCP and HTTP tool clients can call `scientific_list`, `scientific_read`,
+`scientific_resources`, and `scientific_audit` through the existing shared tool
+surface. `scientific_read` supports `offset`/`limit` pagination for supporting text;
+binary resources remain available on disk. To use an existing checkout, set
+`scientific.path` or `M1_SCIENTIFIC_SKILLS_PATH` to its repository root.
+
+These are external skills, not standalone agents or council-vetted learned recipes.
+M1Frame's ordinary LLM story calls receive instructions; they do not gain an autonomous
+shell/tool-execution loop from this module. A tool-capable host can retrieve supporting
+scripts and run an applicable workflow with its own execution tools. Scientific packages,
+R/system tools, datasets, hardware, service accounts and API keys may still be needed.
+The audit checks every skill's format, Python syntax, import availability and credential
+name hints without executing upstream code or exposing credential values. It does not
+certify end-to-end execution. See [the integration audit](scientific/AUDIT.md).
+
+**Validation:** 163/163 skills load, 540/540 Python scripts parse, and all 172 framework
+and integration tests pass. In the audited environment, 54 skills reference unresolved
+external Python imports and 39 contain credential-name hints. These counts are a
+snapshot; run `python -m scientific audit` to inspect your own environment.
+
+The installer retains upstream license and attribution files in the optional local
+checkout. No third-party scientific packages are installed into M1Frame's environment.
 
 ---
 

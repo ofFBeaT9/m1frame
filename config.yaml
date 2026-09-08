@@ -207,3 +207,11 @@ optimizers:
   prefer: auto               # auto | local | skillopt
   rounds: 12                 # bounded edits proposed per optimisation
   seed: 1337                 # fixed seed = reproducible optimisation
+
+# Scientific Agent Skills: install with `python -m scientific install`.
+# Supplies instructions to planning and each Miras agent; does not install scientific packages.
+scientific:
+  enabled: true
+  path: null                # defaults to .external/scientific-skills; env M1_SCIENTIFIC_SKILLS_PATH
+  skills: null              # null = keyword selection; [] = none; or explicit upstream skill names
+  max_context_chars: 60000  # only complete instructions fitting this budget are injected

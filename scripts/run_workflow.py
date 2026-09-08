@@ -197,12 +197,34 @@ def run_workflow(
     except Exception as e:  # noqa: BLE001 — recall is best-effort
         logger.warn("bmad", "skill_recall_error", error=str(e))
 
+    # External skills are reference material, kept separate from vetted recipes.
+    scientific_library = None
+    scientific_cfg = cfg.get("scientific") or {}
+    scientific_ctx = ""
+    if scientific_cfg.get("enabled", True):
+        try:
+            from scientific import ScientificLibrary
+            scientific_library = ScientificLibrary(scientific_cfg.get("path"))
+            scientific_ctx, selected = scientific_library.context(
+                goal, names=scientific_cfg.get("skills"),
+                max_chars=int(scientific_cfg.get("max_context_chars", 60000)))
+            results["scientific"] = {"available": bool(scientific_library.skills),
+                                     "catalog_count": len(scientific_library.skills),
+                                     "selected": selected, "errors": scientific_library.errors}
+            if selected:
+                emit("scientific_selected", pillar="scientific", skills=selected)
+        except Exception as exc:  # noqa: BLE001 — optional module must not break a run
+            scientific_library = None
+            scientific_ctx = ""
+            logger.warn("scientific", "load_error", error=str(exc))
+            results["scientific"] = {"available": False, "error": str(exc)}
+
     # ── 1. BMAD — Story Backlog ───────────────────────────────────────────────
     _bar("PILLAR 1 · BMAD  —  Story Backlog")
     emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
-    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], skill_ctx])))
+    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], skill_ctx, scientific_ctx])))
     issues = bmad.validate(blueprint)
     say(f"  {'✓ Blueprint valid' if not issues else '⚠  ' + str(issues)}")
     if verbose:
@@ -310,6 +332,7 @@ def run_workflow(
     miras = MirasOrchestrator(
         client, config=cfg.get("miras"),
         on_subtask_start=on_start, on_subtask_done=on_done,
+        scientific_library=scientific_library, scientific_config=scientific_cfg,
     )
     ctx = "\n\n".join(filter(None, [purpose[:400], brainstorm_context[:600], investigation_context[:400]]))
     state = miras.run_parallel(blueprint, purpose_context=ctx) if parallel else miras.run(blueprint, purpose_context=ctx)
