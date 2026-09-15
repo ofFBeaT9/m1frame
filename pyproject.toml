@@ -42,6 +42,7 @@ m1frame = "scripts.run_workflow:main"
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.4.0", "mypy>=1.10.0"]
 vector = ["lancedb>=0.8.0", "sentence-transformers>=3.0"]
+headroom = ["headroom-ai>=0.37.0"]
 
 [tool.ruff]
 line-length = 100

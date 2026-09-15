@@ -9,6 +9,9 @@ import os
 
 import yaml
 
+from modules.adhd import ADHDFormatter
+from modules.headroom import CompressionResult, HeadroomAdapter
+
 
 def load_config(config_path: str = "config.yaml") -> dict:
     with open(config_path, encoding="utf-8") as f:
@@ -26,6 +29,9 @@ class LLMClient:
     def __init__(self, config_path: str = "config.yaml", override_backend: str | None = None):
         self.cfg = load_config(config_path)
         self.backend = override_backend or self.cfg["backend"]
+        self.adhd = ADHDFormatter(bool((self.cfg.get("adhd") or {}).get("enabled", False)))
+        self.headroom = HeadroomAdapter(self.cfg.get("headroom"))
+        self.last_compression: CompressionResult | None = None
         self._client = self._build_client()
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -90,6 +96,7 @@ class LLMClient:
     def _claude_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg["claude"]
         messages = self._build_messages(prompt, history)
+        messages = self._prepare_messages(messages, model or bcfg["model"])
         kwargs = dict(
             model=model or bcfg["model"],
             max_tokens=max_tokens or bcfg["max_tokens"],
@@ -107,10 +114,13 @@ class LLMClient:
 
     def _claude_stream(self, prompt, system, temperature):
         bcfg = self.cfg["claude"]
+        messages = self._prepare_messages(
+            [{"role": "user", "content": prompt}], bcfg["model"]
+        )
         kwargs = dict(
             model=bcfg["model"],
             max_tokens=bcfg["max_tokens"],
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
         )
         if system:
             kwargs["system"] = system
@@ -163,6 +173,7 @@ class LLMClient:
         if history:
             messages.extend(history)
         messages.append({"role": "user", "content": prompt})
+        messages = self._prepare_messages(messages, model or bcfg["model"])
 
         response = self._client.chat.completions.create(
             model=model or bcfg["model"],
@@ -182,6 +193,7 @@ class LLMClient:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+        messages = self._prepare_messages(messages, bcfg["model"])
         stream = self._client.chat.completions.create(
             model=bcfg["model"],
             messages=messages,
@@ -202,6 +214,11 @@ class LLMClient:
         messages = list(history) if history else []
         messages.append({"role": "user", "content": prompt})
         return messages
+
+    def _prepare_messages(self, messages: list[dict], model: str) -> list[dict]:
+        result = self.headroom.compress_messages(messages, model=model)
+        self.last_compression = result
+        return result.messages
 
     def __repr__(self):
         return f"<LLMClient backend={self.backend}>"
