@@ -74,13 +74,20 @@ python -m m1frame --goal "Build a FastAPI service with JWT auth"
 
 ### Optional response and context modules
 
+These integrations are provider-neutral and disabled by default, so existing
+responses and request payloads remain unchanged until you opt in.
+
 ```yaml
 # config.yaml
 adhd:
-  enabled: true
+  enabled: true              # action-oriented final output and chat guidance
 headroom:
-  enabled: true
-  target_ratio: 0.5
+  enabled: true              # compress messages before provider dispatch
+  model: null                # optional model override for Headroom
+  model_limit: 200000
+  target_ratio: null         # e.g. 0.5; null lets Headroom choose
+  protect_recent: 4
+  min_tokens_to_compress: 250
 ```
 
 Install Headroom only when needed:
@@ -89,9 +96,43 @@ Install Headroom only when needed:
 pip install -e ".[headroom]"
 ```
 
-`python scripts/test_integrations.py` validates both modules offline, including
-the no-dependency fallback. `tools/integration_status` reports availability
-through the normal tool, API, and MCP surfaces.
+#### ADHD-friendly output shaping
+
+The [`i-have-adhd`](https://github.com/ayghri/i-have-adhd)-inspired formatter is
+a dependency-free translation of the upstream prompt skill, not a runtime
+dependency. When enabled, it:
+
+- adds action-first guidance to live API chat system prompts;
+- applies conservative cleanup to final workflow and demo-chat prose
+  (common filler preambles and closers);
+- preserves JSON, YAML frontmatter, fenced code, XML-like content, and
+  intermediate agent output unchanged.
+
+It is intentionally not applied to every internal handoff. The workflow formats
+the final response immediately before the output safety gate, while live API
+chat receives guidance and streams the provider's response unchanged.
+
+#### Headroom context compression
+
+The [`headroom-ai`](https://github.com/headroomlabs-ai/headroom) adapter runs
+before every Claude, Claude Code CLI, and OpenAI-compatible provider request,
+including requests with conversation history and streamed requests. It passes
+through the original messages when disabled, when the optional package is
+missing, when compression fails, or when Headroom returns an invalid payload.
+This keeps the base installation and existing provider behavior safe.
+
+After a request, `LLMClient.last_compression` exposes the most recent
+`CompressionResult`: `available`, `applied`, `tokens_before`,
+`tokens_after`, `tokens_saved`, `compression_ratio`,
+`transforms_applied`, and any fallback `error`. The registered
+`integration_status` tool reports module availability and configuration through
+the normal tool, API, and MCP surfaces.
+
+Validate the integrations without API keys or a Headroom installation:
+
+```bash
+python scripts/test_integrations.py
+```
 
 Or with Make:
 ```bash
