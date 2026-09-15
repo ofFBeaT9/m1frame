@@ -17,22 +17,21 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > Scientific workflow execution may require additional packages, credentials, data, or
 > hardware. [Read the compatibility audit](scientific/AUDIT.md).
 
-> **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
+> **[m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
 > *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
 > final answer; m1frame shows you the **reasoning** — the debate, the red-team, the grounding. Run it with no API
 > key (gorgeous demo mode) or wire a key for live runs.
 >
-> Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **51-tool** agent surface, and
+> The framework supports **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **52-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
 
-> **Optional actionability and context efficiency.** Enable `adhd.enabled` for
-> concise, action-first final responses inspired by
-> [i-have-adhd](https://github.com/ayghri/i-have-adhd). Install
-> `pip install -e ".[headroom]"` and enable `headroom.enabled` to compress
-> provider messages with [Headroom](https://github.com/headroomlabs-ai/headroom).
-> Both integrations are opt-in; missing Headroom always passes original messages
-> through.
+> **Optional ADHD and Headroom modules.** Enable `adhd.enabled` for concise,
+> action-first final responses inspired by
+> [i-have-adhd](https://github.com/ayghri/i-have-adhd). Install the optional
+> `headroom` extra and enable `headroom.enabled` to compress provider messages
+> with [Headroom](https://github.com/headroomlabs-ai/headroom). Both are
+> opt-in and safe to omit.
 >
 > **[`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
 > close two open loops.** The council could argue about quality but never **measure** it, and a learned
@@ -57,6 +56,8 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 | **Karpathy Patterns** | [karpathy gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Forced `<thought>` chain-of-thought, deterministic prompting |
 | **LLM Wiki** | [nashsu/llm_wiki](https://github.com/nashsu/llm_wiki) | Persistent three-layer knowledge graph (Analysis→Generation) |
 | **OpenPlanter** | [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter) | Recursive investigation agent — entity resolution, cross-referencing, dataset ingestion |
+| **ADHD output shaping** *(optional)* | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | Dependency-free actionability guidance and conservative final-prose cleanup |
+| **Headroom context** *(optional)* | [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom) | Optional provider-message compression with safe passthrough and metrics |
 | **Sentrux** *(optional)* | [sentrux/sentrux](https://github.com/sentrux/sentrux) | Structural **measurement** of the artefact — an objective score beside the council's subjective one |
 | **SkillOpt** *(optional)* | [microsoft/SkillOpt](https://github.com/microsoft/SkillOpt) | Skill **improvement** — bounded edits kept only when they score better |
 | **Scientific Agent Skills** *(optional)* | [k-dense-ai/scientific-agent-skills](https://github.com/k-dense-ai/scientific-agent-skills) | Scientific workflow instructions, scripts and references available to planning, Miras agents and tool clients |
@@ -74,7 +75,7 @@ python -m unittest scripts.test_scientific scripts.test_integrations  # 12 optio
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
-### Optional response and context modules
+### Optional modules: ADHD output and Headroom context
 
 These integrations are provider-neutral and disabled by default, so existing
 responses and request payloads remain unchanged until you opt in.
@@ -117,8 +118,9 @@ chat receives guidance and streams the provider's response unchanged.
 #### Headroom context compression
 
 The [`headroom-ai`](https://github.com/headroomlabs-ai/headroom) adapter runs
-before every Claude, Claude Code CLI, and OpenAI-compatible provider request,
-including requests with conversation history and streamed requests. It passes
+before Claude and OpenAI-compatible provider requests, including requests with
+conversation history and streamed requests. The Claude Code CLI backend uses
+the local `claude` process directly and is not compressed by this adapter. It passes
 through the original messages when disabled, when the optional package is
 missing, when compression fails, or when Headroom returns an invalid payload.
 This keeps the base installation and existing provider behavior safe.
@@ -135,6 +137,17 @@ Validate the integrations without API keys or a Headroom installation:
 ```bash
 python scripts/test_integrations.py
 ```
+
+#### Where the modules live
+
+| Module | Repository path | Default | What it does |
+|---|---|---:|---|
+| ADHD output shaping | `modules/adhd.py` | off | Adds action-first guidance and conservatively removes common filler from final prose. |
+| Headroom compression | `modules/headroom.py` | off | Lazily calls `headroom.compress()` before Claude/OpenAI-compatible requests and records compression metrics. |
+
+Both adapters are exported from `modules/`, configured in `config.yaml`, and
+are covered by `scripts/test_integrations.py`. They do not add a required
+runtime dependency to the base installation.
 
 Or with Make:
 ```bash
@@ -226,7 +239,7 @@ Seven surfaces, one renderer:
 2. **FastAPI, no key** → the server replays a real recorded deliberation over SSE; chat falls back to keyword-grounded retrieval.
 3. **No pip at all** → `python studio/serve.py` (stdlib only) serves the UI and the bundled demo replays entirely client-side.
 
-It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
+It streams over **Server-Sent Events** from its endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
 `emit=None` by default, so the CLI and the **164/164** core QA suite are byte-for-byte unaffected.
 On a phone it's fully responsive — the rail becomes a bottom tab bar (run `make mobile` for phone access).
@@ -303,8 +316,8 @@ Your Goal
 │    the quality of the run that produced them.               │
 └─────────────────────────────────────────────────────────────┘
 
-◈ = optional module. Nothing installed → structured `available: false`,
-    and the pipeline behaves exactly as it did before.
+◈ = optional integration. Nothing installed → structured availability status
+    and safe passthrough behavior; the base pipeline remains unchanged.
 ```
 
 ---
@@ -557,4 +570,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame package version 1.8.0 — "Closed Loop"* · [Manual](MANUAL.md)
+[Manual](MANUAL.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
