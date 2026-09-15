@@ -215,3 +215,18 @@ scientific:
   path: null                # defaults to .external/scientific-skills; env M1_SCIENTIFIC_SKILLS_PATH
   skills: null              # null = keyword selection; [] = none; or explicit upstream skill names
   max_context_chars: 60000  # only complete instructions fitting this budget are injected
+
+# Optional output shaping from ayghri/i-have-adhd. Disabled to preserve current
+# response text by default; applies only to final user-facing prose.
+adhd:
+  enabled: false
+
+# Optional context compression from headroomlabs-ai/headroom. Install with
+# `pip install headroom-ai` to enable. Missing package/errors always passthrough.
+headroom:
+  enabled: false
+  model: null
+  model_limit: 200000
+  target_ratio: null
+  protect_recent: 4
+  min_tokens_to_compress: 250

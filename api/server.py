@@ -376,7 +376,10 @@ def create_app() -> FastAPI:
 
             if not _can_run_live(cfg):
                 # Demo mode: stream the grounded keyword answer with a typewriter feel
-                reply = ctx or "Run a goal first to populate the knowledge graph."
+                from modules.adhd import ADHDFormatter
+                reply = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).format(
+                    ctx or "Run a goal first to populate the knowledge graph."
+                )
                 for tok in re.findall(r"\S+\s*", reply):
                     await asyncio.sleep(0.012)
                     yield f"data: {json.dumps({'type': 'token', 'chunk': tok})}\n\n"
@@ -387,8 +390,12 @@ def create_app() -> FastAPI:
             loop = asyncio.get_running_loop()
             q: asyncio.Queue = asyncio.Queue()
             stop = threading.Event()   # set when the client disconnects → stop producing
-            system = ("You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
-                      "ground claims in the provided knowledge-graph context when present.")
+            from modules.adhd import ADHDFormatter
+            formatter = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False)))
+            system = formatter.system_guidance(
+                "You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
+                "ground claims in the provided knowledge-graph context when present."
+            )
             prompt = user_msg if not ctx else f"Knowledge-graph context:\n{ctx}\n\nQuestion: {user_msg}"
 
             def produce():

@@ -45,6 +45,7 @@ from agents.openplanter import OpenPlanterAgent
 from agents.skills import SkillLibrary
 from agents.wiki import LLMWiki
 from llm_client import LLMClient, load_config
+from modules.adhd import ADHDFormatter
 
 
 def _force_utf8() -> None:
@@ -500,6 +501,9 @@ def run_workflow(
 
     # ── 7. LLM Wiki ──────────────────────────────────────────────────────────
     # ── Guardrail · OUTPUT gate ───────────────────────────────────────────────
+    formatter = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False)))
+    final_output = formatter.format(final_output)
+
     # Redact PII/secrets from, or block, the final answer before it is printed
     # and ingested into the knowledge graph.
     gout = guard.check_output(final_output)
@@ -510,6 +514,11 @@ def run_workflow(
         logger.warn("guardrails", "output_blocked", categories=gout.categories)
     else:
         final_output = gout.text
+
+    results["integrations"] = {
+        "adhd": formatter.status(),
+        "headroom": client.headroom.status(),
+    }
 
     page = None
     if not skip_wiki:

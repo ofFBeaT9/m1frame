@@ -175,6 +175,18 @@ def convert_temp(value: float, to: str = "F") -> float:
     return round(v * 9 / 5 + 32, 2) if str(to).upper() == "F" else round((v - 32) * 5 / 9, 2)
 
 
+def integration_status() -> dict:
+    """Report optional m1frame integration availability without side effects."""
+    from llm_client import load_config
+    from modules.adhd import ADHDFormatter
+    from modules.headroom import HeadroomAdapter
+    cfg = load_config()
+    return {
+        "adhd": ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).status(),
+        "headroom": HeadroomAdapter(cfg.get("headroom")).status(),
+    }
+
+
 def register_builtins(reg: ToolRegistry) -> ToolRegistry:
     reg.register(Tool("calculator", "Evaluate an arithmetic expression safely.",
                       calculator, {"expression": "string, e.g. '2*(3+4)'"}))
@@ -201,6 +213,8 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
     reg.register(Tool("url_parse", "Parse a URL into parts.", url_parse, {"url": "string"}))
     reg.register(Tool("convert_temp", "Convert temperature (C↔F).",
                       convert_temp, {"value": "number", "to": "F|C"}))
+    reg.register(Tool("integration_status", "Report optional module availability.",
+                      integration_status, {}))
     from .extra import register_extras
     register_extras(reg)        # the rest of the auditable toolbelt (→ 40+)
     # Optional-dependency modules. Both degrade to a structured "unavailable"

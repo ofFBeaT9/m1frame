@@ -23,6 +23,14 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
 > OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **51-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
+
+> **Optional actionability and context efficiency.** Enable `adhd.enabled` for
+> concise, action-first final responses inspired by
+> [i-have-adhd](https://github.com/ayghri/i-have-adhd). Install
+> `pip install -e ".[headroom]"` and enable `headroom.enabled` to compress
+> provider messages with [Headroom](https://github.com/headroomlabs-ai/headroom).
+> Both integrations are opt-in; missing Headroom always passes original messages
+> through.
 >
 > **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
 > close two open loops.** The council could argue about quality but never **measure** it, and a learned
@@ -63,6 +71,27 @@ python scripts/qa_validate.py  # 164 core tests, no key needed
 python -m unittest scripts.test_scientific  # 8 scientific integration tests
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
+
+### Optional response and context modules
+
+```yaml
+# config.yaml
+adhd:
+  enabled: true
+headroom:
+  enabled: true
+  target_ratio: 0.5
+```
+
+Install Headroom only when needed:
+
+```bash
+pip install -e ".[headroom]"
+```
+
+`python scripts/test_integrations.py` validates both modules offline, including
+the no-dependency fallback. `tools/integration_status` reports availability
+through the normal tool, API, and MCP surfaces.
 
 Or with Make:
 ```bash
