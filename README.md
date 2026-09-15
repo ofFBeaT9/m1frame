@@ -4,16 +4,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-**Portable multi-agent AI framework** — 7 pillars, 9 source repositories, one pipeline.
+**Portable multi-agent AI framework** — 7 pillars, optional measurement and optimization
+loops, and one auditable pipeline.
 
 Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  
 Reach it from **Telegram / Slack / Discord / webhook / CLI**, give it **tools**, deploy with **Docker**.  
 Fully offline-capable. Git-versionable. Zero lock-in.
 
-> **New: [Scientific Agent Skills](#scientific-module)** — 163 scientific skills available
-> to planning and Miras agents, with supporting scripts, references, and four discovery/audit
-> tools. The pinned catalog is fully readable; scientific workflow execution may require
-> additional packages, credentials, data, or hardware. [Read the compatibility audit](scientific/AUDIT.md).
+> **Optional: [Scientific Agent Skills](#scientific-module)** — the pinned upstream catalog
+> contains 163 scientific skills when installed. Planning and Miras agents can receive
+> selected instructions, supporting scripts, references, and four discovery/audit tools.
+> Scientific workflow execution may require additional packages, credentials, data, or
+> hardware. [Read the compatibility audit](scientific/AUDIT.md).
 
 > **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
 > *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
@@ -32,7 +34,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > Both integrations are opt-in; missing Headroom always passes original messages
 > through.
 >
-> **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
+> **[`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
 > close two open loops.** The council could argue about quality but never **measure** it, and a learned
 > skill was **frozen at birth**. Now an objective structural score is reported beside every verdict
 > (advisory — it never overrules the council unless you say so), and a distilled skill is rewritten and
@@ -68,7 +70,7 @@ git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
 python scripts/qa_validate.py  # 164 core tests, no key needed
-python -m unittest scripts.test_scientific  # 8 scientific integration tests
+python -m unittest scripts.test_scientific scripts.test_integrations  # 12 optional-module tests
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
 
@@ -151,8 +153,9 @@ python -m scientific read biopython
 python -m scientific audit --output scientific-audit.json
 ```
 
-The `scientific/` module loads all upstream `skills/**/SKILL.md` entries and exposes
-their supporting resources. The pinned revision contains 163 skills. In `config.yaml`,
+The `scientific/` module loads upstream `skills/**/SKILL.md` entries and exposes
+their supporting resources. The pinned upstream revision contains 163 skills when the
+optional catalog is installed. In `config.yaml`,
 set exact skills or leave `skills: null` for keyword selection:
 
 ```yaml
@@ -182,10 +185,12 @@ The audit checks every skill's format, Python syntax, import availability and cr
 name hints without executing upstream code or exposing credential values. It does not
 certify end-to-end execution. See [the integration audit](scientific/AUDIT.md).
 
-**Validation:** 163/163 skills load, 540/540 Python scripts parse, and all 172 framework
-and integration tests pass. In the audited environment, 54 skills reference unresolved
-external Python imports and 39 contain credential-name hints. These counts are a
-snapshot; run `python -m scientific audit` to inspect your own environment.
+**Validation snapshot:** the pinned catalog contains 163 skills and its upstream audit
+reported 540/540 Python scripts parse. M1Frame's current offline validation is
+164 core QA tests plus 8 scientific integration tests and 4 optional-module tests
+(176 total). Scientific dependency and credential findings are environment-specific;
+run `python -m scientific audit` after installing the catalog to inspect your own
+checkout.
 
 The installer retains upstream license and attribution files in the optional local
 checkout. No third-party scientific packages are installed into M1Frame's environment.
@@ -223,7 +228,7 @@ Seven surfaces, one renderer:
 
 It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
-`emit=None` by default, so the CLI and the **164/164** QA suite are byte-for-byte unaffected.
+`emit=None` by default, so the CLI and the **164/164** core QA suite are byte-for-byte unaffected.
 On a phone it's fully responsive — the rail becomes a bottom tab bar (run `make mobile` for phone access).
 
 ### Why m1frame is the most *auditable* multi-agent workspace
@@ -517,6 +522,10 @@ m1frame/
 │   ├── wiki.py             ← LLMWiki, WikiPage, LintReport
 │   ├── openplanter.py      ← OpenPlanterAgent, InvestigationResult, Entity
 │   └── events.py           ← EventBus — thread-safe progress stream for Studio
+├── modules/                ← ◈ optional response and context integrations
+│   ├── adhd.py             ← dependency-free actionability formatter
+│   └── headroom.py         ← lazy Headroom adapter with safe passthrough
+├── gateways/               ← Telegram · Slack · Discord · webhook adapters
 ├── sensors/                ← ◈ optional structural MEASUREMENT (Sentrux adapter)
 │   ├── sentrux.py          ← SentruxClient, SensorResult — never raises into a run
 │   ├── gate.py             ← StructuralGate — fuses measurement with the council verdict
@@ -533,9 +542,11 @@ m1frame/
 │   ├── serve.py            ← stdlib static server (zero-pip demo)
 │   └── demo_run.json       ← bundled recorded deliberation
 ├── wiki/                   ← Auto-created knowledge graph
+├── mcp_server.py           ← stdio/HTTP MCP surface and mobile access
 └── scripts/
-    ├── run_workflow.py     ← 7-pillar runner (now emits live progress events)
-    └── qa_validate.py      ← 164-test offline QA suite (--pillar to run one group)
+    ├── run_workflow.py      ← 7-pillar runner (now emits live progress events)
+    ├── test_integrations.py ← 4 offline ADHD/Headroom tests
+    └── qa_validate.py       ← 164-test offline QA suite (--pillar to run one group)
 ```
 
 ---
@@ -546,4 +557,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.8.0 "Closed Loop" — Mahdad Shakiba, August 2026* · [Manual](MANUAL.md)
+*m1frame package version 1.8.0 — "Closed Loop"* · [Manual](MANUAL.md)
