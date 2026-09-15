@@ -570,8 +570,8 @@ def t_metrics_timer_ctx(m):
     from agents.metrics import MetricsCollector
     mc=MetricsCollector()
     with mc.timer("miras"):
-        time.sleep(0.01)
-    assert mc.get("miras").calls==1 and mc.get("miras").total_ms>=10
+        time.sleep(0.02)
+    assert mc.get("miras").calls==1 and mc.get("miras").total_ms>=15
 
 def t_metrics_timer_error(m):
     from agents.metrics import MetricsCollector
