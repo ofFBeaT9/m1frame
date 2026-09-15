@@ -517,7 +517,11 @@ def run_workflow(
 
     results["integrations"] = {
         "adhd": formatter.status(),
-        "headroom": client.headroom.status(),
+        "headroom": (
+            client.headroom.status()
+            if hasattr(client, "headroom")
+            else {"enabled": False, "available": False, "error": "client adapter unavailable"}
+        ),
     }
 
     page = None

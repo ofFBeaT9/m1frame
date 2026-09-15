@@ -10,7 +10,7 @@ import os
 import yaml
 
 from modules.adhd import ADHDFormatter
-from modules.headroom import HeadroomAdapter
+from modules.headroom import CompressionResult, HeadroomAdapter
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -31,7 +31,7 @@ class LLMClient:
         self.backend = override_backend or self.cfg["backend"]
         self.adhd = ADHDFormatter(bool((self.cfg.get("adhd") or {}).get("enabled", False)))
         self.headroom = HeadroomAdapter(self.cfg.get("headroom"))
-        self.last_compression = None
+        self.last_compression: CompressionResult | None = None
         self._client = self._build_client()
 
     # ── Public API ────────────────────────────────────────────────────────────
