@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.bmad import BMADAgent
+from agents.context import pack_sections
 from agents.council import LLMCouncil
 from agents.guardrails import GuardrailEngine
 from agents.karpathy import KarpathyEngine
@@ -219,14 +220,30 @@ def run_workflow(
             logger.warn("scientific", "load_error", error=str(exc))
             results["scientific"] = {"available": False, "error": str(exc)}
 
+    # Recall existing evidence before planning; retrieval adds no model request.
+    memory_ctx = ""
+    if not skip_wiki:
+        try:
+            memory = LLMWiki(client, config=cfg.get("wiki"))
+            pages = memory.search(goal, max_results=3)
+            memory_ctx = pack_sections(
+                [(f"Wiki reference: {page.title}", page.content) for page in pages], 6000)
+            memory_ctx = guard.check_ingest(memory_ctx).text if memory_ctx else ""
+            if pages:
+                emit("memory_recalled", pillar="wiki", titles=[page.title for page in pages])
+        except Exception as exc:
+            logger.warn("wiki", "recall_error", error=str(exc))
+
     # ── 1. BMAD — Story Backlog ───────────────────────────────────────────────
     _bar("PILLAR 1 · BMAD  —  Story Backlog")
     emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
-    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], skill_ctx, scientific_ctx])))
+    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], memory_ctx, skill_ctx, scientific_ctx])))
     issues = bmad.validate(blueprint)
-    say(f"  {'✓ Blueprint valid' if not issues else '⚠  ' + str(issues)}")
+    if issues:
+        raise ValueError("Invalid blueprint: " + "; ".join(issues))
+    say("  ✓ Blueprint valid")
     if verbose:
         print(blueprint.summary())
     results["blueprint"] = blueprint
@@ -334,7 +351,11 @@ def run_workflow(
         on_subtask_start=on_start, on_subtask_done=on_done,
         scientific_library=scientific_library, scientific_config=scientific_cfg,
     )
-    ctx = "\n\n".join(filter(None, [purpose[:400], brainstorm_context[:600], investigation_context[:400]]))
+    ctx = pack_sections([(name, text) for name, text in [
+        ("Purpose", purpose), ("Wiki reference material", memory_ctx),
+        ("Council plan", brainstorm_context),
+        ("Investigation", investigation_context)] if text],
+        int((cfg.get("miras") or {}).get("context_max_chars", 16000)))
     state = miras.run_parallel(blueprint, purpose_context=ctx) if parallel else miras.run(blueprint, purpose_context=ctx)
     results["state"] = state
     ms = (time.perf_counter() - t0) * 1000
@@ -348,10 +369,12 @@ def run_workflow(
          label="Karpathy · Chain-of-Thought Refinement")
     t0 = time.perf_counter()
     engine = KarpathyEngine(client, config=cfg.get("karpathy"))
+    synthesis_context = state.summary(
+        max_chars=int((cfg.get("karpathy") or {}).get("synthesis_max_chars", 32000)))
     synthesis_prompt = (
         f"Goal: {goal}\n\n"
         f"Synthesise these multi-agent outputs into one complete, coherent response:\n\n"
-        f"{state.final_output()[:4000]}"
+        f"{synthesis_context}"
     )
 
     if stream:
@@ -376,7 +399,7 @@ def run_workflow(
         refined = engine.run(
             prompt=synthesis_prompt,
             extra_system=purpose[:300],
-            refine=True,
+            refine=bool((cfg.get("karpathy") or {}).get("refine", False)),
         )
 
     say(f"  ✓  CoT extracted: {'yes' if refined.had_thought_tag else 'no'}")

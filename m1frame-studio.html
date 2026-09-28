@@ -953,14 +953,16 @@ function chatMsg(m){return el("div",{class:"msg "+m.role},
   el("div",{class:"bubble"}, el("div",{class:"prose",html:md(m.content)}),
     m.cites&&m.cites.length?el("div",{class:"cites"},...m.cites.map(c=>el("span",{class:"cite",onclick:()=>{go("wiki");setTimeout(()=>openPage(c),60);}},c))):null));}
 async function sendChat(text){
-  text=(typeof text==="string"?text:null)||$("#chatin")?.value.trim(); if(!text)return;
+  text=(typeof text==="string"?text:null)||$("#chatin")?.value.trim(); if(!text||S.chatBusy)return;
+  S.chatBusy=true;
+  const history=S.chat.filter(m=>m.content).slice(-20).map(m=>({role:m.role==="user"?"user":"assistant",content:m.content}));
   S.chat.push({role:"user",content:text}); const bot={role:"bot",content:"",cites:[]}; S.chat.push(bot);
   viewChat($("#view")); const thread=$("#thread");
   const botEl=thread.lastChild; const prose=botEl.querySelector(".prose"); prose.innerHTML='<span class="thinking"><i></i><i></i><i></i></span>';
   try{
     if(S.server){
       let buf="";
-      await streamSSE(API+"/chat",{message:text,ground:true},ev=>{
+      await streamSSE(API+"/chat",{message:text,messages:history,ground:true},ev=>{
         if(ev.type==="token"){buf+=ev.chunk;prose.innerHTML=md(buf);thread.scrollTop=thread.scrollHeight;}
         else if(ev.type==="done"){bot.content=buf;bot.cites=ev.citations||[];}
         else if(ev.type==="error"){buf+="\n\n_(error: "+ev.message+")_";prose.innerHTML=md(buf);}});
@@ -969,6 +971,7 @@ async function sendChat(text){
       await typewriter(ans.answer,t=>{prose.innerHTML=md(t);thread.scrollTop=thread.scrollHeight;}); bot.content=ans.answer;
     }
   }catch(e){bot.content="_(failed: "+e.message+")_";}
+  S.chatBusy=false;
   bot.content=bot.content||"_(no response)_"; viewChat($("#view"));
 }
 function typewriter(text,cb){return new Promise(res=>{const toks=text.match(/\S+\s*/g)||[text];let i=0,acc="";

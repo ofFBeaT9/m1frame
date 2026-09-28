@@ -34,6 +34,8 @@ from pathlib import Path
 
 import yaml
 
+from agents.skills import _keywords
+
 
 def _read_text(path: Path) -> str:
     """Read wiki markdown as UTF-8, tolerating legacy mixed-encoding files.
@@ -445,20 +447,24 @@ class LLMWiki:
     # ── Search & Read ─────────────────────────────────────────────────────────
 
     def search(self, query: str, max_results: int = 5) -> list[WikiPage]:
-        """Keyword search across all wiki subdirectories."""
-        q = query.lower()
-        results = []
+        """Rank meaningful query terms instead of requiring a whole-sentence match."""
+        terms = set(_keywords(query))
+        if not terms or max_results <= 0:
+            return []
+        ranked = []
         for md_file in sorted(self.wiki_dir.rglob("*.md")):
             if md_file.name in ("index.md", "log.md", "overview.md"):
                 continue
-            if "raw" in md_file.parts:
+            if "raw" in md_file.relative_to(self.wiki_dir).parts:
                 continue
             text = _read_text(md_file)
-            if q in text.lower():
-                results.append(WikiPage.from_markdown(text, filename=str(md_file.relative_to(self.wiki_dir))))
-            if len(results) >= max_results:
-                break
-        return results
+            page = WikiPage.from_markdown(text, filename=str(md_file.relative_to(self.wiki_dir)))
+            matches = terms & set(_keywords(page.title + " " + page.content))
+            if matches:
+                score = len(matches) + 2 * len(terms & set(_keywords(page.title)))
+                ranked.append((score, page))
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        return [page for _, page in ranked[:max_results]]
 
     def get_page(self, title: str) -> WikiPage | None:
         slug = _slugify(title)

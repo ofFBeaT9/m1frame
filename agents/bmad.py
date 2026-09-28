@@ -171,15 +171,28 @@ class BMADAgent:
         data = self._parse_json(raw_json)
         return self._build_blueprint(data)
 
-    def validate(self, blueprint: Blueprint) -> list[str]:
+    def validate(self, blueprint: Blueprint, allowed_roles: set[str] | None = None) -> list[str]:
         """Return a list of validation issues (empty = all good)."""
         issues = []
+        roles = set(BMAD_ROLES) if allowed_roles is None else allowed_roles
         ids = {s.id for s in blueprint.stories}
+        if len(ids) != len(blueprint.stories):
+            issues.append("Story IDs must be unique")
+        order = blueprint.execution_order
+        if len(order) != len(ids) or set(order) != ids:
+            issues.append("execution_order must include every story exactly once")
+        seen: set[int] = set()
+        story_map = {s.id: s for s in blueprint.stories}
+        for sid in order:
+            story = story_map.get(sid)
+            if story and any(dep not in seen for dep in story.depends_on):
+                issues.append(f"Story {sid} appears before its dependencies (or has a cycle)")
+            seen.add(sid)
         for s in blueprint.stories:
             for dep in s.depends_on:
                 if dep not in ids:
                     issues.append(f"Story {s.id} depends on non-existent story {dep}")
-            if s.role not in BMAD_ROLES:
+            if s.role not in roles:
                 issues.append(f"Story {s.id} has unknown role '{s.role}'")
         if not blueprint.execution_order:
             issues.append("execution_order is empty")

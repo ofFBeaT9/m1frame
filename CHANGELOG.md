@@ -8,6 +8,32 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-09-28 — Conversation and context reliability
+
+### Fixed
+- Studio sends recent conversation history; streaming preserves it on Claude,
+  OpenAI-compatible and Claude CLI backends. Reject empty chat requests and ignore
+  client-supplied system/tool roles. History is bounded to 24,000 characters.
+- Miras passes declared dependency deliverables instead of 500-character prefixes.
+  Bounded context packing shares space across outputs and marks omissions.
+- Final synthesis includes all stories within a configurable 32,000-character budget,
+  preserving space for later implementation and QA findings.
+- Council synthesis and red-team review receive the full candidate output.
+- Recall ranked wiki references before planning and execution without extra model
+  calls; natural-language search no longer requires a literal full-question match.
+- Invalid dependency graphs and failed stories stop execution instead of allowing
+  incomplete workflows to continue as though their dependencies succeeded.
+- OpenAI streaming tolerates usage-only chunks with no choices.
+
+### Changed
+- The extra Karpathy rewrite is opt-in (`karpathy.refine: true`), saving one model
+  request per default non-streaming workflow. Self-critique remains opt-in.
+- Miras requests deliverables and concise explanations rather than mandatory
+  reasoning transcripts, reducing irrelevant text passed between agents.
+- Added 14 offline regression tests and CI coverage. See `EFFICIENCY_REVIEW.md`
+  for the audit scope, remaining architectural limits, and validation evidence.
+
+
 ### Added — Scientific Agent Skills
 - Optional `scientific/` module integrates all 163 skills at pinned K-Dense upstream
   commit `9cf7d9aea7d84754db4c167ab04b299d33c444bc`, including supporting resources.

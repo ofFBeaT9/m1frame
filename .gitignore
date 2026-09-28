@@ -57,3 +57,6 @@ ptb-xl-*/
 # Optional upstream skill libraries (install with python -m scientific install).
 .external/
 .mypy_cache/
+
+# Local offline validation artifacts.
+.test-tmp/

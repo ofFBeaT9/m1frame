@@ -3,8 +3,8 @@ agents/miras.py — Miras Framework (The Orchestrator)
 Based on: github.com/ofFBeaT9/miras
 
 Responsibility: Sub-agent routing and sequential state/memory handoffs.
-Each BMAD Story is routed to a role-matched sub-agent. The full AgentState
-is passed between agents so every agent has access to all prior work.
+Each BMAD Story is routed to a role-matched sub-agent. Declared dependency
+deliverables are passed in a bounded context; all outputs remain in AgentState.
 
 New in v1.1:
   run_parallel() — executes independent stories concurrently via
@@ -21,7 +21,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from agents.bmad import Blueprint, Story
+from agents.bmad import Blueprint, BMADAgent, Story
+from agents.context import pack_sections
 
 AGENT_SYSTEM_TEMPLATE = """You are a specialised sub-agent in the m1frame multi-agent system.
 Your assigned role: {role}
@@ -29,12 +30,12 @@ Your assigned role: {role}
 System context:
 {context}
 
-Prior agent outputs (full state so far):
+Prior agent deliverables (bounded context; omissions marked):
 {state_summary}
 
 Focus ONLY on your assigned story. Be precise and complete.
-Always begin your response with a <thought> block where you reason step-by-step before answering.
-After </thought> give your full deliverable for this story.
+Return the deliverable with a concise explanation of decisions and any limitations.
+Do not claim code was executed or tests passed without execution evidence.
 """
 
 # Adaptive temperature — maps story complexity to temperature
@@ -54,15 +55,11 @@ class AgentState:
     metadata: dict[str, Any] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
-    def summary(self, max_chars: int = 3000) -> str:
+    def summary(self, max_chars: int = 16000, story_ids: list[int] | None = None) -> str:
         with self._lock:
-            if not self.outputs:
-                return "No prior outputs yet."
-            lines = []
-            for sid, result in self.outputs.items():
-                snippet = result[:500] + "..." if len(result) > 500 else result
-                lines.append(f"[Story {sid}]:\n{snippet}")
-            return "\n\n".join(lines)[:max_chars]
+            ids = sorted(self.outputs) if story_ids is None else list(dict.fromkeys(story_ids))
+            sections = [(f"Story {sid}", self.outputs[sid]) for sid in ids if sid in self.outputs]
+        return pack_sections(sections, max_chars) if sections else "No prior outputs yet."
 
     def add_result(self, story_id: int, result: str) -> None:
         with self._lock:
@@ -140,6 +137,9 @@ class MirasOrchestrator:
 
     def run(self, blueprint: Blueprint, purpose_context: str = "") -> AgentState:
         """Execute all stories in dependency order, returning the final AgentState."""
+        issues = BMADAgent(self.llm).validate(blueprint, allowed_roles=set(ROLE_MAP))
+        if issues:
+            raise ValueError("Invalid blueprint: " + "; ".join(issues))
         state = AgentState(
             goal=blueprint.goal_summary,
             blueprint_summary=blueprint.summary(),
@@ -173,7 +173,7 @@ class MirasOrchestrator:
             except Exception as exc:
                 story.status = "failed"
                 state.add_result(story_id, f"[ERROR] {exc}")
-                executed.add(story_id)
+                raise RuntimeError(f"Story {story_id} failed; dependent work stopped") from exc
 
         return state
 
@@ -195,6 +195,9 @@ class MirasOrchestrator:
         This is safe because each batch only starts after the previous batch
         has fully settled, so AgentState always reflects complete prior work.
         """
+        issues = BMADAgent(self.llm).validate(blueprint, allowed_roles=set(ROLE_MAP))
+        if issues:
+            raise ValueError("Invalid blueprint: " + "; ".join(issues))
         state = AgentState(
             goal=blueprint.goal_summary,
             blueprint_summary=blueprint.summary(),
@@ -232,6 +235,7 @@ class MirasOrchestrator:
                     except Exception as exc:
                         state.add_result(story.id, f"[ERROR] {exc}")
                         story.status = "failed"
+                        raise RuntimeError(f"Story {story.id} failed; dependent work stopped") from exc
 
                     for dep_id in dependents.get(story.id, []):
                         in_degree[dep_id] -= 1
@@ -273,7 +277,10 @@ class MirasOrchestrator:
         system = AGENT_SYSTEM_TEMPLATE.format(
             role=role_desc,
             context=context or "No additional context.",
-            state_summary=state.summary(),
+            state_summary=state.summary(
+                max_chars=int(self.cfg.get("context_max_chars", 16000)),
+                story_ids=story.depends_on,
+            ),
         )
 
         # Adaptive temperature: complex stories get slightly higher temperature
@@ -284,6 +291,7 @@ class MirasOrchestrator:
         ac_section = f"\n\nAcceptance Criteria:\n{ac_lines}" if ac_lines else ""
 
         prompt = (
+            f"Overall goal: {state.goal}\n\n"
             f"Story #{story.id} [{role_key.upper()}]: {story.title}\n\n"
             f"Description: {story.description}{ac_section}\n\n"
             f"Complexity: {story.complexity}"

@@ -4,6 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
+> **v1.9.0:** chat continuity, dependency-aware context, wiki recall, and fewer redundant
+> model calls. See the [efficiency review](EFFICIENCY_REVIEW.md) for fixes and remaining limits.
+
 **Portable multi-agent AI framework** — 7 pillars, 9 source repositories, one pipeline.
 
 Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  

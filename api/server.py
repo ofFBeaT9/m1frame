@@ -54,6 +54,7 @@ except ImportError:
     _FASTAPI = False
     BaseModel = object  # type: ignore[assignment,misc]
 
+from agents.context import chat_input
 from agents.events import EventBus, make_emitter
 from agents.logger import PillarLogger
 from agents.metrics import get_metrics
@@ -244,7 +245,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.8.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.9.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -269,7 +270,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.8.0",
+            "status": "ok", "version": "1.9.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -364,7 +365,9 @@ def create_app() -> FastAPI:
     # ── chat (SSE token stream) ───────────────────────────────────────────────────
     @app.post("/chat", include_in_schema=False)
     async def chat(req: ChatRequest):
-        user_msg = req.message or (req.messages[-1]["content"] if req.messages else "")
+        user_msg, history = chat_input(req.message, req.messages)
+        if not user_msg.strip():
+            raise HTTPException(422, "A non-empty user message is required")
 
         async def gen():
             from studio.data import keyword_answer
@@ -394,7 +397,7 @@ def create_app() -> FastAPI:
             def produce():
                 try:
                     client = LLMClient()
-                    for chunk in client.stream(prompt=prompt, system=system):
+                    for chunk in client.stream(prompt=prompt, system=system, history=history):
                         if stop.is_set():
                             return
                         loop.call_soon_threadsafe(q.put_nowait, ("token", chunk))

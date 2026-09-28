@@ -33,6 +33,9 @@ jobs:
       - name: Run QA suite (offline mock — no API key needed)
         run: python scripts/qa_validate.py
 
+      - name: Efficiency and reliability regression tests
+        run: python -m unittest scripts.test_efficiency
+
       - name: Scientific module integration tests
         run: python -m unittest scripts.test_scientific
 

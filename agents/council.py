@@ -404,7 +404,7 @@ class LLMCouncil:
         )
         prompt = (
             f"Task: {task}\n\n"
-            f"Output being reviewed (first 2000 chars):\n{output[:2000]}\n\n"
+            f"Output being reviewed:\n{output}\n\n"
             f"Individual assessments:\n{assessment_text}"
         )
         raw = self.llm.chat(prompt=prompt, system=REVIEW_SYNTHESIS_SYSTEM, temperature=0.2,
@@ -434,7 +434,7 @@ class LLMCouncil:
         """Adversarial pass that attacks the council's verdict; may veto a pass."""
         prompt = (
             f"Task:\n{task}\n\n"
-            f"Output under review (first 2000 chars):\n{output[:2000]}\n\n"
+            f"Output under review:\n{output}\n\n"
             f"The council concluded: verdict={verdict.verdict}, "
             f"score={verdict.consensus_score:.1f}/10, summary={verdict.summary}\n\n"
             "Attack this verdict. What did the council miss?"

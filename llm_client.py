@@ -53,14 +53,15 @@ class LLMClient:
         else:
             return self._openai_chat(prompt, system, temperature, max_tokens, history, model)
 
-    def stream(self, prompt: str, system: str = "", temperature: float | None = None):
+    def stream(self, prompt: str, system: str = "", temperature: float | None = None,
+               history: list[dict] | None = None):
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
         if self.backend == "claude":
-            yield from self._claude_stream(prompt, system, temperature)
+            yield from self._claude_stream(prompt, system, temperature, history)
         elif self.backend == "claudecli":
-            yield self._claudecli_chat(prompt, system, None)   # CLI returns whole reply
+            yield self._claudecli_chat(prompt, system, history)   # CLI returns whole reply
         else:
-            yield from self._openai_stream(prompt, system, temperature)
+            yield from self._openai_stream(prompt, system, temperature, history)
 
     # ── Private builders ──────────────────────────────────────────────────────
 
@@ -105,12 +106,12 @@ class LLMClient:
         response = self._client.messages.create(**kwargs)
         return response.content[0].text
 
-    def _claude_stream(self, prompt, system, temperature):
+    def _claude_stream(self, prompt, system, temperature, history=None):
         bcfg = self.cfg["claude"]
         kwargs = dict(
             model=bcfg["model"],
             max_tokens=bcfg["max_tokens"],
-            messages=[{"role": "user", "content": prompt}],
+            messages=self._build_messages(prompt, history),
         )
         if system:
             kwargs["system"] = system
@@ -176,12 +177,12 @@ class LLMClient:
         # the pipeline never silently receives an empty string.
         return msg.content or getattr(msg, "reasoning_content", None) or ""
 
-    def _openai_stream(self, prompt, system, temperature):
+    def _openai_stream(self, prompt, system, temperature, history=None):
         bcfg = self.cfg[self.backend]
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        messages.extend(self._build_messages(prompt, history))
         stream = self._client.chat.completions.create(
             model=bcfg["model"],
             messages=messages,
@@ -190,6 +191,8 @@ class LLMClient:
             stream=True,
         )
         for chunk in stream:
+            if not chunk.choices:
+                continue
             d = chunk.choices[0].delta
             delta = d.content or getattr(d, "reasoning_content", None)
             if delta:
