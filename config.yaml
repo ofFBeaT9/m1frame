@@ -81,6 +81,9 @@ bmad:
 # ── Pillar: Miras ────────────────────────────────────────────────
 miras:
   max_agents: 5
+  tools_enabled: true
+  max_tool_calls: 4        # bounded tool observations per story
+  tool_result_max_chars: 8000
   sequential_handoff: true
   context_max_chars: 16000 # dependency deliverables; bounded, fairly shared context
 
@@ -218,3 +221,11 @@ scientific:
   path: null                # defaults to .external/scientific-skills; env M1_SCIENTIFIC_SKILLS_PATH
   skills: null              # null = keyword selection; [] = none; or explicit upstream skill names
   max_context_chars: 60000  # only complete instructions fitting this budget are injected
+
+# Request headroom. Set each backend's context_window_tokens from its actual
+# deployed model to additionally enforce a conservative token/output reserve.
+# model_windows overrides per-model limits (including council judge overrides).
+context:
+  max_input_chars: 120000
+  safety_margin_tokens: 1024
+  model_windows: {}

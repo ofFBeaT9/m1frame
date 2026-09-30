@@ -2,6 +2,10 @@
 
 Reviewed 2026-09-28; changes released locally as version 1.9.0.
 
+Historical audit: the follow-up in [FULL_SYSTEM_QA.md](FULL_SYSTEM_QA.md) connects
+full Studio chat and bounded story tool execution in v1.10.0, superseding those
+limitations below.
+
 The main problems found were information loss and disconnected capabilities.
 Adding more skills or personas would not fix these defects.
 

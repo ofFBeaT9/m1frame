@@ -76,9 +76,7 @@ def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) 
     res = run_workflow(goal=goal, verbose=False, skip_council=skip_council,
                        skip_wiki=skip_wiki)
     verdict = res.get("verdict")
-    state = res.get("state")
-    output = ((verdict.approved_output if verdict and getattr(verdict, "approved_output", None)
-               else (state.final_output() if state else "")) or "(no output)")
+    output = res.get("output") or "(no output)"
     score = getattr(verdict, "consensus_score", None) if verdict else None
     passed = getattr(verdict, "passed", None) if verdict else None
     head = f"**Score:** {score}/10  ·  **Gate:** {'PASS' if passed else 'review'}\n\n" if verdict else ""
@@ -99,6 +97,17 @@ def m1frame_ask(question: str, max_pages: int = 3) -> str:
     """
     from gateways.handlers import grounded_answer
     return grounded_answer(question, max_pages=max_pages)
+
+
+@mcp.tool()
+def m1frame_context(query: str = "") -> dict:
+    """Inventory agents, tools, skills, wiki config and context headroom for a task.
+
+    Discover what is installed before selecting skills. Does not call an LLM or
+    claim that optional external Miras/Headroom services are connected.
+    """
+    from scripts.context_probe import inspect_context
+    return inspect_context(query)
 
 
 @mcp.tool()

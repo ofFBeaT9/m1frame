@@ -63,6 +63,7 @@ BMAD Role Assignments per story:
   coding/feature    → dev
   testing/qa        → qa
   planning          → scrum_master
+  investigation     → investigator
 
 Output ONLY valid JSON matching this schema (no markdown fences):
 {
@@ -75,7 +76,7 @@ Output ONLY valid JSON matching this schema (no markdown fences):
     {
       "id": 1,
       "title": "...",
-      "role": "analyst|architect|dev|qa|scrum_master|pm",
+      "role": "analyst|architect|dev|qa|scrum_master|pm|investigator",
       "type": "research|architecture|code|test|planning|writing|other",
       "complexity": "low|medium|high",
       "depends_on": [],

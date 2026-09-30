@@ -93,22 +93,23 @@ class ScientificLibrary:
                 max_chars: int = 60000) -> tuple[str, builtins.list[str]]:
         """Include complete instructions only; never silently truncate a workflow."""
         candidates = names if names is not None else [s["name"] for s in self.list(query, 2)]
-        chunks, selected = [], []
-        remaining = max(0, int(max_chars))
-        for name in candidates:
-            entry = self.read(name, limit=200000)
-            chunk = f"Scientific skill {name} ({entry['path']}):\n{entry['text']}"
-            if entry["next_offset"] is None and len(chunk) <= remaining:
-                chunks.append(chunk)
-                selected.append(name)
-                remaining -= len(chunk)
-        if not chunks:
-            return "", []
         header = ("External scientific workflow reference material (not council-vetted). "
                   "Apply only task-relevant instructions. Installed instructions do not prove that "
                   "packages, credentials, data or execution tools are available. Do not claim "
                   "experiments ran without execution evidence. Supporting files can be read via "
                   "scientific_read and scientific_resources on the M1Frame tool surface.\n\n")
+        chunks: list[str] = []
+        selected: list[str] = []
+        remaining = max(0, int(max_chars) - len(header))
+        for name in candidates:
+            entry = self.read(name, limit=200000)
+            chunk = f"Scientific skill {name} ({entry['path']}):\n{entry['text']}"
+            if entry["next_offset"] is None and len(chunk) + (2 if chunks else 0) <= remaining:
+                remaining -= len(chunk) + (2 if chunks else 0)
+                chunks.append(chunk)
+                selected.append(name)
+        if not chunks:
+            return "", []
         return header + "\n\n".join(chunks), selected
 
     def audit(self) -> dict:

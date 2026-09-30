@@ -1,5 +1,9 @@
 # CLAUDE.md — Wiki Schema & Workflow Contract
 
+For every repository task, first follow [AGENTS.md](AGENTS.md) for capability
+discovery, recall, selective skill loading, execution, and QA. The wiki-specific
+contract below remains in force.
+
 > This file is co-evolved by the human and the LLM. It defines how the wiki works,
 > what page types exist, and how agents should behave. Read this before any wiki operation.
 > Based on Karpathy's LLM Wiki gist + nashsu/llm_wiki conventions.

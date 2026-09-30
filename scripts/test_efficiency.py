@@ -159,6 +159,7 @@ class EfficiencyTests(unittest.TestCase):
     def test_cli_stream_history(self):
         client = object.__new__(LLMClient)
         client.backend = "claudecli"
+        client.cfg = {}
         with patch.object(client, "_claudecli_chat", return_value="answer") as chat:
             history = [{"role": "user", "content": "previous"}]
             self.assertEqual(list(client.stream("current", history=history)), ["answer"])
@@ -185,7 +186,7 @@ class EfficiencyTests(unittest.TestCase):
                 patch("api.server.LLMClient") as factory:
             factory.return_value.stream.return_value = iter(["42"])
             response = TestClient(app).post("/chat", json={
-                "message": "What number?", "messages": history, "ground": False})
+                "message": "What number?", "messages": history, "ground": False, "mode": "quick"})
             self.assertEqual(response.status_code, 200)
             self.assertIn('"chunk": "42"', response.text)
             self.assertEqual(factory.return_value.stream.call_args.kwargs["history"], history)

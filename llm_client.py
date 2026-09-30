@@ -6,11 +6,16 @@ Supports: Anthropic Claude | OpenAI-compatible (Ollama, vLLM, LM Studio, OpenAI)
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+from agents.headroom import check_headroom
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
+    load_dotenv(Path(config_path).resolve().with_name(".env"), override=False)
     with open(config_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -46,6 +51,7 @@ class LLMClient:
         while everything else stays on the cheaper default. Ignored (falls
         back to the configured default) on backends where that doesn't apply.
         """
+        check_headroom(self.cfg, self.backend, prompt, system, history, max_tokens, model)
         if self.backend == "claude":
             return self._claude_chat(prompt, system, temperature, max_tokens, history, model)
         elif self.backend == "claudecli":
@@ -56,6 +62,7 @@ class LLMClient:
     def stream(self, prompt: str, system: str = "", temperature: float | None = None,
                history: list[dict] | None = None):
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
+        check_headroom(self.cfg, self.backend, prompt, system, history)
         if self.backend == "claude":
             yield from self._claude_stream(prompt, system, temperature, history)
         elif self.backend == "claudecli":
@@ -130,19 +137,32 @@ class LLMClient:
         if history:
             convo = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
             full = convo + "\nuser: " + prompt
-        args = ["claude", "-p", "--output-format", "text"]
+        args = ["claude", "-p", "--output-format", "text", "--tools", "",
+                "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+                "--no-session-persistence"]
         model = model or bcfg.get("model")
         if model:
             args += ["--model", str(model)]
-        if system:
-            args += ["--append-system-prompt", system]
+        internal_system = (
+            "You are one internal model call inside M1Frame. Follow the assigned role. "
+            "Do not start another workflow, run repository startup routines, or invoke host tools. "
+            "M1Frame executes tool requests itself through its bounded registry protocol.\n\n"
+            + system)
+        args += ["--system-prompt", internal_system]
         # Claude Code refuses to launch inside another Claude Code session. That guard
         # exists to stop an interactive session spawning itself; a headless `-p` call is
         # a separate short-lived process, so drop the marker for the child only. Without
         # this, the claudecli backend cannot be used from the m1frame MCP server.
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        if os.name == "nt" and not env.get("CLAUDE_CODE_GIT_BASH_PATH"):
+            import shutil
+            git = shutil.which("git")
+            if git:
+                bash = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+                if bash.is_file():
+                    env["CLAUDE_CODE_GIT_BASH_PATH"] = str(bash)
         try:
-            res = subprocess.run(args, input=full, capture_output=True, text=True,
+            res = subprocess.run(args, input=full, capture_output=True, text=True, encoding="utf-8",
                                  timeout=bcfg.get("timeout", 300), env=env)
         except FileNotFoundError:
             raise RuntimeError("Claude Code CLI ('claude') not found on PATH. "

@@ -4,8 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-> **v1.9.0:** chat continuity, dependency-aware context, wiki recall, and fewer redundant
-> model calls. See the [efficiency review](EFFICIENCY_REVIEW.md) for fixes and remaining limits.
+> **v1.10.0:** Studio chat uses the full workflow by default. Story agents can
+> retrieve skills and execute registered tools; coding assistants follow AGENTS.md.
+> See [full-system QA](FULL_SYSTEM_QA.md) for setup, checks and connection limits.
 
 **Portable multi-agent AI framework** — 7 pillars, 9 source repositories, one pipeline.
 
@@ -24,7 +25,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > key (gorgeous demo mode) or wire a key for live runs.
 >
 > Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **51-tool** agent surface, and
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **53-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
 >
 > **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
@@ -107,9 +108,9 @@ binary resources remain available on disk. To use an existing checkout, set
 `scientific.path` or `M1_SCIENTIFIC_SKILLS_PATH` to its repository root.
 
 These are external skills, not standalone agents or council-vetted learned recipes.
-M1Frame's ordinary LLM story calls receive instructions; they do not gain an autonomous
-shell/tool-execution loop from this module. A tool-capable host can retrieve supporting
-scripts and run an applicable workflow with its own execution tools. Scientific packages,
+M1Frame story calls can retrieve additional resources and execute registered tools
+through a bounded tool loop. This does not provide an arbitrary shell: a tool-capable
+host can run supporting scripts with its own execution tools. Scientific packages,
 R/system tools, datasets, hardware, service accounts and API keys may still be needed.
 The audit checks every skill's format, Python syntax, import availability and credential
 name hints without executing upstream code or exposing credential values. It does not

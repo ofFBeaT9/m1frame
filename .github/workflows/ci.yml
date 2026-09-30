@@ -34,7 +34,7 @@ jobs:
         run: python scripts/qa_validate.py
 
       - name: Efficiency and reliability regression tests
-        run: python -m unittest scripts.test_efficiency
+        run: python -m unittest scripts.test_efficiency scripts.test_full_system
 
       - name: Scientific module integration tests
         run: python -m unittest scripts.test_scientific

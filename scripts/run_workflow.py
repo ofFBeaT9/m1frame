@@ -234,12 +234,27 @@ def run_workflow(
         except Exception as exc:
             logger.warn("wiki", "recall_error", error=str(exc))
 
+    from tools import default_registry
+    tool_names = default_registry().names()
+    scientific_names = sorted(scientific_library.skills) if scientific_library else []
+    capability_ctx = (
+        "Available execution capabilities: stories can request registered tools and read "
+        "additional learned/scientific skills on demand. Declare dependencies for all needed outputs.\n"
+        "Tools: " + ", ".join(tool_names) + "\n"
+        "Installed scientific skill names (load only relevant instructions): "
+        + ", ".join(scientific_names)
+    )
+    results["capabilities"] = {"tools": tool_names, "scientific_skills": scientific_names,
+                               "context_policy": cfg.get("context", {}),
+                               "external_miras_connected": False, "external_headroom_connected": False}
+    emit("capabilities", **results["capabilities"])
+
     # ── 1. BMAD — Story Backlog ───────────────────────────────────────────────
     _bar("PILLAR 1 · BMAD  —  Story Backlog")
     emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
-    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], memory_ctx, skill_ctx, scientific_ctx])))
+    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], capability_ctx, memory_ctx, skill_ctx, scientific_ctx])))
     issues = bmad.validate(blueprint)
     if issues:
         raise ValueError("Invalid blueprint: " + "; ".join(issues))
@@ -349,11 +364,11 @@ def run_workflow(
     miras = MirasOrchestrator(
         client, config=cfg.get("miras"),
         on_subtask_start=on_start, on_subtask_done=on_done,
-        scientific_library=scientific_library, scientific_config=scientific_cfg,
+        scientific_library=scientific_library, scientific_config=scientific_cfg, emit=emit,
     )
     ctx = pack_sections([(name, text) for name, text in [
         ("Purpose", purpose), ("Wiki reference material", memory_ctx),
-        ("Council plan", brainstorm_context),
+        ("Council plan", brainstorm_context), ("Learned approaches", skill_ctx),
         ("Investigation", investigation_context)] if text],
         int((cfg.get("miras") or {}).get("context_max_chars", 16000)))
     state = miras.run_parallel(blueprint, purpose_context=ctx) if parallel else miras.run(blueprint, purpose_context=ctx)
@@ -552,11 +567,12 @@ def run_workflow(
              nodes=[{"id": page.title, "type": page.page_type}], links=[])
         emit("pillar_done", pillar="wiki", ms=round(ms))
 
+    results["output"] = final_output
     _bar("FINAL OUTPUT")
     say(final_output)
 
     logger.info("system", "workflow_complete", goal=goal[:80])
-    emit("final", output=final_output[:8000],
+    emit("final", output=final_output,
          score=results["verdict"].consensus_score if results.get("verdict") else None,
          passed=results["verdict"].passed if results.get("verdict") else None,
          wiki_page=page.filename if page else None)
@@ -567,7 +583,7 @@ def run_workflow(
         _bar("WEBHOOK  —  Delivering result")
         payload = {
             "goal": goal,
-            "output": final_output[:4000],
+            "output": final_output,
             "verdict": {
                 "score": results["verdict"].consensus_score if results.get("verdict") else None,
                 "passed": results["verdict"].passed if results.get("verdict") else None,

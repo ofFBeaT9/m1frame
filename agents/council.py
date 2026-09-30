@@ -211,7 +211,9 @@ class LLMCouncil:
         # Per-pillar model routing: only the two heaviest judgment calls (the final
         # QA synthesis and the red-team veto) use judge_model; personas stay on the
         # cheaper default model. None ⇒ everything uses the backend's default model.
-        self.judge_model = self.cfg.get("judge_model")
+        self.judge_model = (self.cfg.get("judge_model")
+                            if getattr(llm_client, "backend", "claude") in {"claude", "claudecli"}
+                            else None)
 
     # ── Mode 1: Brainstorm ────────────────────────────────────────────────────
 

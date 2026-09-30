@@ -201,6 +201,8 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
     reg.register(Tool("url_parse", "Parse a URL into parts.", url_parse, {"url": "string"}))
     reg.register(Tool("convert_temp", "Convert temperature (C↔F).",
                       convert_temp, {"value": "number", "to": "F|C"}))
+    from .skills import register_skill_tools
+    register_skill_tools(reg)
     from .extra import register_extras
     register_extras(reg)        # the rest of the auditable toolbelt (→ 40+)
     # Optional-dependency modules. Both degrade to a structured "unavailable"

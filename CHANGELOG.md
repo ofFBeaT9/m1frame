@@ -8,6 +8,28 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
 
+## [1.10.0] — 2026-09-30 — Full prompt routing
+
+- Studio chat now defaults to the recorded full workflow, with conversation history,
+  progress events and an explicit Quick answer mode. Missing live backends produce
+  an actionable error instead of silently substituting demo content.
+- Story agents can invoke registered tools through a bounded request/observation loop.
+  Dangerous tools retain their approval gate; model output cannot authorize them.
+- Added learned-skill search/read tools (53 total registered tools), capability
+  discovery through CLI/HTTP/MCP, and repository-wide AGENTS.md instructions.
+- Added input headroom checks, optional per-model token-window/output reserves, and
+  strict scientific-context accounting including headers. External Headroom is not
+  connected by this feature.
+- API/MCP callers now return the final checked workflow output without reconstructing
+  intermediate results or clipping the answer to 8,000 characters.
+- Load .env beside config.yaml without overriding process environment. Local model
+  backends no longer receive a Claude-only council judge model override.
+- Internal Claude CLI calls disable host tools/MCP to prevent recursive workflows,
+  use UTF-8 and discover Git Bash on Windows.
+- Added full-system and browser regression coverage. See FULL_SYSTEM_QA.md for
+  verification evidence and the live-authentication limitation.
+
+
 ## [1.9.0] — 2026-09-28 — Conversation and context reliability
 
 ### Fixed

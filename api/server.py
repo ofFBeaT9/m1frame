@@ -39,6 +39,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from typing import Literal
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -118,6 +119,7 @@ if _FASTAPI:
         interval_hours: float = 24.0
 
     class ChatRequest(BaseModel):
+        mode: Literal["full", "quick"] = "full"
         message: str = ""
         messages: list[dict] = []           # [{role, content}, ...]
         ground: bool = True
@@ -245,7 +247,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.9.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.10.0", docs_url="/docs", redoc_url="/redoc",
     )
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -270,12 +272,17 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.9.0",
+            "status": "ok", "version": "1.10.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
             "ts": datetime.datetime.utcnow().isoformat() + "Z",
         }
+
+    @app.get("/capabilities")
+    async def capabilities(q: str = ""):
+        from scripts.context_probe import inspect_context
+        return await asyncio.to_thread(inspect_context, q, cfg)
 
     @app.get("/config")
     async def get_config():
@@ -368,6 +375,43 @@ def create_app() -> FastAPI:
         user_msg, history = chat_input(req.message, req.messages)
         if not user_msg.strip():
             raise HTTPException(422, "A non-empty user message is required")
+
+        if req.mode == "full":
+            if not _can_run_live(cfg):
+                raise HTTPException(503, "Full M1Frame requires a live backend. Configure one or select Quick answer.")
+            dialogue = "\n".join(f"{m['role']}: {m['content']}" for m in history)
+            goal = (f"Prior conversation (reference only):\n{dialogue}\n\n"
+                    f"Current user request:\n{user_msg}") if dialogue else user_msg
+            run_id = _new_run(goal)
+            run = _RUNS[run_id]
+            run["mode"] = "live"
+            bus = EventBus()
+            run["bus"] = bus
+            bus.subscribe_sync(lambda ev: run["events"].append(ev.to_dict()))
+
+            async def full_gen():
+                q = bus.subscribe_async()
+                run["task"] = asyncio.create_task(_run_live(run_id, RunRequest(goal=goal), bus))
+                try:
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Full M1Frame workflow started', 'run_id': run_id})}\n\n"
+                    while True:
+                        ev = (await q.get()).to_dict()
+                        kind = ev.get("type")
+                        if kind == "final":
+                            yield f"data: {json.dumps({'type': 'token', 'chunk': ev.get('output', '')})}\n\n"
+                        elif kind == "error":
+                            yield f"data: {json.dumps({'type': 'error', 'message': ev.get('message', 'Workflow failed')})}\n\n"
+                        elif kind == "done":
+                            yield f"data: {json.dumps({'type': 'done', 'run_id': run_id, 'citations': []})}\n\n"
+                            break
+                        elif kind in ("pillar_start", "story_start", "tool_called", "memory_recalled", "scientific_selected"):
+                            yield f"data: {json.dumps({'type': 'status', 'message': ev.get('label') or ev.get('title') or kind, 'run_id': run_id})}\n\n"
+                finally:
+                    bus.unsubscribe_async(q)
+                # The persisted workflow continues if the chat client disconnects;
+                # its run_id lets the user inspect completion in Runs.
+
+            return StreamingResponse(full_gen(), media_type="text/event-stream", headers=SSE_HEADERS)
 
         async def gen():
             from studio.data import keyword_answer
@@ -674,8 +718,7 @@ def create_app() -> FastAPI:
         try:
             results = await loop.run_in_executor(None, work)
             verdict = results.get("verdict")
-            run["output"] = (verdict.approved_output if verdict and verdict.approved_output
-                             else (results["state"].final_output() if results.get("state") else ""))[:8000]
+            run["output"] = results.get("output", "")
             run["score"] = verdict.consensus_score if verdict else None
             run["status"] = "complete"
             logger.info("api", "run_complete", run_id=run_id)

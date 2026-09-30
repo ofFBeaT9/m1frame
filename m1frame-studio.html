@@ -310,9 +310,11 @@ header{display:flex; align-items:center; gap:18px; padding:13px 22px;
 .cite{font-family:var(--mono); font-size:10.5px; color:var(--wiki); border:1px solid color-mix(in srgb,var(--wiki) 35%,transparent);
   background:color-mix(in srgb,var(--wiki) 10%,transparent); padding:3px 8px; border-radius:20px; cursor:pointer}
 .chatbar{display:flex; gap:10px; padding:12px 0 4px; border-top:1px solid var(--line)}
-.chatbar input{flex:1; background:var(--panel2); border:1px solid var(--line2); border-radius:11px;
+.chatbar input{flex:1; min-width:0; background:var(--panel2); border:1px solid var(--line2); border-radius:11px;
   padding:13px 15px; color:var(--ink); font-size:15px; outline:0; font-family:var(--body)}
 .chatbar input:focus{border-color:var(--signal-dim)}
+.chatbar select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:11px;padding:10px;font-family:var(--mono)}
+@media(max-width:600px){.chatbar{flex-wrap:wrap}.chatbar select{width:100%}}
 
 /* ── runs / wiki / settings ───────────────────────────────────────────── */
 .grid2{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px}
@@ -670,7 +672,9 @@ function replayInto(events){ /* instant re-render of a stored run when revisitin
 
 async function streamSSE(url,body,cb){
   const opt={method:body?"POST":"GET",headers:{}}; if(body){opt.headers["Content-Type"]="application/json";opt.body=JSON.stringify(body);}
-  const resp=await fetch(url,opt); const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf="";
+  const resp=await fetch(url,opt);
+  if(!resp.ok){let detail;try{detail=(await resp.json()).detail;}catch(e){detail=resp.statusText;}throw new Error(typeof detail==="string"?detail:JSON.stringify(detail));}
+  const reader=resp.body.getReader(); const dec=new TextDecoder(); let buf="";
   while(true){const {done,value}=await reader.read(); if(done)break; buf+=dec.decode(value,{stream:true});
     let parts=buf.split("\n\n"); buf=parts.pop();
     for(const p of parts){const ln=p.split("\n").find(x=>x.startsWith("data: ")); if(!ln)continue;
@@ -937,12 +941,15 @@ function viewChat(v){v.innerHTML="";
   if(!S.chat.length){thread.append(el("div",{class:"empty"},
     el("div",{class:"glyph",html:svg(ICONS.chat)}),
     el("div",{html:'<b style="color:var(--ink2);font-family:var(--disp);font-size:16px">Ask the knowledge graph.</b>'}),
-    el("div",{},"Every answer is grounded in the wiki the council has built."),
+    el("div",{},"Full M1Frame brings planning, relevant skills, wiki recall, tools and council review to your request."),
     el("div",{class:"suggest",style:{justifyContent:"center"}},
       ...["Why a modular monolith over microservices?","What did the council decide about the MVP architecture?","Summarise the architecture verdict."]
         .map(s=>el("button",{onclick:()=>sendChat(s)},s)))));}
   else S.chat.forEach(m=>thread.append(chatMsg(m)));
   const bar=el("div",{class:"chatbar"},
+    el("select",{id:"chatmode","aria-label":"Response mode",onchange:e=>{S.chatMode=e.target.value;}},
+      el("option",{value:"full",selected:S.chatMode!=="quick"?"":null},"Full M1Frame"),
+      el("option",{value:"quick",selected:S.chatMode==="quick"?"":null},"Quick answer")),
     el("input",{id:"chatin",placeholder:"Message m1frame…",onkeydown:e=>{if(e.key==="Enter")sendChat();}}),
     el("button",{class:"btn",onclick:()=>sendChat()},"Send"));
   v.append(el("div",{class:"chatwrap"},thread,bar));
@@ -962,11 +969,13 @@ async function sendChat(text){
   try{
     if(S.server){
       let buf="";
-      await streamSSE(API+"/chat",{message:text,messages:history,ground:true},ev=>{
-        if(ev.type==="token"){buf+=ev.chunk;prose.innerHTML=md(buf);thread.scrollTop=thread.scrollHeight;}
+      await streamSSE(API+"/chat",{message:text,messages:history,ground:true,mode:S.chatMode||"full"},ev=>{
+        if(ev.type==="status"){bot.runId=ev.run_id;prose.textContent=ev.message+"…";}
+        else if(ev.type==="token"){buf+=ev.chunk;prose.innerHTML=md(buf);thread.scrollTop=thread.scrollHeight;}
         else if(ev.type==="done"){bot.content=buf;bot.cites=ev.citations||[];}
-        else if(ev.type==="error"){buf+="\n\n_(error: "+ev.message+")_";prose.innerHTML=md(buf);}});
+        else if(ev.type==="error"){buf+="\n\n_(error: "+ev.message+")_";bot.content=buf;prose.innerHTML=md(buf);}});
     } else {
+      if(S.chatMode!=="quick")throw new Error("Full M1Frame requires the API server and a live backend. Select Quick answer for offline wiki lookup.");
       const ans=keywordAnswer(text); bot.cites=ans.citations;
       await typewriter(ans.answer,t=>{prose.innerHTML=md(t);thread.scrollTop=thread.scrollHeight;}); bot.content=ans.answer;
     }

@@ -23,6 +23,7 @@ from typing import Any
 
 from agents.bmad import Blueprint, BMADAgent, Story
 from agents.context import pack_sections
+from agents.tool_loop import run_with_tools
 
 AGENT_SYSTEM_TEMPLATE = """You are a specialised sub-agent in the m1frame multi-agent system.
 Your assigned role: {role}
@@ -124,8 +125,10 @@ class MirasOrchestrator:
         on_subtask_done: Callable[[Story, str], None] | None = None,
         scientific_library=None,
         scientific_config: dict | None = None,
+        emit=None,
     ):
         self.llm = llm_client
+        self.emit = emit
         self.cfg = config or {}
         self.max_agents = self.cfg.get("max_agents", 5)
         self.on_subtask_start = on_subtask_start
@@ -256,7 +259,7 @@ class MirasOrchestrator:
             context=context or "No additional context.",
             state_summary="No prior outputs.",
         )
-        return self.llm.chat(prompt=task, system=system, temperature=0.2)
+        return run_with_tools(self.llm, task, system, config=self.cfg, emit=self.emit)
 
     # ── Private ───────────────────────────────────────────────────────────────
 
@@ -296,4 +299,4 @@ class MirasOrchestrator:
             f"Description: {story.description}{ac_section}\n\n"
             f"Complexity: {story.complexity}"
         )
-        return self.llm.chat(prompt=prompt, system=system, temperature=temperature)
+        return run_with_tools(self.llm, prompt, system, temperature, self.cfg, emit=self.emit)
