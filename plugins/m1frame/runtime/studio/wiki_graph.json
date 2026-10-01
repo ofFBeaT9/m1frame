@@ -1,0 +1,111 @@
+{
+  "nodes": [
+    {
+      "id": "Conway's Law",
+      "type": "concept",
+      "file": "wiki/concepts/conways-law.md"
+    },
+    {
+      "id": "Premature Decomposition",
+      "type": "concept",
+      "file": "wiki/concepts/premature-decomposition.md"
+    },
+    {
+      "id": "m1frame",
+      "type": "entity",
+      "file": "wiki/entities/m1frame.md"
+    },
+    {
+      "id": "Microservices",
+      "type": "entity",
+      "file": "wiki/entities/microservices.md"
+    },
+    {
+      "id": "Modular Monolith",
+      "type": "entity",
+      "file": "wiki/entities/modular-monolith.md"
+    },
+    {
+      "id": "Is m1frame v1.3 Production Ready",
+      "type": "query",
+      "file": "wiki/queries/is-m1frame-v1.3-production-ready.md"
+    },
+    {
+      "id": "m1frame Constellation Release",
+      "type": "synthesis",
+      "file": "wiki/synthesis/m1frame-constellation.md"
+    },
+    {
+      "id": "m1frame Studio",
+      "type": "synthesis",
+      "file": "wiki/synthesis/m1frame-studio.md"
+    },
+    {
+      "id": "MVP Architecture Decision",
+      "type": "synthesis",
+      "file": "wiki/synthesis/mvp-architecture-decision.md"
+    }
+  ],
+  "links": [
+    {
+      "source": "Conway's Law",
+      "target": "MVP Architecture Decision"
+    },
+    {
+      "source": "Conway's Law",
+      "target": "Microservices"
+    },
+    {
+      "source": "Conway's Law",
+      "target": "Modular Monolith"
+    },
+    {
+      "source": "Premature Decomposition",
+      "target": "MVP Architecture Decision"
+    },
+    {
+      "source": "Premature Decomposition",
+      "target": "Modular Monolith"
+    },
+    {
+      "source": "m1frame",
+      "target": "m1frame Studio"
+    },
+    {
+      "source": "m1frame",
+      "target": "MVP Architecture Decision"
+    },
+    {
+      "source": "m1frame",
+      "target": "m1frame Constellation Release"
+    },
+    {
+      "source": "Microservices",
+      "target": "MVP Architecture Decision"
+    },
+    {
+      "source": "Microservices",
+      "target": "Modular Monolith"
+    },
+    {
+      "source": "Modular Monolith",
+      "target": "MVP Architecture Decision"
+    },
+    {
+      "source": "Is m1frame v1.3 Production Ready",
+      "target": "m1frame Constellation Release"
+    },
+    {
+      "source": "Is m1frame v1.3 Production Ready",
+      "target": "m1frame"
+    },
+    {
+      "source": "m1frame Constellation Release",
+      "target": "m1frame Studio"
+    },
+    {
+      "source": "m1frame Studio",
+      "target": "MVP Architecture Decision"
+    }
+  ]
+}

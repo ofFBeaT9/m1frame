@@ -1,0 +1,864 @@
+"""
+api/server.py — FastAPI backend for m1frame + m1frame Studio.
+
+Classic REST (unchanged):
+  GET  /health                  → status, uptime, backend, can_run_live
+  GET  /run/{run_id}            → poll status + recorded events
+  GET  /runs                    → list all runs
+  POST /wiki/ingest             → ingest text into the LLM Wiki
+  GET  /wiki/query?q=...        → query the wiki (LLM, or keyword fallback w/o key)
+  GET  /wiki/pages              → rich page list (title/type/tags/body)
+  GET  /metrics                 → Prometheus text metrics
+  GET/POST/DELETE /schedule     → scheduled investigation jobs
+
+Studio additions:
+  GET  /                        → serves m1frame-studio.html
+  GET  /studio/demo_run.json    → the bundled demo fixture
+  POST /run                     → start a run; mode=live|demo (auto-demo w/o key)
+  GET  /run/{run_id}/events     → Server-Sent Events stream of pipeline progress
+  POST /chat                    → SSE token stream, grounded in the wiki
+  GET  /wiki/graph              → knowledge-graph nodes + links
+  GET  /memories                → miras memory snapshot
+  GET  /metrics.json            → structured per-pillar metrics
+  GET  /config, PATCH /config   → one-click backend/model switch
+
+Start:
+  uvicorn api.server:app --host 0.0.0.0 --port 8080
+  # or: python api/server.py
+Requires: pip install fastapi uvicorn httpx pyyaml
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import datetime
+import hmac
+import ipaddress
+import json
+import os
+import re
+import sys
+import threading
+import time
+import uuid
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Literal
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+# ── Optional FastAPI import ───────────────────────────────────────────────────
+try:
+    from fastapi import Body, FastAPI, HTTPException
+    from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
+    from pydantic import BaseModel, Field
+    _FASTAPI = True
+except ImportError:
+    _FASTAPI = False
+    BaseModel = object  # type: ignore[assignment,misc]
+
+from agents.context import chat_input
+from agents.events import EventBus, make_emitter
+from agents.logger import PillarLogger
+from agents.metrics import get_metrics
+from llm_client import LLMClient, load_config
+
+STUDIO_HTML = ROOT / "m1frame-studio.html"
+DEMO_FIXTURE = ROOT / "studio" / "demo_run.json"
+LOCAL_BACKENDS = {"ollama", "vllm", "lmstudio", "claudecli"}  # need no API key
+ALL_BACKENDS = ["claude", "claudecli", "openai", "openrouter", "nous", "novita", "nvidia_nim",
+                "ollama", "vllm", "lmstudio"]
+SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
+               "X-Accel-Buffering": "no"}
+
+
+# ── Request models ────────────────────────────────────────────────────────────
+
+if _FASTAPI:
+    class RunRequest(BaseModel):
+        goal: str = Field(min_length=1, max_length=24000)
+        backend: str | None = None
+        mode: Literal["live", "demo"] | None = None          # live | demo (auto-demo without a key)
+        speed: float = Field(default=1.0, ge=0.1, le=100)                  # demo replay speed multiplier
+        skip_council: bool = False
+        skip_wiki: bool = False
+        skip_openplanter: bool = False
+        parallel: bool = False
+        self_critique: bool = False
+        webhook_url: str | None = None
+        learn_skills: bool = True
+
+    class SkillSuggestRequest(BaseModel):
+        goal: str = Field(min_length=1, max_length=24000)
+
+    class ToolCallRequest(BaseModel):
+        name: str
+        args: dict = {}
+        approve: bool = False               # required for tools marked dangerous
+
+    # Bounded by construction. These handlers do synchronous, CPU/subprocess-bound
+    # work, so an unclamped `rounds` or `timeout` would let one request stall the
+    # event loop for every other caller and SSE stream. Note there is deliberately
+    # no `binary` field: the sensor binary is never selectable over HTTP.
+    class SensorScanRequest(BaseModel):
+        path: str = "."
+        council_score: float | None = None  # supply to get a fused QA verdict back
+        timeout: int | None = Field(default=None, ge=1, le=600)
+
+    class SkillOptimizeRequest(BaseModel):
+        keywords: list[str] = Field(default_factory=list, max_length=64)
+        rounds: int | None = Field(default=None, ge=1, le=500)
+        approve: bool = False               # persisting a skill is a real disk write
+
+    class WikiIngestRequest(BaseModel):
+        text: str = Field(min_length=1, max_length=100000)
+        topic_hint: str = ""
+        source_name: str = ""
+
+    class ScheduleJobRequest(BaseModel):
+        job_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$")
+        task: str
+        interval_hours: float = Field(default=24.0, gt=0, le=87600)
+
+    class ChatRequest(BaseModel):
+        mode: Literal["full", "quick"] = "full"
+        message: str = Field(default="", max_length=24000)
+        messages: list[dict] = Field(default_factory=list, max_length=100)           # [{role, content}, ...]
+        ground: bool = True
+
+    class ConfigPatch(BaseModel):
+        backend: str | None = None
+        model: str | None = None
+
+
+# ── In-memory run store ───────────────────────────────────────────────────────
+
+_RUNS: dict[str, dict] = {}
+_MAX_RUNS = 200          # rolling window — bounds memory on long-lived servers
+
+
+def _new_run(goal: str) -> str:
+    # Evict oldest completed runs so _RUNS + their EventBus history stay bounded.
+    while len(_RUNS) >= _MAX_RUNS:
+        oldest = next((key for key, run in _RUNS.items()
+                       if run["status"] not in {"queued", "running"}), None)
+        if oldest is None:
+            raise HTTPException(429, "run capacity reached")
+        _RUNS.pop(oldest, None)
+    if sum(r["status"] in {"queued", "running"} for r in _RUNS.values()) >= 16:
+        raise HTTPException(429, "too many active runs")
+    run_id = str(uuid.uuid4())[:8]
+    _RUNS[run_id] = {
+        "run_id": run_id, "goal": goal, "status": "queued", "mode": None,
+        "started_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "finished_at": None, "score": None, "output": None, "error": None,
+        "events": [], "bus": None, "task": None,
+    }
+    return run_id
+
+
+def _public(run: dict) -> dict:
+    """Run dict safe to JSON-serialize (drops the EventBus / task handles)."""
+    return {k: v for k, v in run.items() if k not in ("bus", "task")}
+
+
+# ── Disk-backed run store (survives restarts; replayable in Studio) ────────────
+_RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
+
+
+def _persist_run(run: dict) -> None:
+    """Atomically write a completed run's full event trace to runs/<id>.json."""
+    import json as _json
+    import os as _os
+    try:
+        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        path = _RUNS_DIR / f"{run['run_id']}.json"
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(_json.dumps(_public(run)), encoding="utf-8")
+        _os.replace(tmp, path)
+    except Exception:  # noqa: BLE001 — persistence is best-effort, never fatal to a run
+        pass
+
+
+def _load_persisted_runs(limit: int = 50) -> int:
+    """Load the most recent persisted runs into memory on startup."""
+    import json as _json
+    if not _RUNS_DIR.exists():
+        return 0
+    n = 0
+    files = sorted(_RUNS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for f in files[:limit]:
+        try:
+            d = _json.loads(f.read_text(encoding="utf-8"))
+            rid = d.get("run_id")
+            if rid and rid not in _RUNS:
+                d["bus"], d["task"] = None, None
+                _RUNS[rid] = d
+                n += 1
+        except Exception:  # noqa: BLE001
+            continue
+    return n
+
+
+def _can_run_live(cfg: dict, backend: str | None = None) -> bool:
+    b = backend or cfg.get("backend", "claude")
+    if b in LOCAL_BACKENDS:
+        return True
+    env = cfg.get(b, {}).get("api_key_env")
+    return bool(env and os.environ.get(env))
+
+
+_MODEL_RE = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")   # PATCH /config: no ':' (YAML), no spaces/newlines
+
+
+def _persist_config(backend: str | None, model: str | None) -> None:
+    """Best-effort update of config.yaml that preserves comments (line walk)."""
+    path = ROOT / "config.yaml"
+    if not path.exists():
+        return
+    if model is not None and not _MODEL_RE.match(model):
+        return  # ignore unsafe model strings — never write them to disk
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    target = backend
+    if backend:
+        for i, ln in enumerate(lines):
+            if re.match(r"^backend:\s*", ln):
+                lines[i] = re.sub(r"^(backend:\s*)\S+", rf"\g<1>{backend}", ln)
+                break
+    if model and target:
+        in_block = False
+        for i, ln in enumerate(lines):
+            if re.match(rf"^{re.escape(target)}:\s*$", ln):
+                in_block = True
+                continue
+            if in_block:
+                if re.match(r"^\S", ln):           # left the block
+                    break
+                if re.match(r"^\s+model:\s*", ln):
+                    indent = ln[:len(ln) - len(ln.lstrip())]
+                    lines[i] = f"{indent}model: {model}\n"
+                    break
+    path.write_text("".join(lines), encoding="utf-8")
+
+
+# ── App factory ───────────────────────────────────────────────────────────────
+
+def create_app() -> FastAPI:
+    if not _FASTAPI:
+        raise ImportError("Run: pip install fastapi uvicorn httpx")
+
+    cfg = load_config()
+    metrics = get_metrics()
+    logger = PillarLogger()
+
+    from agents.scheduler import InvestigationScheduler
+    sched = InvestigationScheduler(None)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        sched.start()
+        try:
+            yield
+        finally:
+            sched.stop()
+
+    app = FastAPI(
+        lifespan=lifespan, title="m1frame Studio API",
+        description="Portable multi-agent AI OS — real-time REST + SSE interface",
+        version="1.10.1", docs_url="/docs", redoc_url="/redoc",
+    )
+    @app.middleware("http")
+    async def access_policy(request, call_next):
+        # Same-origin browser access only; resist CSRF and DNS rebinding.
+        origin = request.headers.get("origin")
+        if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
+            return JSONResponse({"detail": "cross-origin access denied"}, status_code=403)
+        token = os.environ.get("M1FRAME_API_TOKEN", "")
+        auth = request.headers.get("authorization", "")
+        supplied = auth[7:] if auth.startswith("Bearer ") else ""
+        if auth.startswith("Basic "):
+            try:
+                supplied = base64.b64decode(auth[6:], validate=True).decode().split(":", 1)[1]
+            except (ValueError, IndexError, UnicodeError):
+                pass
+        if token:
+            if not hmac.compare_digest(token.encode(), supplied.encode()):
+                return JSONResponse({"detail": "API token required"}, status_code=401,
+                                    headers={"WWW-Authenticate": 'Basic realm="m1frame"'})
+        else:
+            peer = request.client.host if request.client else ""
+            testing = peer == "testclient" and request.url.hostname == "testserver"
+            try:
+                local_peer = ipaddress.ip_address(peer).is_loopback
+            except ValueError:
+                local_peer = False
+            if not testing and (not local_peer or request.url.hostname not in
+                                {"localhost", "127.0.0.1", "::1"}):
+                return JSONResponse({"detail": "remote access requires M1FRAME_API_TOKEN"}, status_code=403)
+        size = 0
+        body = []
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 262144:
+                return JSONResponse({"detail": "request body too large"}, status_code=413)
+            body.append(chunk)
+        request._body = b"".join(body)
+        return await call_next(request)
+
+    _load_persisted_runs()   # restore prior runs so Runs history survives restarts
+
+    # ── UI ──────────────────────────────────────────────────────────────────────
+    @app.get("/", include_in_schema=False)
+    async def studio_index():
+        if STUDIO_HTML.exists():
+            return FileResponse(STUDIO_HTML, media_type="text/html")
+        return PlainTextResponse("m1frame-studio.html not found. Build the UI first.", 404)
+
+    @app.get("/studio/demo_run.json", include_in_schema=False)
+    async def demo_fixture():
+        if DEMO_FIXTURE.exists():
+            return FileResponse(DEMO_FIXTURE, media_type="application/json")
+        raise HTTPException(404, "demo_run.json not found — run: python studio/build_demo.py")
+
+    # ── health / config ─────────────────────────────────────────────────────────
+    @app.get("/health")
+    async def health():
+        return {
+            "status": "ok", "version": "1.10.1",
+            "backend": cfg.get("backend", "claude"),
+            "can_run_live": _can_run_live(cfg),
+            "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
+            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+        }
+
+    @app.get("/capabilities")
+    async def capabilities(q: str = ""):
+        from scripts.context_probe import inspect_context
+        return await asyncio.to_thread(inspect_context, q, cfg)
+
+    @app.get("/config")
+    async def get_config():
+        return {
+            "backend": cfg.get("backend"),
+            "model": cfg.get(cfg.get("backend", "claude"), {}).get("model"),
+            "backends": ALL_BACKENDS,
+            "models": {b: cfg.get(b, {}).get("model") for b in ALL_BACKENDS},
+            "can_run_live": _can_run_live(cfg),
+            "default_mode": "live" if _can_run_live(cfg) else "demo",
+        }
+
+    @app.patch("/config")
+    async def patch_config(req: ConfigPatch):
+        if req.backend:
+            if req.backend not in ALL_BACKENDS:
+                raise HTTPException(400, f"unknown backend '{req.backend}'")
+            cfg["backend"] = req.backend
+        if req.model:
+            if not _MODEL_RE.match(req.model):
+                raise HTTPException(400, "invalid model string")
+            cfg.setdefault(cfg["backend"], {})["model"] = req.model
+        _persist_config(req.backend, req.model)
+        logger.info("api", "config_patched", backend=cfg.get("backend"))
+        return await get_config()
+
+    # ── runs ─────────────────────────────────────────────────────────────────────
+    @app.post("/run", status_code=202)
+    async def submit_run(req: RunRequest):
+        run_id = _new_run(req.goal)
+        run = _RUNS[run_id]
+        bus = EventBus()
+        run["bus"] = bus
+        bus.subscribe_sync(lambda ev, r=run: r["events"].append(ev.to_dict()))
+
+        mode = (req.mode or "").lower()
+        want_live = mode == "live" or (mode != "demo" and _can_run_live(cfg, req.backend))
+        if want_live and mode != "demo":
+            run["mode"] = "live"
+            run["task"] = asyncio.create_task(_run_live(run_id, req, bus))
+        else:
+            run["mode"] = "demo"
+            run["task"] = asyncio.create_task(_replay_demo(run_id, bus, req.speed))
+        logger.info("api", "run_started", run_id=run_id, mode=run["mode"], goal=req.goal[:80])
+        return {"run_id": run_id, "mode": run["mode"], "events": f"/run/{run_id}/events"}
+
+    @app.get("/run/{run_id}")
+    async def get_run(run_id: str):
+        if run_id not in _RUNS:
+            raise HTTPException(404, "run_id not found")
+        return _public(_RUNS[run_id])
+
+    @app.get("/runs")
+    async def list_runs():
+        return [_public(r) for r in _RUNS.values()]
+
+    @app.get("/runs/search")
+    async def search_runs(q: str = ""):
+        ql = (q or "").lower().strip()
+        hits = []
+        for r in _RUNS.values():
+            hay = (r.get("goal", "") + " " + (r.get("output") or "")).lower()
+            if not ql or ql in hay:
+                hits.append(_public(r))
+        return hits
+
+    @app.get("/run/{run_id}/events", include_in_schema=False)
+    async def run_events(run_id: str):
+        if run_id not in _RUNS:
+            raise HTTPException(404, "run_id not found")
+        bus: EventBus = _RUNS[run_id]["bus"]
+
+        async def gen():
+            if bus is None:
+                events = _RUNS[run_id].get("events", [])
+                for event in events:
+                    yield f"data: {json.dumps(event)}\n\n"
+                if not events or events[-1].get("type") not in {"done", "error"}:
+                    yield 'data: {"type": "done", "data": {}}\n\n'
+                return
+            q = bus.subscribe_async()
+            try:
+                yield ": connected\n\n"   # prime the stream
+                while True:
+                    ev = await q.get()
+                    yield f"data: {json.dumps(ev.to_dict())}\n\n"
+                    if ev.type in ("done", "error"):
+                        break
+            finally:
+                bus.unsubscribe_async(q)
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── chat (SSE token stream) ───────────────────────────────────────────────────
+    @app.post("/chat", include_in_schema=False)
+    async def chat(req: ChatRequest):
+        user_msg, history = chat_input(req.message, req.messages)
+        if not user_msg.strip():
+            raise HTTPException(422, "A non-empty user message is required")
+
+        if req.mode == "full":
+            if not _can_run_live(cfg):
+                raise HTTPException(503, "Full M1Frame requires a live backend. Configure one or select Quick answer.")
+            dialogue = "\n".join(f"{m['role']}: {m['content']}" for m in history)
+            goal = (f"Prior conversation (reference only):\n{dialogue}\n\n"
+                    f"Current user request:\n{user_msg}") if dialogue else user_msg
+            run_id = _new_run(goal)
+            run = _RUNS[run_id]
+            run["mode"] = "live"
+            bus = EventBus()
+            run["bus"] = bus
+            bus.subscribe_sync(lambda ev: run["events"].append(ev.to_dict()))
+
+            async def full_gen():
+                q = bus.subscribe_async()
+                run["task"] = asyncio.create_task(_run_live(run_id, RunRequest(goal=goal), bus))
+                try:
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Full M1Frame workflow started', 'run_id': run_id})}\n\n"
+                    while True:
+                        ev = (await q.get()).to_dict()
+                        kind = ev.get("type")
+                        if kind == "final":
+                            yield f"data: {json.dumps({'type': 'token', 'chunk': ev.get('output', '')})}\n\n"
+                        elif kind == "error":
+                            yield f"data: {json.dumps({'type': 'error', 'message': ev.get('message', 'Workflow failed')})}\n\n"
+                        elif kind == "done":
+                            yield f"data: {json.dumps({'type': 'done', 'run_id': run_id, 'citations': []})}\n\n"
+                            break
+                        elif kind in ("pillar_start", "story_start", "tool_called", "memory_recalled", "scientific_selected"):
+                            yield f"data: {json.dumps({'type': 'status', 'message': ev.get('label') or ev.get('title') or kind, 'run_id': run_id})}\n\n"
+                finally:
+                    bus.unsubscribe_async(q)
+                # The persisted workflow continues if the chat client disconnects;
+                # its run_id lets the user inspect completion in Runs.
+
+            return StreamingResponse(full_gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+        async def gen():
+            from studio.data import keyword_answer
+            # Ground in the knowledge graph
+            citations, ctx = [], ""
+            if req.ground:
+                ka = keyword_answer(user_msg)
+                ctx, citations = ka["answer"], ka["citations"]
+
+            if not _can_run_live(cfg):
+                # Demo mode: stream the grounded keyword answer with a typewriter feel
+                from modules.adhd import ADHDFormatter
+                reply = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).format(
+                    ctx or "Run a goal first to populate the knowledge graph."
+                )
+                for tok in re.findall(r"\S+\s*", reply):
+                    await asyncio.sleep(0.012)
+                    yield f"data: {json.dumps({'type': 'token', 'chunk': tok})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'citations': citations})}\n\n"
+                return
+
+            # Live mode: stream real tokens, bridging the sync generator → async queue
+            loop = asyncio.get_running_loop()
+            q: asyncio.Queue = asyncio.Queue()
+            stop = threading.Event()   # set when the client disconnects → stop producing
+            from modules.adhd import ADHDFormatter
+            formatter = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False)))
+            system = formatter.system_guidance(
+                "You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
+                "ground claims in the provided knowledge-graph context when present."
+            )
+            prompt = user_msg if not ctx else f"Knowledge-graph context:\n{ctx}\n\nQuestion: {user_msg}"
+
+            def produce():
+                try:
+                    client = LLMClient()
+                    for chunk in client.stream(prompt=prompt, system=system, history=history):
+                        if stop.is_set():
+                            return
+                        loop.call_soon_threadsafe(q.put_nowait, ("token", chunk))
+                except Exception as exc:
+                    loop.call_soon_threadsafe(q.put_nowait, ("error", str(exc)))
+                loop.call_soon_threadsafe(q.put_nowait, ("end", None))
+
+            threading.Thread(target=produce, daemon=True).start()
+            try:
+                while True:
+                    kind, val = await q.get()
+                    if kind == "token":
+                        yield f"data: {json.dumps({'type': 'token', 'chunk': val})}\n\n"
+                    elif kind == "error":
+                        yield f"data: {json.dumps({'type': 'error', 'message': val})}\n\n"
+                        break
+                    else:
+                        yield f"data: {json.dumps({'type': 'done', 'citations': citations})}\n\n"
+                        break
+            finally:
+                stop.set()   # client gone or done — let the producer thread exit
+
+        return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+    # ── wiki / graph / memories / metrics ─────────────────────────────────────────
+    @app.post("/wiki/ingest")
+    async def wiki_ingest(req: WikiIngestRequest):
+        from agents.wiki import LLMWiki
+        wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
+        page = await asyncio.to_thread(wiki.ingest, req.text, topic_hint=req.topic_hint, source_name=req.source_name)
+        return {"title": page.title, "filename": page.filename,
+                "page_type": page.page_type, "tags": page.tags}
+
+    @app.get("/wiki/query")
+    async def wiki_query(q: str):
+        if not _can_run_live(cfg):
+            from studio.data import keyword_answer
+            ka = keyword_answer(q)
+            return {"question": q, "answer": ka["answer"], "citations": ka["citations"]}
+        from agents.wiki import LLMWiki
+        wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
+        return {"question": q, "answer": await asyncio.to_thread(wiki.query, q)}
+
+    @app.get("/wiki/pages")
+    async def wiki_pages():
+        from studio.data import wiki_pages as _wp
+        return {"pages": _wp()}
+
+    @app.get("/wiki/graph")
+    async def wiki_graph():
+        from studio.data import wiki_graph as _wg
+        return _wg()
+
+    @app.get("/memories")
+    async def memories():
+        from studio.data import load_memories
+        return {"memories": load_memories()}
+
+    # ── skills (council-vetted learning loop) ─────────────────────────────────────
+    def _skill_lib():
+        from agents.skills import SkillLibrary
+        return SkillLibrary(threshold=float((cfg.get("council") or {}).get("consensus_threshold", 7.0)))
+
+    @app.get("/skills")
+    async def list_skills():
+        from dataclasses import asdict
+        lib = _skill_lib()
+        return {"skills": [asdict(s) for s in lib.all()], "threshold": lib.threshold}
+
+    @app.post("/skills/suggest")
+    async def suggest_skills(req: SkillSuggestRequest):
+        from dataclasses import asdict
+        return {"skills": [asdict(s) for s in _skill_lib().suggest(req.goal)]}
+
+    @app.delete("/skills/{skill_id}")
+    async def remove_skill(skill_id: str):
+        if not _skill_lib().remove(skill_id):
+            raise HTTPException(404, "skill_id not found")
+        return {"removed": skill_id}
+
+    # ── sensors (objective structural measurement — Sentrux) ──────────────────────
+    def _sensor_cfg() -> dict:
+        return cfg.get("sensors") or {}
+
+    @app.get("/sensors")
+    async def sensors_status():
+        # Routed through sensors.tools so every surface resolves the binary the
+        # same way — "the single constructor" has to mean literally single.
+        from sensors.tools import sensor_config, sentrux_available
+        sc = sensor_config()
+        info = sentrux_available()
+        return {"enabled": bool(sc["enabled"]),
+                "sensors": [{"name": "sentrux", **info}],
+                "enforce": bool(sc["enforce"]),
+                "pass_threshold": float(sc["pass_threshold"]),
+                "concern_threshold": float(sc["concern_threshold"])}
+
+    @app.post("/sensors/scan")
+    async def sensors_scan(req: SensorScanRequest):
+        import asyncio
+
+        from sensors.tools import client as _sensor_client
+        from sensors.tools import gate as _sensor_gate
+        if not _sensor_cfg().get("enabled", True):
+            raise HTTPException(403, "sensors are disabled in config.yaml")
+        try:
+            # subprocess.run blocks; off the event loop so one scan can't stall
+            # every other request and SSE stream.
+            result = await asyncio.to_thread(
+                _sensor_client(req.timeout).scan, req.path)
+        except ValueError as e:                      # path escaped the workspace
+            raise HTTPException(400, str(e)) from e
+        return {"sensor": result.to_dict(),
+                "verdict": _sensor_gate().fuse(req.council_score, result).to_dict()}
+
+    # ── optimizers (skill improvement — SkillOpt) ─────────────────────────────────
+    def _opt_cfg() -> dict:
+        return cfg.get("optimizers") or {}
+
+    @app.get("/optimizers")
+    async def optimizers_status():
+        from optimizers.tools import optimizer_config
+        from optimizers.tools import optimizer_status as _ostat
+        st = _ostat()
+        st["rounds"] = int(optimizer_config().get("rounds", 12))
+        return st
+
+    @app.post("/skills/{skill_id}/optimize")
+    async def optimize_skill(skill_id: str, req: SkillOptimizeRequest):
+        import asyncio
+
+        from optimizers.tools import keyword_scorer, optimizer_config
+        oc = optimizer_config()
+        if not oc.get("enabled", True):
+            raise HTTPException(403, "optimizers are disabled in config.yaml")
+        # Optimising a stored skill REWRITES it on disk, and that text is re-injected
+        # into every future planning prompt — so it needs the same explicit approval
+        # as any other dangerous, side-effecting operation.
+        if not req.approve:
+            raise HTTPException(
+                403, "optimizing a stored skill rewrites it on disk; resend with approve=true")
+        out = await asyncio.to_thread(          # CPU-bound loop, off the event loop
+            _skill_lib().optimize_skill, skill_id, keyword_scorer(req.keywords or []),
+            int(req.rounds or oc.get("rounds", 12)), int(oc.get("seed", 1337)),
+            str(oc.get("prefer", "auto")))
+        if str(out.get("error", "")).startswith("unknown skill"):
+            raise HTTPException(404, out["error"])
+        return out
+
+    # ── messaging gateways (one router, many platforms) ───────────────────────────
+    from gateways import adapters as _gw_adapters
+    from gateways.handlers import grounded_answer
+    from gateways.router import GatewayRouter, OutboundMessage
+
+    def _gw_status():
+        return {"backend": cfg.get("backend"), "pillars": 7,
+                "can_run_live": _can_run_live(cfg), "runs": len(_RUNS)}
+    _gw_router = GatewayRouter(handler=lambda m: grounded_answer(m.text), status_fn=_gw_status)
+
+    @app.get("/gateway/status")
+    async def gateway_status():
+        return {"platforms": list(_gw_adapters.ADAPTERS.keys()) + ["webhook", "cli"],
+                "status": _gw_status()}
+
+    @app.post("/gateway/{platform}/webhook")
+    async def gateway_webhook(platform: str, payload: dict = Body(default={})):
+        # Slack URL-verification handshake
+        if isinstance(payload, dict) and payload.get("type") == "url_verification":
+            return {"challenge": payload.get("challenge")}
+        msg = _gw_adapters.parse(platform, payload)
+        if msg is None:
+            return {"ok": True, "skipped": "no text"}
+        text = (msg.text or "").strip()
+        _tl = text.lower()
+        if (_tl == "/run" or _tl.startswith("/run ")) and text[4:].strip():
+            res = await submit_run(RunRequest(goal=text[4:].strip()))
+            out = OutboundMessage(text=f"▸ started deliberation · run {res['run_id']} ({res['mode']}). "
+                                       f"Watch it live in Studio.", channel=msg.channel, platform=platform)
+        else:
+            out = await asyncio.to_thread(_gw_router.handle, msg)
+        delivered = await asyncio.to_thread(_gw_adapters.deliver, out)       # best-effort; needs platform creds
+        return {"ok": True, "reply": out.text, "delivered": delivered,
+                "payload": _gw_adapters.format_out(platform, out)}
+
+    # ── model registry ────────────────────────────────────────────────────────────
+    @app.get("/backends")
+    async def list_backends():
+        out = []
+        for b in ALL_BACKENDS:
+            bc = cfg.get(b, {}) or {}
+            out.append({"name": b, "model": bc.get("model"), "local": b in LOCAL_BACKENDS,
+                        "key_env": bc.get("api_key_env"), "ready": _can_run_live(cfg, b),
+                        "active": b == cfg.get("backend")})
+        return {"backends": out, "active": cfg.get("backend")}
+
+    # ── tool surface ──────────────────────────────────────────────────────────────
+    from tools import default_registry as _tool_registry
+
+    @app.get("/tools")
+    async def list_tools():
+        return {"tools": _tool_registry().list()}
+
+    @app.post("/tools/call")
+    async def call_tool(req: ToolCallRequest):
+        reg = _tool_registry()
+        if req.name not in reg:
+            raise HTTPException(404, f"unknown tool '{req.name}'")
+        try:
+            return {"name": req.name, "result": await asyncio.to_thread(reg.call, req.name, req.args, approved=req.approve)}
+        except PermissionError as e:
+            raise HTTPException(403, str(e)) from e   # dangerous tool needs approve=true
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"tool error: {e}") from e
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    async def prometheus_metrics():
+        return metrics.to_prometheus()
+
+    @app.get("/metrics.json")
+    async def metrics_json():
+        return {
+            "uptime_s": metrics.uptime_s(),
+            "runs_total": len(_RUNS),
+            "pillars": {name: {"calls": m.calls, "errors": m.errors,
+                               "avg_ms": round(m.avg_ms, 1), "total_ms": round(m.total_ms, 1),
+                               "tokens": m.total_tokens}
+                        for name, m in metrics.all_pillars().items()},
+        }
+
+    # ── scheduler ─────────────────────────────────────────────────────────────────
+    @app.get("/schedule")
+    async def list_schedule():
+        from dataclasses import asdict
+
+        return {"jobs": [asdict(j) for j in sched.list_jobs()]}
+
+    @app.post("/schedule", status_code=201)
+    async def add_schedule(req: ScheduleJobRequest):
+        from dataclasses import asdict
+
+        job = sched.add(req.job_id, req.task, req.interval_hours)
+        return {"job": asdict(job)}
+
+    @app.delete("/schedule/{job_id}")
+    async def remove_schedule(job_id: str):
+        if not sched.remove(job_id):
+            raise HTTPException(404, "job_id not found")
+        return {"removed": job_id}
+
+    # ── run executors (closures capture cfg/metrics/logger) ───────────────────────
+    async def _run_live(run_id: str, req: RunRequest, bus: EventBus) -> None:
+        from scripts.run_workflow import run_workflow
+        run = _RUNS[run_id]
+        run["status"] = "running"
+        t0 = time.time()
+        emit = make_emitter(bus)
+        loop = asyncio.get_running_loop()
+
+        def work():
+            return run_workflow(
+                goal=req.goal, backend=req.backend,
+                skip_council=req.skip_council, skip_wiki=req.skip_wiki,
+                skip_openplanter=req.skip_openplanter, verbose=False,
+                parallel=req.parallel, self_critique=req.self_critique, emit=emit,
+                learn_skills=req.learn_skills,
+            )
+
+        try:
+            results = await loop.run_in_executor(None, work)
+            verdict = results.get("verdict")
+            run["output"] = results.get("output", "")
+            run["score"] = verdict.consensus_score if verdict else None
+            run["status"] = "complete"
+            logger.info("api", "run_complete", run_id=run_id)
+        except Exception as exc:
+            run["status"] = "error"
+            run["error"] = str(exc)
+            bus.emit("error", message=str(exc))
+            bus.emit("done")
+            logger.error("api", "run_failed", run_id=run_id, exc=str(exc))
+        finally:
+            run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+            metrics.record("pipeline", ms=(time.time() - t0) * 1000,
+                           error=run["status"] == "error")
+            _persist_run(run)  # survives restarts; replayable in Studio
+            bus.close()  # idempotent — guarantees the SSE stream terminates
+        if req.webhook_url and run["status"] == "complete":
+            await _fire_webhook(req.webhook_url, _public(run))
+
+    async def _replay_demo(run_id: str, bus: EventBus, speed: float) -> None:
+        run = _RUNS[run_id]
+        run["status"] = "running"
+        speed = max(0.1, min(speed or 1.0, 20.0))
+        try:
+            fixture = json.loads(DEMO_FIXTURE.read_text(encoding="utf-8"))
+            for row in fixture.get("events", []):
+                row = dict(row)
+                await asyncio.sleep(min(row.pop("delay_ms", 0) / 1000.0 / speed, 4.0))
+                etype = row.pop("type")
+                pillar = row.pop("pillar", None)
+                row.pop("seq", None)
+                bus.emit(etype, pillar=pillar, **row)
+                if etype == "final":
+                    run["output"] = row.get("output", "")[:8000]
+                    run["score"] = row.get("score")
+            run["status"] = "complete"
+        except FileNotFoundError:
+            bus.emit("error", message="demo_run.json missing — run python studio/build_demo.py")
+            run["status"] = "error"
+        finally:
+            run["finished_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+            _persist_run(run)  # demo runs persist too, so Runs history is real
+            bus.close()  # idempotent — terminates the SSE stream on every path
+
+    return app
+
+
+# ── webhook delivery ──────────────────────────────────────────────────────────
+
+def _safe_webhook(url: str) -> bool:
+    """Block SSRF on outbound webhooks. Delegates to the shared guard in
+    agents.net so the API and the messaging gateways enforce one policy."""
+    from agents.net import safe_url
+    return safe_url(url)
+
+
+async def _fire_webhook(url: str, payload: dict) -> None:
+    if not _safe_webhook(url):
+        return
+    try:
+        from agents.net import public_request
+        await asyncio.to_thread(public_request, url, payload)
+    except Exception:
+        pass
+
+
+# ── Module-level app (uvicorn: api.server:app) ────────────────────────────────
+if _FASTAPI:
+    app = create_app()
+else:
+    app = None  # type: ignore[assignment]
+
+
+if __name__ == "__main__":
+    try:
+        import uvicorn
+        port = int(os.environ.get("PORT", load_config().get("api", {}).get("port", 8080)))
+        # Bind localhost by default (the Studio is a local dev tool with an
+        # unauthenticated config-write endpoint). Override with HOST=0.0.0.0.
+        host = os.environ.get("HOST", "127.0.0.1")
+        uvicorn.run("api.server:app", host=host, port=port, reload=False, log_level="info")
+    except ImportError:
+        print("Run: pip install fastapi uvicorn httpx")

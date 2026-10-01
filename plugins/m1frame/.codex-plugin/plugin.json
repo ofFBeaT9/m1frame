@@ -1,0 +1,31 @@
+{
+  "name": "m1frame",
+  "version": "0.1.0",
+  "description": "Run m1frame workflows, query its local knowledge base, inspect tools and learned skills, and launch Studio through its existing MCP server.",
+  "author": {
+    "name": "ofFBeaT9",
+    "url": "https://github.com/ofFBeaT9"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "m1frame",
+    "shortDescription": "Agent workflows and knowledge",
+    "longDescription": "Run m1frame workflows, query its local knowledge base, inspect tools and learned skills, and launch Studio through its existing MCP server.",
+    "developerName": "ofFBeaT9",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Show my m1frame tools and skills.",
+      "Ask m1frame about prior architecture decisions.",
+      "Open m1frame Studio."
+    ],
+    "logo": "./assets/observatory-icon.png",
+    "composerIcon": "./assets/observatory-icon.png",
+    "logoDark": "./assets/observatory-icon.png",
+    "brandColor": "#147D92"
+  }
+}

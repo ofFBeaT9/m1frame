@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "m1frame": {
+      "command": "python",
+      "args": [
+        "${PLUGIN_ROOT}/scripts/launch.py"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
