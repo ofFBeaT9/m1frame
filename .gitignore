@@ -60,3 +60,7 @@ ptb-xl-*/
 
 # Local offline validation artifacts.
 .test-tmp/
+
+# Cross-process learned-skill locks.
+skills/*.lock
+workspace/

@@ -45,9 +45,16 @@ const { chromium } = require('playwright');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     const sendBox = await page.getByRole('button', {name:'Send', exact:true}).boundingBox();
     assert.ok(sendBox && sendBox.x + sendBox.width <= 390, 'Send button must remain visible on mobile');
+    assert.equal(await page.evaluate(() => {
+      const tip=document.createElement('div');
+      const cv=document.createElement('canvas');
+      const graph={cv,tip,N:[{id:'<img src=x onerror="window.xss=1">',type:'<svg onload="window.xss=1">',x:0,y:0}],big:false};
+      Graph.prototype.move.call(graph,{clientX:0,clientY:0});
+      return tip.querySelector('img,svg')===null && tip.textContent.includes('<img');
+    }), true, 'Graph tooltips must render untrusted titles as text');
     await page.screenshot({path: '.test-tmp/studio-full-chat.png', fullPage: true});
     assert.deepEqual(errors, []);
-    console.log('Studio browser QA passed: full default, quick opt-in, history, HTTP error display, mobile layout; no page errors.');
+    console.log('Studio browser QA passed: full default, quick opt-in, history, HTTP error display, mobile layout, graph XSS defense; no page errors.');
   } finally {
     await browser.close();
   }

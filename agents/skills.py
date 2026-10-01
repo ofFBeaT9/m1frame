@@ -20,7 +20,10 @@ import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
+from functools import wraps
 from pathlib import Path
+
+from filelock import FileLock
 
 # Small stopword set so keyword matching focuses on the meaningful terms.
 _STOP = {
@@ -70,6 +73,17 @@ class Skill:
                 f"{self.approach[:160]}")
 
 
+def _transaction(method):
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with FileLock(str(self.path) + ".lock", timeout=30):
+            if self.path.exists():
+                self.skills = self._load()
+            return method(self, *args, **kwargs)
+    return wrapped
+
+
 class SkillLibrary:
     """Load/save council-vetted skills; learn from passes; suggest on new goals."""
 
@@ -108,7 +122,7 @@ class SkillLibrary:
         payload = {"version": 1, "updated": time.strftime("%Y-%m-%d %H:%M"),
                    "skills": [asdict(s) for s in self.skills]}
         # Atomic write: a crash or concurrent run can't leave a half-written store.
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp = self.path.with_suffix(self.path.suffix + "." + uuid.uuid4().hex + ".tmp")
         tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         os.replace(tmp, self.path)
 
@@ -137,13 +151,14 @@ class SkillLibrary:
 
     # ── learning ────────────────────────────────────────────────────────────
 
+    @_transaction
     def learn(self, goal: str, blueprint, score: float,
               approach: str = "") -> Skill | None:
         """Distil a vetted skill from a passing run. Returns the Skill, or None
         if the score didn't clear the gate. Near-duplicate goals reinforce the
         existing skill instead of creating a new one.
         """
-        if score is None or float(score) < self.threshold:
+        if score is None or not self.threshold <= float(score) <= 10:
             return None  # not vetted — m1frame only remembers what the council passed
         qk = _keywords(goal)
 
@@ -176,6 +191,7 @@ class SkillLibrary:
 
     # ── optimisation ────────────────────────────────────────────────────────
 
+    @_transaction
     def optimize_skill(self, skill_id: str, scorer, rounds: int = 12,
                        seed: int = 1337, prefer: str = "auto",
                        pool: list[str] | None = None):
@@ -204,6 +220,7 @@ class SkillLibrary:
         out["skill_id"] = skill_id
         return out
 
+    @_transaction
     def reinforce(self, skill_id: str) -> bool:
         for s in self.skills:
             if s.id == skill_id:
@@ -213,6 +230,7 @@ class SkillLibrary:
                 return True
         return False
 
+    @_transaction
     def remove(self, skill_id: str) -> bool:
         n = len(self.skills)
         self.skills = [s for s in self.skills if s.id != skill_id]

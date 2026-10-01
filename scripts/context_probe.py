@@ -7,6 +7,7 @@ import json
 from agents.miras import ROLE_MAP
 from agents.skills import SkillLibrary
 from llm_client import load_config
+from modules.headroom import HeadroomAdapter
 from scientific import ScientificLibrary
 from tools import default_registry
 
@@ -29,7 +30,8 @@ def inspect_context(query: str = "", cfg: dict | None = None) -> dict:
         "wiki": cfg.get("wiki", {}),
         "headroom": {"policy": cfg.get("context", {}),
                      "output_reserve_tokens": cfg.get(backend, {}).get("max_tokens"),
-                     "external_headroom_connected": False},
+                     "optional_adapter": HeadroomAdapter(cfg.get("headroom")).status(),
+                     "host_headroom_connected": False},
         "external_miras": "Host MCP when available; not connected by the Python runtime",
         "external_mcp": "No automatic stdio connector; host MCP tools are separate",
     }

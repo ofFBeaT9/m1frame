@@ -905,7 +905,7 @@ class Graph{
     let best=null,bd=this.big?500:240;this.N.forEach(n=>{const d=(n.x-mx)**2+(n.y-my)**2;if(d<bd){bd=d;best=n;}});
     this.hover=best;
     if(this.tip){if(best){this.tip.style.display="block";this.tip.style.left=(mx+12)+"px";this.tip.style.top=(my+8)+"px";
-      this.tip.innerHTML="<b>"+best.id+"</b><br>"+(best.type||"");}else this.tip.style.display="none";}
+      this.tip.replaceChildren(el("b",{},String(best.id)),el("br"),document.createTextNode(String(best.type||"")));}else this.tip.style.display="none";}
     this.cv.style.cursor=best?"pointer":"default";}
 }
 const PILLARS_TYPECOL={entity:"#22d3ee",concept:"#34d399",synthesis:"#f5a623",source:"#8b97b3",query:"#a78bfa",page:"#cdd6ea"};

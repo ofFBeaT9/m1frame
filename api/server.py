@@ -30,7 +30,10 @@ Requires: pip install fastapi uvicorn httpx pyyaml
 from __future__ import annotations
 
 import asyncio
+import base64
 import datetime
+import hmac
+import ipaddress
 import json
 import os
 import re
@@ -38,6 +41,7 @@ import sys
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -47,8 +51,7 @@ sys.path.insert(0, str(ROOT))
 # ── Optional FastAPI import ───────────────────────────────────────────────────
 try:
     from fastapi import Body, FastAPI, HTTPException
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+    from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
     from pydantic import BaseModel, Field
     _FASTAPI = True
 except ImportError:
@@ -74,10 +77,10 @@ SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive",
 
 if _FASTAPI:
     class RunRequest(BaseModel):
-        goal: str
+        goal: str = Field(min_length=1, max_length=24000)
         backend: str | None = None
-        mode: str | None = None          # live | demo (auto-demo without a key)
-        speed: float = 1.0                  # demo replay speed multiplier
+        mode: Literal["live", "demo"] | None = None          # live | demo (auto-demo without a key)
+        speed: float = Field(default=1.0, ge=0.1, le=100)                  # demo replay speed multiplier
         skip_council: bool = False
         skip_wiki: bool = False
         skip_openplanter: bool = False
@@ -87,7 +90,7 @@ if _FASTAPI:
         learn_skills: bool = True
 
     class SkillSuggestRequest(BaseModel):
-        goal: str
+        goal: str = Field(min_length=1, max_length=24000)
 
     class ToolCallRequest(BaseModel):
         name: str
@@ -109,19 +112,19 @@ if _FASTAPI:
         approve: bool = False               # persisting a skill is a real disk write
 
     class WikiIngestRequest(BaseModel):
-        text: str
+        text: str = Field(min_length=1, max_length=100000)
         topic_hint: str = ""
         source_name: str = ""
 
     class ScheduleJobRequest(BaseModel):
-        job_id: str
+        job_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$")
         task: str
-        interval_hours: float = 24.0
+        interval_hours: float = Field(default=24.0, gt=0, le=87600)
 
     class ChatRequest(BaseModel):
         mode: Literal["full", "quick"] = "full"
-        message: str = ""
-        messages: list[dict] = []           # [{role, content}, ...]
+        message: str = Field(default="", max_length=24000)
+        messages: list[dict] = Field(default_factory=list, max_length=100)           # [{role, content}, ...]
         ground: bool = True
 
     class ConfigPatch(BaseModel):
@@ -138,8 +141,13 @@ _MAX_RUNS = 200          # rolling window — bounds memory on long-lived server
 def _new_run(goal: str) -> str:
     # Evict oldest completed runs so _RUNS + their EventBus history stay bounded.
     while len(_RUNS) >= _MAX_RUNS:
-        oldest = next(iter(_RUNS))
+        oldest = next((key for key, run in _RUNS.items()
+                       if run["status"] not in {"queued", "running"}), None)
+        if oldest is None:
+            raise HTTPException(429, "run capacity reached")
         _RUNS.pop(oldest, None)
+    if sum(r["status"] in {"queued", "running"} for r in _RUNS.values()) >= 16:
+        raise HTTPException(429, "too many active runs")
     run_id = str(uuid.uuid4())[:8]
     _RUNS[run_id] = {
         "run_id": run_id, "goal": goal, "status": "queued", "mode": None,
@@ -244,15 +252,60 @@ def create_app() -> FastAPI:
     metrics = get_metrics()
     logger = PillarLogger()
 
+    from agents.scheduler import InvestigationScheduler
+    sched = InvestigationScheduler(None)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        sched.start()
+        try:
+            yield
+        finally:
+            sched.stop()
+
     app = FastAPI(
-        title="m1frame Studio API",
+        lifespan=lifespan, title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.10.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.10.1", docs_url="/docs", redoc_url="/redoc",
     )
-    app.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
-        allow_headers=["*"], allow_credentials=False,
-    )
+    @app.middleware("http")
+    async def access_policy(request, call_next):
+        # Same-origin browser access only; resist CSRF and DNS rebinding.
+        origin = request.headers.get("origin")
+        if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
+            return JSONResponse({"detail": "cross-origin access denied"}, status_code=403)
+        token = os.environ.get("M1FRAME_API_TOKEN", "")
+        auth = request.headers.get("authorization", "")
+        supplied = auth[7:] if auth.startswith("Bearer ") else ""
+        if auth.startswith("Basic "):
+            try:
+                supplied = base64.b64decode(auth[6:], validate=True).decode().split(":", 1)[1]
+            except (ValueError, IndexError, UnicodeError):
+                pass
+        if token:
+            if not hmac.compare_digest(token.encode(), supplied.encode()):
+                return JSONResponse({"detail": "API token required"}, status_code=401,
+                                    headers={"WWW-Authenticate": 'Basic realm="m1frame"'})
+        else:
+            peer = request.client.host if request.client else ""
+            testing = peer == "testclient" and request.url.hostname == "testserver"
+            try:
+                local_peer = ipaddress.ip_address(peer).is_loopback
+            except ValueError:
+                local_peer = False
+            if not testing and (not local_peer or request.url.hostname not in
+                                {"localhost", "127.0.0.1", "::1"}):
+                return JSONResponse({"detail": "remote access requires M1FRAME_API_TOKEN"}, status_code=403)
+        size = 0
+        body = []
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 262144:
+                return JSONResponse({"detail": "request body too large"}, status_code=413)
+            body.append(chunk)
+        request._body = b"".join(body)
+        return await call_next(request)
+
     _load_persisted_runs()   # restore prior runs so Runs history survives restarts
 
     # ── UI ──────────────────────────────────────────────────────────────────────
@@ -272,7 +325,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.10.0",
+            "status": "ok", "version": "1.10.1",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -356,6 +409,13 @@ def create_app() -> FastAPI:
         bus: EventBus = _RUNS[run_id]["bus"]
 
         async def gen():
+            if bus is None:
+                events = _RUNS[run_id].get("events", [])
+                for event in events:
+                    yield f"data: {json.dumps(event)}\n\n"
+                if not events or events[-1].get("type") not in {"done", "error"}:
+                    yield 'data: {"type": "done", "data": {}}\n\n'
+                return
             q = bus.subscribe_async()
             try:
                 yield ": connected\n\n"   # prime the stream
@@ -423,7 +483,10 @@ def create_app() -> FastAPI:
 
             if not _can_run_live(cfg):
                 # Demo mode: stream the grounded keyword answer with a typewriter feel
-                reply = ctx or "Run a goal first to populate the knowledge graph."
+                from modules.adhd import ADHDFormatter
+                reply = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).format(
+                    ctx or "Run a goal first to populate the knowledge graph."
+                )
                 for tok in re.findall(r"\S+\s*", reply):
                     await asyncio.sleep(0.012)
                     yield f"data: {json.dumps({'type': 'token', 'chunk': tok})}\n\n"
@@ -434,8 +497,12 @@ def create_app() -> FastAPI:
             loop = asyncio.get_running_loop()
             q: asyncio.Queue = asyncio.Queue()
             stop = threading.Event()   # set when the client disconnects → stop producing
-            system = ("You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
-                      "ground claims in the provided knowledge-graph context when present.")
+            from modules.adhd import ADHDFormatter
+            formatter = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False)))
+            system = formatter.system_guidance(
+                "You are m1frame, a deliberative multi-agent assistant. Answer crisply and "
+                "ground claims in the provided knowledge-graph context when present."
+            )
             prompt = user_msg if not ctx else f"Knowledge-graph context:\n{ctx}\n\nQuestion: {user_msg}"
 
             def produce():
@@ -471,7 +538,7 @@ def create_app() -> FastAPI:
     async def wiki_ingest(req: WikiIngestRequest):
         from agents.wiki import LLMWiki
         wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
-        page = wiki.ingest(req.text, topic_hint=req.topic_hint, source_name=req.source_name)
+        page = await asyncio.to_thread(wiki.ingest, req.text, topic_hint=req.topic_hint, source_name=req.source_name)
         return {"title": page.title, "filename": page.filename,
                 "page_type": page.page_type, "tags": page.tags}
 
@@ -483,7 +550,7 @@ def create_app() -> FastAPI:
             return {"question": q, "answer": ka["answer"], "citations": ka["citations"]}
         from agents.wiki import LLMWiki
         wiki = LLMWiki(LLMClient(), config=cfg.get("wiki"))
-        return {"question": q, "answer": wiki.query(q)}
+        return {"question": q, "answer": await asyncio.to_thread(wiki.query, q)}
 
     @app.get("/wiki/pages")
     async def wiki_pages():
@@ -621,8 +688,8 @@ def create_app() -> FastAPI:
             out = OutboundMessage(text=f"▸ started deliberation · run {res['run_id']} ({res['mode']}). "
                                        f"Watch it live in Studio.", channel=msg.channel, platform=platform)
         else:
-            out = _gw_router.handle(msg)
-        delivered = _gw_adapters.deliver(out)       # best-effort; needs platform creds
+            out = await asyncio.to_thread(_gw_router.handle, msg)
+        delivered = await asyncio.to_thread(_gw_adapters.deliver, out)       # best-effort; needs platform creds
         return {"ok": True, "reply": out.text, "delivered": delivered,
                 "payload": _gw_adapters.format_out(platform, out)}
 
@@ -650,7 +717,7 @@ def create_app() -> FastAPI:
         if req.name not in reg:
             raise HTTPException(404, f"unknown tool '{req.name}'")
         try:
-            return {"name": req.name, "result": reg.call(req.name, req.args, approved=req.approve)}
+            return {"name": req.name, "result": await asyncio.to_thread(reg.call, req.name, req.args, approved=req.approve)}
         except PermissionError as e:
             raise HTTPException(403, str(e)) from e   # dangerous tool needs approve=true
         except Exception as e:  # noqa: BLE001
@@ -676,23 +743,17 @@ def create_app() -> FastAPI:
     async def list_schedule():
         from dataclasses import asdict
 
-        from agents.scheduler import InvestigationScheduler
-        sched = InvestigationScheduler(LLMClient())
         return {"jobs": [asdict(j) for j in sched.list_jobs()]}
 
     @app.post("/schedule", status_code=201)
     async def add_schedule(req: ScheduleJobRequest):
         from dataclasses import asdict
 
-        from agents.scheduler import InvestigationScheduler
-        sched = InvestigationScheduler(LLMClient())
         job = sched.add(req.job_id, req.task, req.interval_hours)
         return {"job": asdict(job)}
 
     @app.delete("/schedule/{job_id}")
     async def remove_schedule(job_id: str):
-        from agents.scheduler import InvestigationScheduler
-        sched = InvestigationScheduler(LLMClient())
         if not sched.remove(job_id):
             raise HTTPException(404, "job_id not found")
         return {"removed": job_id}
@@ -778,9 +839,8 @@ async def _fire_webhook(url: str, payload: dict) -> None:
     if not _safe_webhook(url):
         return
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            await client.post(url, json=payload)
+        from agents.net import public_request
+        await asyncio.to_thread(public_request, url, payload)
     except Exception:
         pass
 

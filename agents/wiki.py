@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import datetime
 import re
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -274,7 +275,10 @@ class LLMWiki:
         # Save raw source
         if source_name:
             raw_path = self.wiki_dir / "raw" / "sources" / f"{_slugify(source_name)}.md"
-            raw_path.write_text(raw_text, encoding="utf-8")
+            if raw_path.exists():
+                raw_path = raw_path.with_name(raw_path.stem + "_" + uuid.uuid4().hex + ".md")
+            with raw_path.open("x", encoding="utf-8") as handle:
+                handle.write(raw_text)
 
         # Step 1: Analysis
         index_snapshot = self._read_index_snapshot()
@@ -583,27 +587,28 @@ class LLMWiki:
         filename = f"{slug}{suffix}.md"
         path = target_dir / filename
         if path.exists():
-            ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            ts = uuid.uuid4().hex
             filename = f"{slug}_{ts}{suffix}.md"
             path = target_dir / filename
-        path.write_text(content, encoding="utf-8")
+        with path.open("x", encoding="utf-8") as handle:
+            handle.write(content)
         return f"{subdir}/{filename}" if subdir else filename
 
     def _update_index(self, page: WikiPage):
-        existing = _read_text(self.index_file) if self.index_file.exists() else "# Wiki Index\n\n"
         entry = (
             f"- [[{page.title}]] ({page.page_type}) — {page.excerpt(120)}"
             f" *(tags: {', '.join(page.tags)})*\n"
         )
-        self.index_file.write_text(existing + entry, encoding="utf-8")
+        with self.index_file.open("a", encoding="utf-8") as handle:
+            handle.write(entry)
 
     def _append_log(self, operation: str, detail: str):
         """Append-only chronological log (Karpathy pattern)."""
         log_path = self.wiki_dir / "log.md"
         ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         entry = f"## [{ts}] {operation} | {detail}\n\n"
-        existing = _read_text(log_path) if log_path.exists() else "# Wiki Log\n\n"
-        log_path.write_text(existing + entry, encoding="utf-8")
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(entry)
 
     def _read_index_snapshot(self) -> str:
         return _read_text(self.index_file) if self.index_file.exists() else "Empty index."

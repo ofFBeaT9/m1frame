@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
+import re
 import threading
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -64,13 +66,18 @@ class InvestigationScheduler:
         self._jobs: dict[str, ScheduledJob] = {}
         self._timers: dict[str, threading.Timer] = {}
         self._lock = threading.Lock()
+        self._running = False
         self._load()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def add(self, job_id: str, task: str, interval_hours: float = 24.0) -> ScheduledJob:
         """Register or update a recurring investigation job."""
+        _validate_job(job_id, interval_hours)
         with self._lock:
+            old = self._timers.pop(job_id, None)
+            if old:
+                old.cancel()
             job = ScheduledJob(
                 job_id=job_id,
                 task=task,
@@ -79,6 +86,8 @@ class InvestigationScheduler:
             )
             self._jobs[job_id] = job
             self._save()
+            if self._running:
+                self._arm(job)
         return job
 
     def remove(self, job_id: str) -> bool:
@@ -96,17 +105,25 @@ class InvestigationScheduler:
         with self._lock:
             if job_id in self._jobs:
                 self._jobs[job_id].enabled = True
+                if self._running and job_id not in self._timers:
+                    self._arm(self._jobs[job_id])
                 self._save()
 
     def disable(self, job_id: str) -> None:
         with self._lock:
             if job_id in self._jobs:
                 self._jobs[job_id].enabled = False
+                timer = self._timers.pop(job_id, None)
+                if timer:
+                    timer.cancel()
                 self._save()
 
     def start(self) -> None:
         """Arm timers for all enabled jobs based on their next_run time."""
         with self._lock:
+            if self._running:
+                return
+            self._running = True
             for job in list(self._jobs.values()):
                 if job.enabled:
                     self._arm(job)
@@ -114,6 +131,7 @@ class InvestigationScheduler:
     def stop(self) -> None:
         """Cancel all pending timers without removing job definitions."""
         with self._lock:
+            self._running = False
             for timer in self._timers.values():
                 timer.cancel()
             self._timers.clear()
@@ -138,33 +156,36 @@ class InvestigationScheduler:
 
     def _arm(self, job: ScheduledJob) -> None:
         delay = _seconds_until(job.next_run)
-        timer = threading.Timer(delay, self._fire, args=[job.job_id])
+        timer = threading.Timer(delay, self._fire, args=[job.job_id, job])
         timer.daemon = True
         timer.name = f"m1frame-sched-{job.job_id}"
         timer.start()
         self._timers[job.job_id] = timer
 
-    def _fire(self, job_id: str) -> None:
+    def _fire(self, job_id: str, expected: ScheduledJob | None = None) -> None:
         with self._lock:
             job = self._jobs.get(job_id)
-        if job is None or not job.enabled:
+        if job is None or not job.enabled or not self._running or (expected is not None and job is not expected):
             return
 
         summary = self._execute(job)
 
         with self._lock:
+            if self._jobs.get(job_id) is not job:
+                return
             job.last_result_summary = summary[:500]
             job.last_run = _utc_now_iso()
             job.next_run = _iso_after(job.interval_hours)
             job.run_count += 1
             self._save()
-            if job.enabled:
+            if job.enabled and self._running:
                 self._arm(job)
 
     def _execute(self, job: ScheduledJob) -> str:
         from agents.openplanter import OpenPlanterAgent
-        planter = OpenPlanterAgent(self.llm, workspace=str(self.workspace))
         try:
+            from llm_client import LLMClient
+            planter = OpenPlanterAgent(self.llm or LLMClient(), workspace=str(self.workspace))
             result = planter.investigate(job.task)
             summary = result.report()
         except Exception as exc:
@@ -187,6 +208,7 @@ class InvestigationScheduler:
         try:
             data = json.loads(manifest.read_text(encoding="utf-8"))
             for jd in data.get("jobs", []):
+                _validate_job(jd["job_id"], jd["interval_hours"])
                 self._jobs[jd["job_id"]] = ScheduledJob(**jd)
         except Exception:
             pass
@@ -220,3 +242,10 @@ def _seconds_until(iso_str: str | None) -> float:
         return max(delta, 0.0)
     except (ValueError, TypeError):
         return 0.0
+
+
+def _validate_job(job_id: str, interval_hours: float) -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", job_id):
+        raise ValueError("job_id must contain only letters, numbers, underscores or hyphens")
+    if not math.isfinite(interval_hours) or not 0 < interval_hours <= 87600:
+        raise ValueError("interval_hours must be finite, positive and at most 87600")

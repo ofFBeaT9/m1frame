@@ -51,10 +51,14 @@ def url_decode(text: str) -> str:
 
 
 def random_string(length: int = 16) -> str:
-    return secrets.token_hex(max(1, int(length)))[: int(length)]
+    return secrets.token_hex(max(1, min(int(length), 10000)))[: max(0, min(int(length), 10000))]
 
 
 def base_convert(value: str, from_base: int = 10, to_base: int = 16) -> str:
+    if not 2 <= int(from_base) <= 36 or not 2 <= int(to_base) <= 36:
+        raise ValueError("bases must be between 2 and 36")
+    if len(str(value)) > 1000:
+        raise ValueError("value exceeds limit")
     n = int(str(value), int(from_base))
     if int(to_base) == 10:
         return str(n)
@@ -173,24 +177,30 @@ def head_file(path: str, lines: int = 20) -> str:
     if not p.is_file():
         return f"(not a file: {path})"
     with p.open(encoding="utf-8", errors="replace") as fh:
-        return "".join([next(fh, "") for _ in range(max(1, int(lines)))])
+        return "".join([fh.readline(10000) for _ in range(max(1, min(int(lines), 1000)))])
 
 
 def grep_files(pattern: str, path: str = ".", glob: str = "*", limit: int = 50) -> list:
     from .builtin import _safe_path
     base = _safe_path(path)
     try:
-        rx = re.compile(pattern)
+        import regex
+        rx = regex.compile(pattern[:1000])
     except re.error as e:
         return [f"(regex error: {e})"]
     hits = []
-    files = [base] if base.is_file() else sorted(base.rglob(glob))
-    for f in files:
+    files = [base] if base.is_file() else base.rglob(glob)
+    for scanned, f in enumerate(files):
+        if scanned >= 1000:
+            break
         if not f.is_file():
             continue
         try:
-            for i, ln in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                if rx.search(ln):
+            f = _safe_path(str(f))
+            with f.open(encoding="utf-8", errors="replace") as handle:
+                content = handle.read(100000)
+            for i, ln in enumerate(content.splitlines(), 1):
+                if rx.search(ln, timeout=0.02):
                     hits.append({"file": str(f).replace("\\", "/"), "line": i, "text": ln.strip()[:200]})
                     if len(hits) >= int(limit):
                         return hits

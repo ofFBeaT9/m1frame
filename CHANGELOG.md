@@ -6,6 +6,17 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.10.1] — 2026-09-30
+
+- Merge upstream optional ADHD formatting and Headroom compression without losing full Studio routing or chat history.
+- Enforce API same-origin/loopback access, optional token authentication, request bounds, active-run limits, and protected static assets. Docker requires a token; MCP HTTP stays on loopback.
+- Pin public DNS addresses for untrusted HTTP fetches/webhooks, disable redirects, and bound response reads.
+- Protect workspace credentials, bound arithmetic/regex/base-conversion tools, and require approval for registered remote tools.
+- Honor council thresholds and fail closed on an inconclusive red-team verdict; preserve current requests on failed context compression.
+- Repair scheduler lifecycle, concurrent learned-skill transactions, immutable wiki sources, saved event replay, and Python package discovery.
+- Upgrade the vulnerable dotenv requirement; fix clean-install OpenAI/httpx and MCP major-version incompatibilities.
+- Add adversarial regression coverage and retain full-system and browser checks. See REDTEAM_QA.md for evidence and limitations.
+
 ## [Unreleased]
 
 ## [1.10.0] — 2026-09-30 — Full prompt routing

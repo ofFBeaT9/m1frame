@@ -46,7 +46,7 @@ class MCPClient:
         """Register every connected MCP tool into a local registry."""
         for spec in self._specs:
             reg.register(Tool(spec["name"], spec.get("description", ""),
-                              self._caller(spec["name"]), spec.get("schema", {})))
+                              self._caller(spec["name"]), spec.get("schema", {}), dangerous=True))
         return reg
 
     def _caller(self, name: str):

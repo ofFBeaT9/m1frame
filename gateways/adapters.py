@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-from agents.net import safe_url
+from agents.net import public_request, safe_url
 
 from .router import InboundMessage, OutboundMessage
 
@@ -117,12 +117,12 @@ def deliver(out: OutboundMessage) -> bool:
             hook = os.environ.get(f"{p.upper()}_WEBHOOK_URL")
             if not hook or not safe_url(hook):
                 return False
-            httpx.post(hook, json=format_out(p, out), timeout=10)
-            return True
+            status, _ = public_request(hook, format_out(p, out))
+            return 200 <= status < 300
         hook = out.meta.get("reply_url") if out.meta else None
         if hook and safe_url(hook):
-            httpx.post(hook, json=generic_format(out), timeout=10)
-            return True
+            status, _ = public_request(hook, generic_format(out))
+            return 200 <= status < 300
         return False
     except Exception:  # noqa: BLE001 — delivery is best-effort
         return False

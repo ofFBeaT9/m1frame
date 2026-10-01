@@ -13,6 +13,7 @@ import ast
 import base64 as _b64
 import hashlib
 import json as _json
+import math
 import operator
 import re
 import time
@@ -36,7 +37,13 @@ def _safe_eval(node):
     if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
         return node.value
     if isinstance(node, ast.BinOp) and type(node.op) in _OPS:
-        return _OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+        left, right = _safe_eval(node.left), _safe_eval(node.right)
+        if isinstance(node.op, ast.Pow) and abs(right) > 1000:
+            raise ValueError("exponent exceeds limit")
+        result = _OPS[type(node.op)](left, right)
+        if isinstance(result, complex) or not math.isfinite(result) or abs(result) > 1e100:
+            raise ValueError("numeric result exceeds limit")
+        return result
     if isinstance(node, ast.UnaryOp) and type(node.op) in _OPS:
         return _OPS[type(node.op)](_safe_eval(node.operand))
     raise ValueError("unsupported expression")
@@ -44,6 +51,8 @@ def _safe_eval(node):
 
 def calculator(expression: str):
     """Evaluate arithmetic safely: + - * / // % ** and parentheses only."""
+    if len(str(expression)) > 1000:
+        raise ValueError("expression exceeds limit")
     return _safe_eval(ast.parse(str(expression), mode="eval"))
 
 
@@ -76,14 +85,11 @@ def word_count(text: str) -> int:
 
 def http_get(url: str, max_chars: int = 2000) -> dict:
     """SSRF-guarded HTTP GET. Returns {status, text} or {error}. Needs httpx."""
-    from agents.net import safe_url
-    if not safe_url(url):
-        return {"error": "blocked url (ssrf guard): must be public http(s)"}
+    from agents.net import public_request
     try:
-        import httpx
-        r = httpx.get(url, timeout=10, follow_redirects=True)
-        return {"status": r.status_code, "text": r.text[:int(max_chars)]}
-    except Exception as e:  # noqa: BLE001
+        status, body = public_request(url, max_bytes=max(1, min(int(max_chars), 100000)))
+        return {"status": status, "text": body.decode("utf-8", "replace")}
+    except Exception as e:
         return {"error": str(e)}
 
 
@@ -92,6 +98,11 @@ def _safe_path(path: str) -> _Path:
     p = (_ROOT / str(path)).resolve()
     if p != _ROOT and _ROOT not in p.parents:
         raise ValueError("path escapes the m1frame workspace")
+    parts = p.relative_to(_ROOT).parts
+    if any(part.startswith(".") or part.lower().endswith((".pem", ".key"))
+           or part.lower() in {"credentials.json", "secrets.yaml", "secrets.json"}
+           or ":" in part for part in parts):
+        raise ValueError("protected workspace path")
     return p
 
 
@@ -99,7 +110,8 @@ def read_file(path: str, max_chars: int = 4000) -> str:
     p = _safe_path(path)
     if not p.is_file():
         return f"(not a file: {path})"
-    return p.read_text(encoding="utf-8", errors="replace")[:int(max_chars)]
+    with p.open(encoding="utf-8", errors="replace") as handle:
+        return handle.read(max(1, min(int(max_chars), 100000)))
 
 
 def write_file(path: str, content: str) -> dict:   # DANGEROUS — requires approval
@@ -140,8 +152,9 @@ def json_query(data, path: str = ""):
 
 def regex_extract(pattern: str, text: str, limit: int = 20) -> list:
     try:
-        return re.findall(pattern, text or "")[:int(limit)]
-    except re.error as e:
+        import regex
+        return regex.findall(pattern[:1000], (text or "")[:100000], timeout=0.2)[:max(0, min(int(limit), 1000))]
+    except (TimeoutError, ValueError, re.error) as e:
         return [f"(regex error: {e})"]
 
 
@@ -175,6 +188,18 @@ def convert_temp(value: float, to: str = "F") -> float:
     return round(v * 9 / 5 + 32, 2) if str(to).upper() == "F" else round((v - 32) * 5 / 9, 2)
 
 
+def integration_status() -> dict:
+    """Report optional m1frame integration availability without side effects."""
+    from llm_client import load_config
+    from modules.adhd import ADHDFormatter
+    from modules.headroom import HeadroomAdapter
+    cfg = load_config()
+    return {
+        "adhd": ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).status(),
+        "headroom": HeadroomAdapter(cfg.get("headroom")).status(),
+    }
+
+
 def register_builtins(reg: ToolRegistry) -> ToolRegistry:
     reg.register(Tool("calculator", "Evaluate an arithmetic expression safely.",
                       calculator, {"expression": "string, e.g. '2*(3+4)'"}))
@@ -203,6 +228,8 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
                       convert_temp, {"value": "number", "to": "F|C"}))
     from .skills import register_skill_tools
     register_skill_tools(reg)
+    reg.register(Tool("integration_status", "Report optional module availability.",
+                      integration_status, {}))
     from .extra import register_extras
     register_extras(reg)        # the rest of the auditable toolbelt (→ 40+)
     # Optional-dependency modules. Both degrade to a structured "unavailable"

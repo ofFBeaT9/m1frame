@@ -234,11 +234,14 @@ def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description="m1frame MCP server (Claude Code / mobile)")
     p.add_argument("--http", action="store_true",
                    help="Serve MCP over HTTP (mobile/remote clients connect by URL)")
-    p.add_argument("--host", default="0.0.0.0", help="HTTP bind host (default 0.0.0.0)")
+    p.add_argument("--host", default="127.0.0.1", help="Loopback HTTP bind host (use an authenticated proxy for remote access)")
     p.add_argument("--port", type=int, default=8765, help="MCP HTTP port (default 8765)")
     p.add_argument("--studio-port", type=int, default=8080, help="Studio UI port (default 8080)")
     p.add_argument("--no-studio", action="store_true", help="Do not auto-start the Studio UI")
     args = p.parse_args(argv)
+
+    if args.http and args.host not in {"127.0.0.1", "localhost", "::1"}:
+        p.error("MCP HTTP must bind to loopback; use an authenticated reverse proxy for remote access")
 
     if args.http:
         global _STUDIO_BIND

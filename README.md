@@ -4,31 +4,41 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-> **v1.10.0:** Studio chat uses the full workflow by default. Story agents can
+> **v1.10.1:** Studio chat uses the full workflow by default. Story agents can
 > retrieve skills and execute registered tools; coding assistants follow AGENTS.md.
+> Security hardening and adversarial regression results: [red-team QA](REDTEAM_QA.md).
 > See [full-system QA](FULL_SYSTEM_QA.md) for setup, checks and connection limits.
 
-**Portable multi-agent AI framework** — 7 pillars, 9 source repositories, one pipeline.
+**Portable multi-agent AI framework** — 7 pillars, optional measurement and optimization
+loops, and one auditable pipeline.
 
 Works with Claude, OpenAI, **OpenRouter (200+ models)**, Nous, Novita, NVIDIA NIM, Ollama, vLLM, and LM Studio. Switch backends in one line.  
 Reach it from **Telegram / Slack / Discord / webhook / CLI**, give it **tools**, deploy with **Docker**.  
 Fully offline-capable. Git-versionable. Zero lock-in.
 
-> **New: [Scientific Agent Skills](#scientific-module)** — 163 scientific skills available
-> to planning and Miras agents, with supporting scripts, references, and four discovery/audit
-> tools. The pinned catalog is fully readable; scientific workflow execution may require
-> additional packages, credentials, data, or hardware. [Read the compatibility audit](scientific/AUDIT.md).
+> **Optional: [Scientific Agent Skills](#scientific-module)** — the pinned upstream catalog
+> contains 163 scientific skills when installed. Planning and Miras agents can receive
+> selected instructions, supporting scripts, references, and four discovery/audit tools.
+> Scientific workflow execution may require additional packages, credentials, data, or
+> hardware. [Read the compatibility audit](scientific/AUDIT.md).
 
-> **New: [m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
+> **[m1frame Studio](#m1frame-studio--watch-the-council-think) 🛰️** — a real-time, zero-build UI where you
 > *watch* the council deliberate, the knowledge graph grow, and memory update live. Most agents only show you a
 > final answer; m1frame shows you the **reasoning** — the debate, the red-team, the grounding. Run it with no API
 > key (gorgeous demo mode) or wire a key for live runs.
 >
-> Now also **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
-> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **53-tool** agent surface, and
+> The framework supports **self-improving** (council-**vetted** skills learned from passing runs), **200+ models** via
+> OpenRouter, **messaging gateways** (Telegram/Slack/Discord/webhook), a **54-tool** agent surface, and
 > **persistent run history** — deployable with one `docker compose up`.
+
+> **Optional ADHD and Headroom modules.** Enable `adhd.enabled` for concise,
+> action-first final responses inspired by
+> [i-have-adhd](https://github.com/ayghri/i-have-adhd). Install the optional
+> `headroom` extra and enable `headroom.enabled` to compress provider messages
+> with [Headroom](https://github.com/headroomlabs-ai/headroom). Both are
+> opt-in and safe to omit.
 >
-> **New in v1.8.0 — [`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
+> **[`sensors/` & `optimizers/`](#sensors--optimizers--the-two-modules-that-close-the-loop)
 > close two open loops.** The council could argue about quality but never **measure** it, and a learned
 > skill was **frozen at birth**. Now an objective structural score is reported beside every verdict
 > (advisory — it never overrules the council unless you say so), and a distilled skill is rewritten and
@@ -51,6 +61,8 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 | **Karpathy Patterns** | [karpathy gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Forced `<thought>` chain-of-thought, deterministic prompting |
 | **LLM Wiki** | [nashsu/llm_wiki](https://github.com/nashsu/llm_wiki) | Persistent three-layer knowledge graph (Analysis→Generation) |
 | **OpenPlanter** | [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter) | Recursive investigation agent — entity resolution, cross-referencing, dataset ingestion |
+| **ADHD output shaping** *(optional)* | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | Dependency-free actionability guidance and conservative final-prose cleanup |
+| **Headroom context** *(optional)* | [headroomlabs-ai/headroom](https://github.com/headroomlabs-ai/headroom) | Optional provider-message compression with safe passthrough and metrics |
 | **Sentrux** *(optional)* | [sentrux/sentrux](https://github.com/sentrux/sentrux) | Structural **measurement** of the artefact — an objective score beside the council's subjective one |
 | **SkillOpt** *(optional)* | [microsoft/SkillOpt](https://github.com/microsoft/SkillOpt) | Skill **improvement** — bounded edits kept only when they score better |
 | **Scientific Agent Skills** *(optional)* | [k-dense-ai/scientific-agent-skills](https://github.com/k-dense-ai/scientific-agent-skills) | Scientific workflow instructions, scripts and references available to planning, Miras agents and tool clients |
@@ -64,9 +76,83 @@ git clone https://github.com/ofFBeaT9/m1frame.git && cd m1frame
 pip install -r requirements.txt
 cp .env.example .env           # add your ANTHROPIC_API_KEY
 python scripts/qa_validate.py  # 164 core tests, no key needed
-python -m unittest scripts.test_scientific  # 8 scientific integration tests
+python -m unittest scripts.test_scientific scripts.test_integrations  # 12 optional-module tests
 python -m m1frame --goal "Build a FastAPI service with JWT auth"
 ```
+
+### Optional modules: ADHD output and Headroom context
+
+These integrations are provider-neutral and disabled by default, so existing
+responses and request payloads remain unchanged until you opt in.
+
+```yaml
+# config.yaml
+adhd:
+  enabled: true              # action-oriented final output and chat guidance
+headroom:
+  enabled: true              # compress messages before provider dispatch
+  model: null                # optional model override for Headroom
+  model_limit: 200000
+  target_ratio: null         # e.g. 0.5; null lets Headroom choose
+  protect_recent: 4
+  min_tokens_to_compress: 250
+```
+
+Install Headroom only when needed:
+
+```bash
+pip install -e ".[headroom]"
+```
+
+#### ADHD-friendly output shaping
+
+The [`i-have-adhd`](https://github.com/ayghri/i-have-adhd)-inspired formatter is
+a dependency-free translation of the upstream prompt skill, not a runtime
+dependency. When enabled, it:
+
+- adds action-first guidance to live API chat system prompts;
+- applies conservative cleanup to final workflow and demo-chat prose
+  (common filler preambles and closers);
+- preserves JSON, YAML frontmatter, fenced code, XML-like content, and
+  intermediate agent output unchanged.
+
+It is intentionally not applied to every internal handoff. The workflow formats
+the final response immediately before the output safety gate, while live API
+chat receives guidance and streams the provider's response unchanged.
+
+#### Headroom context compression
+
+The [`headroom-ai`](https://github.com/headroomlabs-ai/headroom) adapter runs
+before Claude and OpenAI-compatible provider requests, including requests with
+conversation history and streamed requests. The Claude Code CLI backend uses
+the local `claude` process directly and is not compressed by this adapter. It passes
+through the original messages when disabled, when the optional package is
+missing, when compression fails, or when Headroom returns an invalid payload.
+This keeps the base installation and existing provider behavior safe.
+
+After a request, `LLMClient.last_compression` exposes the most recent
+`CompressionResult`: `available`, `applied`, `tokens_before`,
+`tokens_after`, `tokens_saved`, `compression_ratio`,
+`transforms_applied`, and any fallback `error`. The registered
+`integration_status` tool reports module availability and configuration through
+the normal tool, API, and MCP surfaces.
+
+Validate the integrations without API keys or a Headroom installation:
+
+```bash
+python scripts/test_integrations.py
+```
+
+#### Where the modules live
+
+| Module | Repository path | Default | What it does |
+|---|---|---:|---|
+| ADHD output shaping | `modules/adhd.py` | off | Adds action-first guidance and conservatively removes common filler from final prose. |
+| Headroom compression | `modules/headroom.py` | off | Lazily calls `headroom.compress()` before Claude/OpenAI-compatible requests and records compression metrics. |
+
+Both adapters are exported from `modules/`, configured in `config.yaml`, and
+are covered by `scripts/test_integrations.py`. They do not add a required
+runtime dependency to the base installation.
 
 Or with Make:
 ```bash
@@ -85,8 +171,9 @@ python -m scientific read biopython
 python -m scientific audit --output scientific-audit.json
 ```
 
-The `scientific/` module loads all upstream `skills/**/SKILL.md` entries and exposes
-their supporting resources. The pinned revision contains 163 skills. In `config.yaml`,
+The `scientific/` module loads upstream `skills/**/SKILL.md` entries and exposes
+their supporting resources. The pinned upstream revision contains 163 skills when the
+optional catalog is installed. In `config.yaml`,
 set exact skills or leave `skills: null` for keyword selection:
 
 ```yaml
@@ -116,10 +203,12 @@ The audit checks every skill's format, Python syntax, import availability and cr
 name hints without executing upstream code or exposing credential values. It does not
 certify end-to-end execution. See [the integration audit](scientific/AUDIT.md).
 
-**Validation:** 163/163 skills load, 540/540 Python scripts parse, and all 172 framework
-and integration tests pass. In the audited environment, 54 skills reference unresolved
-external Python imports and 39 contain credential-name hints. These counts are a
-snapshot; run `python -m scientific audit` to inspect your own environment.
+**Validation snapshot:** the pinned catalog contains 163 skills and its upstream audit
+reported 540/540 Python scripts parse. M1Frame's current offline validation is
+164 core QA tests plus 8 scientific integration tests and 4 optional-module tests
+(176 total). Scientific dependency and credential findings are environment-specific;
+run `python -m scientific audit` after installing the catalog to inspect your own
+checkout.
 
 The installer retains upstream license and attribution files in the optional local
 checkout. No third-party scientific packages are installed into M1Frame's environment.
@@ -155,9 +244,9 @@ Seven surfaces, one renderer:
 2. **FastAPI, no key** → the server replays a real recorded deliberation over SSE; chat falls back to keyword-grounded retrieval.
 3. **No pip at all** → `python studio/serve.py` (stdlib only) serves the UI and the bundled demo replays entirely client-side.
 
-It streams over **Server-Sent Events** from new endpoints (`GET /run/{id}/events`, `POST /chat`,
+It streams over **Server-Sent Events** from its endpoints (`GET /run/{id}/events`, `POST /chat`,
 `GET /wiki/graph`, `GET /metrics.json`, `GET|PATCH /config`). The pipeline instrumentation is fully additive —
-`emit=None` by default, so the CLI and the **164/164** QA suite are byte-for-byte unaffected.
+`emit=None` by default, so the CLI and the **164/164** core QA suite are byte-for-byte unaffected.
 On a phone it's fully responsive — the rail becomes a bottom tab bar (run `make mobile` for phone access).
 
 ### Why m1frame is the most *auditable* multi-agent workspace
@@ -232,8 +321,8 @@ Your Goal
 │    the quality of the run that produced them.               │
 └─────────────────────────────────────────────────────────────┘
 
-◈ = optional module. Nothing installed → structured `available: false`,
-    and the pipeline behaves exactly as it did before.
+◈ = optional integration. Nothing installed → structured availability status
+    and safe passthrough behavior; the base pipeline remains unchanged.
 ```
 
 ---
@@ -451,6 +540,10 @@ m1frame/
 │   ├── wiki.py             ← LLMWiki, WikiPage, LintReport
 │   ├── openplanter.py      ← OpenPlanterAgent, InvestigationResult, Entity
 │   └── events.py           ← EventBus — thread-safe progress stream for Studio
+├── modules/                ← ◈ optional response and context integrations
+│   ├── adhd.py             ← dependency-free actionability formatter
+│   └── headroom.py         ← lazy Headroom adapter with safe passthrough
+├── gateways/               ← Telegram · Slack · Discord · webhook adapters
 ├── sensors/                ← ◈ optional structural MEASUREMENT (Sentrux adapter)
 │   ├── sentrux.py          ← SentruxClient, SensorResult — never raises into a run
 │   ├── gate.py             ← StructuralGate — fuses measurement with the council verdict
@@ -467,9 +560,11 @@ m1frame/
 │   ├── serve.py            ← stdlib static server (zero-pip demo)
 │   └── demo_run.json       ← bundled recorded deliberation
 ├── wiki/                   ← Auto-created knowledge graph
+├── mcp_server.py           ← stdio/HTTP MCP surface and mobile access
 └── scripts/
-    ├── run_workflow.py     ← 7-pillar runner (now emits live progress events)
-    └── qa_validate.py      ← 164-test offline QA suite (--pillar to run one group)
+    ├── run_workflow.py      ← 7-pillar runner (now emits live progress events)
+    ├── test_integrations.py ← 4 offline ADHD/Headroom tests
+    └── qa_validate.py       ← 164-test offline QA suite (--pillar to run one group)
 ```
 
 ---
@@ -480,4 +575,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues via [SECURITY.md]
 
 ---
 
-*m1frame v1.8.0 "Closed Loop" — Mahdad Shakiba, August 2026* · [Manual](MANUAL.md)
+[Manual](MANUAL.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+
+
+### Hardened service setup
+
+For Docker or remote Studio access, set `M1FRAME_API_TOKEN` before starting the
+service. Browser login uses any username and that token as the password; API
+clients use a Bearer token. Docker publishes only on `127.0.0.1:8080`. MCP HTTP is
+loopback-only and needs an authenticated reverse proxy for remote clients.
+See [SECURITY.md](SECURITY.md) for gateway authentication and deployment limits.
+The static demo server exposes only bundled UI assets; repository artifact links
+should be opened locally. Run the installed CLI from a workspace containing
+`config.yaml`, `purpose.md` and the project's knowledge files.

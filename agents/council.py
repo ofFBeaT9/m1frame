@@ -21,6 +21,7 @@ prompt — prevents system-prompt overflow on large outputs.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -160,7 +161,7 @@ class CouncilVerdict:
     passed: bool = False
 
     def __post_init__(self) -> None:
-        self.passed = (self.verdict == "pass" and self.consensus_score >= 7.0)
+        self.passed = (self.verdict == "pass" and 7.0 <= self.consensus_score <= 10.0)
 
     def report(self) -> str:
         lines = [
@@ -205,6 +206,8 @@ class LLMCouncil:
         self.cfg = config or {}
         self.personas = self.cfg.get("personas", self.DEFAULT_PERSONAS)
         self.threshold = float(self.cfg.get("consensus_threshold", 7.0))
+        if not math.isfinite(self.threshold) or not 1 <= self.threshold <= 10:
+            raise ValueError("consensus_threshold must be between 1 and 10")
         self.max_rounds = int(self.cfg.get("max_debate_rounds", 2))
         # An independent red-team runs after the personas in review() and can VETO a pass.
         self.red_team = bool(self.cfg.get("red_team", True))
@@ -282,20 +285,22 @@ class LLMCouncil:
                 })
             assessments.append(a)
         verdict = self._synthesise_review(task, output, assessments)
+        verdict.passed = (verdict.verdict == "pass"
+                          and self.threshold <= verdict.consensus_score <= 10.0)
         verdict.assessments = assessments
 
         # Independent red-team — attacks the synthesised verdict and can VETO a pass.
         if self.red_team:
             if on_persona_start:
                 on_persona_start("review", "Red-Team")
-            rt = self._red_team(task, output, verdict)
+            rt = self._red_team(task, verdict.approved_output, verdict)
             if on_persona_done:
                 on_persona_done("review", "Red-Team", {
                     "verdict": rt.verdict, "score": rt.score,
                     "key_points": rt.key_points, "recommendation": rt.recommendation,
                 })
             verdict.assessments.append(rt)
-            if rt.verdict == "fail":   # veto overrides a too-agreeable council
+            if rt.verdict != "pass":   # veto overrides a too-agreeable council
                 verdict.verdict = "fail"
                 verdict.passed = False
                 verdict.required_fixes = list(verdict.required_fixes) + [
@@ -338,7 +343,7 @@ class LLMCouncil:
                 recommended_direction=d.get("recommended_direction", ""),
                 raw=raw,
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, TypeError, OverflowError):
             return BrainstormPerspective(
                 persona=persona["name"], approach=raw[:200],
                 key_considerations=[], risks=[], opportunities=[],
@@ -366,7 +371,7 @@ class LLMCouncil:
                 risks_to_mitigate=d.get("risks_to_mitigate", []),
                 confidence=d.get("confidence", "medium"),
             )
-        except ValueError:
+        except (ValueError, TypeError, OverflowError):
             return BrainstormResult(
                 consensus_points=[], key_disagreements=[],
                 recommended_plan=raw[:300], implementation_steps=[],
@@ -390,7 +395,7 @@ class LLMCouncil:
                 recommendation=d.get("recommendation", ""),
                 raw=raw,
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, TypeError, OverflowError):
             return PersonaAssessment(
                 persona=persona["name"], verdict="conditional",
                 score=5, key_points=["Parse error — review manually"],
@@ -420,7 +425,7 @@ class LLMCouncil:
                 required_fixes=d.get("required_fixes", []),
                 approved_output=d.get("approved_output", output),
             )
-        except ValueError:
+        except (ValueError, TypeError, OverflowError):
             avg = sum(a.score for a in assessments) / max(len(assessments), 1)
             return CouncilVerdict(
                 consensus_score=avg,
@@ -453,7 +458,7 @@ class LLMCouncil:
                 recommendation=d.get("recommendation", ""),
                 raw=raw,
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, TypeError, OverflowError):
             return PersonaAssessment(
                 persona="Red-Team", verdict="conditional", score=5,
                 key_points=["Red-team parse error — review manually"],
@@ -467,6 +472,9 @@ def _parse_json(text: str) -> dict:
     """Strip markdown fences and parse JSON. Raises ValueError on failure."""
     clean = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
     try:
-        return json.loads(clean)
+        value = json.loads(clean)
+        if not isinstance(value, dict):
+            raise ValueError("Expected a JSON object")
+        return value
     except json.JSONDecodeError as exc:
         raise ValueError(f"JSON parse failed: {exc}\nRaw text:\n{text[:400]}") from exc
