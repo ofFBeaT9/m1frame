@@ -19,7 +19,7 @@
 
 - Live provider workflow: not verified. Claude login authenticated but tiny requests did not return. A US$0.02 per-request CLI cap was supplied; no successful response or final cost was reported. The publisher elected to defer live testing.
 - Rust Sentrux: not installed on the test machine. The separate Python package was detected and exercised; no successful Rust measurement is claimed.
-- Linux/macOS: not executed locally. Portable paths are used; Windows/Linux CI is included but has not yet run for this release.
+- Windows and Linux: plugin protocol CI passed for the preview. macOS was not tested.
 - A new Codex chat is needed to pick up installed tools. Direct protocol tests are distinct from host conversational routing.
 - No hosted service or universal-directory review/publication.
 

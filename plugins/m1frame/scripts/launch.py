@@ -1,9 +1,10 @@
 """Launch the unchanged upstream server with persistent local state."""
 import importlib.util
 import os
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
+
 
 def runtime_path():
     supplied = os.environ.get("M1FRAME_HOME")
@@ -40,8 +41,9 @@ def main():
     sys.path.insert(0, str(root))
     os.environ.pop("M1_AUTOSTART_STUDIO", None)
     os.environ["M1_STUDIO_BIND"] = "127.0.0.1"
-    import mcp_server
     from plugin_server import configure_server
+
+    import mcp_server
     configure_server(mcp_server).run()
 
 if __name__ == "__main__":

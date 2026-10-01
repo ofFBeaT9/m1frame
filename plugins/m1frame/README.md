@@ -9,7 +9,7 @@ Nine MCP tools, persistent local knowledge, and the m1frame workflow skill. Publ
 Requirements: Codex with local plugin support, Git, and Python 3.10+ available as `python`.
 
 ```sh
-git clone --branch m1frame-plugin-v0.1.0 --single-branch https://github.com/ofFBeaT9/m1frame.git m1frame-plugin
+git clone --branch m1frame-plugin-v0.1.1 --single-branch https://github.com/ofFBeaT9/m1frame.git m1frame-plugin
 cd m1frame-plugin
 python plugins/m1frame/scripts/setup.py
 codex plugin marketplace add .
@@ -59,4 +59,4 @@ See [VALIDATION.md](VALIDATION.md). Run tests/check_mcp.py with the Python execu
 
 Report problems at [m1frame issues](https://github.com/ofFBeaT9/m1frame/issues), with your OS, Python/plugin versions and a redacted error. Never include keys or private wiki content.
 
-The unchanged bundled runtime is version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe. Integration fixes live in scripts/plugin_server.py. Plugin version: 0.1.0. See LICENSE for upstream attribution and terms.
+The unchanged bundled runtime is version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe. Integration fixes live in scripts/plugin_server.py. Plugin version: 0.1.1. See LICENSE for upstream attribution and terms.

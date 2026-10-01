@@ -1,10 +1,10 @@
 """Create an isolated Python environment for the local plugin, without API keys."""
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import venv
+from pathlib import Path
 
 from launch import runtime_path
 
