@@ -63,3 +63,18 @@ on every prompt: discovery is broad and retrieval is selective.
 
 Passing these checks is evidence for the covered cases, not proof that no bugs
 remain. Live-provider and optional-hardware checks require their own environments.
+
+
+## GitHub Actions follow-up — 2026-10-01
+
+The first remote run of 202398c passed all three Linux QA jobs and lint/type
+checking, but the same test fixture failed on all six Windows/macOS jobs.
+`test_recursive_search_cannot_read_secrets` replaced the canonical workspace root
+with an unresolved temporary path. macOS symlink aliases and Windows short-path
+expansion made the resolved candidate differ from that fixture root. The fixture
+now resolves its root, matching the production `_ROOT` initialization; credential
+protection assertions and runtime containment checks remain intact.
+
+A separate Pages deployment failed at configure-pages with HTTP 404 because no
+Pages site is configured. That is a repository deployment setting, not a failed
+Python test. Enabling a new public site was not part of this test repair.

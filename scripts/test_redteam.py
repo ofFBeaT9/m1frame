@@ -44,7 +44,7 @@ class RedTeamTests(unittest.TestCase):
                 _safe_path(name)
 
     def test_recursive_search_cannot_read_secrets(self):
-        with tempfile.TemporaryDirectory() as temp, patch('tools.builtin._ROOT', Path(temp)):
+        with tempfile.TemporaryDirectory() as temp, patch('tools.builtin._ROOT', Path(temp).resolve()):
             Path(temp, '.env').write_text('unique-secret')
             Path(temp, 'public.txt').write_text('public example')
             self.assertEqual(grep_files('unique-secret'), [])
