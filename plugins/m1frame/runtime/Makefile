@@ -1,0 +1,56 @@
+.PHONY: help install studio mobile dev qa lint typecheck clean build run demo
+
+help:
+	@echo "m1frame — available commands:"
+	@echo "  make install     Install production dependencies"
+	@echo "  make studio      Install Studio deps + launch the live UI (http://localhost:8080)"
+	@echo "  make mobile      Phone access: MCP over HTTP + auto-start the mobile Studio UI"
+	@echo "  make demo        Rebuild the demo fixture + static snapshots"
+	@echo "  make dev         Install all dev + prod dependencies"
+	@echo "  make qa          Run full QA suite (no API key needed)"
+	@echo "  make lint        Run ruff linter"
+	@echo "  make typecheck   Run mypy type checker"
+	@echo "  make clean       Remove build artifacts and caches"
+	@echo "  make build       Build distributable package"
+	@echo "  make run GOAL=.. Run m1frame workflow"
+
+install:
+	pip install -r requirements.txt
+
+studio:
+	pip install fastapi "uvicorn[standard]" httpx pyyaml
+	python studio/build_demo.py
+	python api/server.py
+
+mobile:
+	pip install fastapi "uvicorn[standard]" httpx pyyaml mcp
+	python studio/build_demo.py
+	python mcp_server.py --http
+
+demo:
+	python studio/build_demo.py
+
+dev:
+	pip install -r requirements.txt
+	pip install ruff mypy pytest
+
+qa:
+	python scripts/qa_validate.py
+
+lint:
+	ruff check .
+
+typecheck:
+	mypy agents/ llm_client.py --ignore-missing-imports
+
+clean:
+	rm -rf dist/ build/ *.egg-info __pycache__ agents/__pycache__ scripts/__pycache__
+	find . -name "*.pyc" -delete
+	find . -name ".DS_Store" -delete
+
+build: clean
+	pip install build
+	python -m build
+
+run:
+	python scripts/run_workflow.py --goal "$(GOAL)"

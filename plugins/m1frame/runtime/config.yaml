@@ -1,0 +1,245 @@
+# ================================================================
+# m1frame — Configuration
+# ================================================================
+# Switch LLM backends with one line change: `backend: ollama`
+# All other settings are backend-specific.
+
+# ── LLM Backend ──────────────────────────────────────────────────
+backend: claude           # claude | claudecli | openai | openrouter | nous | novita | nvidia_nim | ollama | vllm | lmstudio
+
+claudecli:                # run on the Claude Code CLI — NO API key needed (uses your `claude` login)
+  model: claude-sonnet-5  # null = Claude Code's current default model; or e.g. claude-sonnet-5
+  timeout: 300
+  api_key_env: null
+
+claude:
+  model: claude-sonnet-5  # default/high-volume model — BMAD planning, council personas, Karpathy, Miras
+  max_tokens: 16000        # Sonnet 5 / Opus 5 support much larger outputs than the old 4.x default (8096); raise further for long-form synthesis
+  temperature: 0.2
+  api_key_env: ANTHROPIC_API_KEY
+
+openai:
+  model: gpt-4o
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+
+ollama:
+  model: llama3.2
+  base_url: http://localhost:11434/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null       # not needed
+
+vllm:
+  model: meta-llama/Meta-Llama-3-8B-Instruct
+  base_url: http://localhost:8000/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null
+
+lmstudio:
+  model: google/gemma-4-12b   # Gemma 4 12B — higher-precision quant; reliable structured output on 8 GB VRAM
+  base_url: http://localhost:1234/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: null
+
+openrouter:               # 200+ models through one OpenAI-compatible endpoint
+  model: anthropic/claude-sonnet-5   # or openai/gpt-4o, google/gemini-2.0-flash, meta-llama/llama-3.3-70b-instruct, …
+  base_url: https://openrouter.ai/api/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: OPENROUTER_API_KEY
+
+nous:                     # Nous Portal (OpenAI-compatible) — set base_url per your portal
+  model: Hermes-4-405B
+  base_url: https://inference-api.nousresearch.com/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NOUS_API_KEY
+
+novita:                   # Novita AI
+  model: meta-llama/llama-3.3-70b-instruct
+  base_url: https://api.novita.ai/v3/openai
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NOVITA_API_KEY
+
+nvidia_nim:               # NVIDIA NIM / Nemotron
+  model: nvidia/llama-3.1-nemotron-70b-instruct
+  base_url: https://integrate.api.nvidia.com/v1
+  max_tokens: 8096
+  temperature: 0.2
+  api_key_env: NVIDIA_API_KEY
+
+# ── Pillar: BMAD ─────────────────────────────────────────────────
+bmad:
+  max_subtasks: 10         # max stories in one Blueprint
+
+# ── Pillar: Miras ────────────────────────────────────────────────
+miras:
+  max_agents: 5
+  tools_enabled: true
+  max_tool_calls: 4        # bounded tool observations per story
+  tool_result_max_chars: 8000
+  sequential_handoff: true
+  context_max_chars: 16000 # dependency deliverables; bounded, fairly shared context
+
+# ── Pillar: Karpathy ─────────────────────────────────────────────
+karpathy:
+  thought_tag: thought     # wraps CoT as <thought>...</thought>
+  force_cot: true
+  temperature_override: 0.1
+  refine: false            # opt in to an additional rewrite model call
+  synthesis_max_chars: 32000 # reserve space for every story, including QA
+
+# ── Pillar: LLM Council ──────────────────────────────────────────
+council:
+  # Debating personas — Synthesiser is separate, not listed here
+  personas:
+    - name: Critic
+      role: "Find logical flaws, hallucinations, missing edge cases, and unsupported claims. Be rigorous."
+    - name: Advocate
+      role: "Defend the strongest approach. Highlight what is working and why the output is sound."
+    - name: Domain Expert
+      role: "Apply deep technical knowledge. Flag domain-specific risks, best practices, and anti-patterns."
+  consensus_threshold: 7   # score ≥ 7/10 → approved
+  max_debate_rounds: 2
+  judge_model: claude-opus-5   # per-pillar routing: only the red-team veto and the
+                               # final QA synthesis use this (heavier judgment calls);
+                               # every other council/BMAD/Karpathy call stays on the
+                               # cheaper `claude.model` above. null/omit = same model
+                               # for everything. Only takes effect on claude/claudecli backends.
+
+# ── Pillar: LLM Wiki ─────────────────────────────────────────────
+wiki:
+  directory: wiki/
+  index_file: wiki/index.md
+  purpose_file: purpose.md
+  vector_store: file       # file | lancedb
+  embed_model: null        # null = keyword search; path = local embedding model
+
+# ── Pillar: OpenPlanter (Investigation) ──────────────────────────
+openplanter:
+  workspace: workspace/           # directory for investigation outputs
+  provider: anthropic             # anthropic | openai | openrouter | cerebras
+  auto_invoke: true               # auto-route investigator stories through OpenPlanter
+  # Optional service keys (set in .env):
+  #   EXA_API_KEY    — web search (exa-py)
+  #   VOYAGE_API_KEY — semantic entity matching (voyageai)
+
+# ── Guardrails (content safety) ──────────────────────────────────
+# Cross-cutting input/output safety — separate from the council (quality), the
+# tool-approval gate, and the SSRF guard. Layer 1 (rules) is offline + zero-VRAM
+# and always on. Layer 2 (ShieldGemma) is optional and OFF by default: the
+# 26B-A4B reasoner already fills an 8 GB GPU, so enable the classifier only when
+# you can spare memory (or run it CPU-pinned / on a second endpoint).
+guardrails:
+  enabled: true
+  on_error: block            # block | allow — behaviour when a check itself errors
+  rules:
+    pii_secrets: true        # redact/block secrets (AWS/OpenAI/GitHub/…) + PII
+    injection_screen: true   # heuristic prompt-injection detection
+  shieldgemma:
+    enabled: false           # turn on to add the Gemma-based safety classifier
+    model: shieldgemma       # an LM Studio / Ollama model id
+    base_url: http://localhost:1234/v1
+    gates: [input, output]   # which gates run the classifier
+
+# ── API Server ───────────────────────────────────────────────────
+api:
+  host: 0.0.0.0
+  port: 8080
+  # Start with: python api/server.py
+  # or: uvicorn api.server:app --host 0.0.0.0 --port 8080
+  # Requires: pip install fastapi uvicorn httpx
+
+# ── Observability: Metrics ───────────────────────────────────────
+metrics:
+  enabled: false           # set true to auto-expose /metrics on startup
+  port: 9090               # Prometheus scrape port
+  # Grafana: add datasource http://localhost:9090 (Prometheus)
+
+# ── Observability: Logging ───────────────────────────────────────
+logging:
+  log_dir: logs/           # JSONL files written here: m1frame_YYYY-MM-DD.jsonl
+  # Tail live: tail -f logs/m1frame_$(date +%F).jsonl | jq .
+
+# ── Webhooks ─────────────────────────────────────────────────────
+webhooks:
+  on_complete: null        # POST URL called when pipeline completes
+  timeout_s: 10
+  # Usage: python -m m1frame --goal "..." --webhook https://your-url/hook
+
+# ── Scheduler ────────────────────────────────────────────────────
+scheduler:
+  enabled: false
+  jobs: []
+  # Example jobs (uncomment to use via scheduler):
+  # - job_id: daily_vendors
+  #   task: "Cross-reference vendor payments vs lobbying disclosures"
+  #   interval_hours: 24
+
+# ── m1frame Studio (real-time UI) ────────────────────────────────
+studio:
+  # Launch: python api/server.py  → open http://localhost:8080
+  # No API key? The UI runs in beautiful DEMO/replay mode automatically.
+  default_mode: auto         # auto | live | demo  (auto = live if a key is set)
+  accent: "#34e7e4"          # signal colour (overridable in Settings)
+  demo_speed: 1.0            # demo replay speed multiplier
+
+# ── Sensors: objective structural measurement (Sentrux) ──────────
+# Adapter for https://github.com/sentrux/sentrux (MIT) — a Rust analyser that
+# scores a codebase 0-10000. OPTIONAL: `pip install sentrux`. With nothing
+# installed every sensor call returns available=false and m1frame is unaffected.
+sensors:
+  enabled: true
+  binary: null               # null = $SENTRUX_BIN, else `sentrux` on PATH
+  timeout: 60                # seconds; a scan is bounded, never open-ended
+  pass_threshold: 7.0        # structural score (0-10) at/above which structure passes
+  concern_threshold: 5.0     # below this it FAILs
+  enforce: false             # false = ADVISORY (reported, never applied).
+                             # true  = the sensor can veto a passing council run.
+
+# ── Optimizers: make skills better, not just more numerous ───────
+# Mechanic from https://github.com/microsoft/SkillOpt (MIT). Two tiers:
+#   local    — dependency-free seeded hill-climber; always available
+#   skillopt — the real package, if `pip install skillopt` and a compatible
+#              entry point is found (probed, never assumed)
+optimizers:
+  enabled: true
+  prefer: auto               # auto | local | skillopt
+  rounds: 12                 # bounded edits proposed per optimisation
+  seed: 1337                 # fixed seed = reproducible optimisation
+
+# Scientific Agent Skills: install with `python -m scientific install`.
+# Supplies instructions to planning and each Miras agent; does not install scientific packages.
+scientific:
+  enabled: true
+  path: null                # defaults to .external/scientific-skills; env M1_SCIENTIFIC_SKILLS_PATH
+  skills: null              # null = keyword selection; [] = none; or explicit upstream skill names
+  max_context_chars: 60000  # only complete instructions fitting this budget are injected
+
+# Request headroom. Set each backend's context_window_tokens from its actual
+# deployed model to additionally enforce a conservative token/output reserve.
+# model_windows overrides per-model limits (including council judge overrides).
+context:
+  max_input_chars: 120000
+  safety_margin_tokens: 1024
+  model_windows: {}
+# Optional output shaping from ayghri/i-have-adhd. Disabled to preserve current
+# response text by default; applies only to final user-facing prose.
+adhd:
+  enabled: false
+
+# Optional context compression from headroomlabs-ai/headroom. Install with
+# `pip install headroom-ai` to enable. Missing package/errors always passthrough.
+headroom:
+  enabled: false
+  model: null
+  model_limit: 200000
+  target_ratio: null
+  protect_recent: 4
+  min_tokens_to_compress: 250

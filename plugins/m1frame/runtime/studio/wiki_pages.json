@@ -1,0 +1,126 @@
+[
+  {
+    "title": "Conway's Law",
+    "type": "concept",
+    "tags": [
+      "architecture",
+      "organization",
+      "concept",
+      "demo"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/conways-law.md",
+    "body": "# Conway's Law\n\n> \"Organizations design systems that mirror their own communication structure.\"\n\nPractical corollary for the [[MVP Architecture Decision]]: your service boundaries will end up matching your team\nboundaries, so **don't create more services than you have teams to own them**. A small pre-PMF team is one team \u2014\nwhich argues for one deployable ([[Modular Monolith]]) rather than a fleet of [[Microservices]] no one can staff\non-call."
+  },
+  {
+    "title": "Premature Decomposition",
+    "type": "concept",
+    "tags": [
+      "architecture",
+      "anti-pattern",
+      "concept",
+      "demo"
+    ],
+    "confidence": "high",
+    "file": "wiki/concepts/premature-decomposition.md",
+    "body": "# Premature Decomposition\n\nSplitting a system into services **before** the load, team size, or domain boundaries are understood \u2014 paying the\nfull distributed-systems cost up front to buy scalability you don't yet need. Its common failure mode is the\n**\"distributed monolith\"**: services so chatty they must deploy together \u2014 all the cost of distribution, none of\nthe independence.\n\nIt is the central anti-pattern the [[MVP Architecture Decision]] avoids by starting from a [[Modular Monolith]]\nand extracting services only on a real trigger."
+  },
+  {
+    "title": "m1frame",
+    "type": "entity",
+    "tags": [
+      "framework",
+      "multi-agent",
+      "bmad",
+      "council",
+      "miras",
+      "wiki"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/m1frame.md",
+    "body": "# m1frame\n\nA **portable, offline-capable multi-agent framework** that doesn't just *act* \u2014 it **deliberates, grounds, and\nremembers**. Seven pillars run as one pipeline: BMAD (story backlog) \u2192 Council brainstorm \u2192 OpenPlanter\n(investigation) \u2192 Miras (multi-agent execution) \u2192 Karpathy (`<thought>` refinement) \u2192 Council review (a QA gate\nwith an **independent red-team**) \u2192 LLM-wiki (this knowledge graph). Memory is held in miras; LLM backends switch\nin one line (Claude / OpenAI / OpenRouter / Ollama / vLLM / LM Studio and more). Zero lock-in, git-versionable.\n\nThe bundled demo runs this pipeline on a generic, relatable decision \u2014 the [[MVP Architecture Decision]]\n(monolith vs microservices) \u2014 so a new user can watch a 3-member council plus a red-team deliberate, ground, and\nremember, with no API key. [[m1frame Studio]] is the real-time UI that makes that deliberation visible,\nwatchable, and replayable."
+  },
+  {
+    "title": "Microservices",
+    "type": "entity",
+    "tags": [
+      "architecture",
+      "microservices",
+      "distributed",
+      "demo"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/microservices.md",
+    "body": "# Microservices\n\nAn architecture that splits a system into independently deployable services communicating over the network. It\ngenuinely helps at scale \u2014 independent deploys, per-service scaling, team autonomy \u2014 once you have the **load and\nthe headcount** to justify it (see [[Conway's Law]]).\n\nThe trap the council's red-team flags: microservices do **not** eliminate coupling, they **relocate** it to the\nnetwork, adding partial failure, retries, idempotency, distributed tracing, and versioned contracts. Before\nproduct-market fit those costs usually outweigh the benefit \u2014 hence the [[Modular Monolith]] wins the\n[[MVP Architecture Decision]] until a real trigger fires."
+  },
+  {
+    "title": "Modular Monolith",
+    "type": "entity",
+    "tags": [
+      "architecture",
+      "monolith",
+      "demo"
+    ],
+    "confidence": "high",
+    "file": "wiki/entities/modular-monolith.md",
+    "body": "# Modular Monolith\n\nA single deployable application internally organized into **bounded-context modules** that communicate through\nnarrow, explicit interfaces \u2014 one process, one database, trivial CI. It captures most of the design discipline of\n**[[Microservices]]** (clear ownership, separable domains) with none of the distributed-systems tax.\n\nIts decisive property for an MVP: because module boundaries are strict, any module can be **extracted into a\nstandalone service later without a rewrite** \u2014 so it is the low-regret default in the [[MVP Architecture Decision]]."
+  },
+  {
+    "title": "Is m1frame v1.3 Production Ready",
+    "type": "query",
+    "tags": [
+      "query",
+      "readiness",
+      "hermes",
+      "verdict"
+    ],
+    "confidence": "high",
+    "file": "wiki/queries/is-m1frame-v1.3-production-ready.md",
+    "body": "# Is m1frame v1.3 Production Ready\n\n**Q.** Is m1frame v1.3 \"Constellation\" production-ready, and what is the single highest-priority remaining gap\nversus Hermes Agent?\n\n**A. GO \u2014 production-ready *for its positioning*** (\"the most auditable multi-agent workspace\"), at council\nconsensus **8.3/10** with **90/90** offline QA and 0 wiki-lint errors. The [[m1frame Constellation Release]]\ncloses the gateway / tool / persistence / deploy *architecture* gaps in tested code, and every new subsystem is\nbest-effort \u2014 it can never break a pipeline run.\n\nIt is **not** broadly superior to Hermes: Hermes still leads on tool **breadth** (40+ vs 5), **gateway platform\ncount**, **deploy targets** (SSH/Modal/Daytona), and ~10k-commit **maturity**.\n\n**#1 remaining gap:** **tool breadth + live-validated gateways** \u2014 deepen `tools/` and exercise the Telegram/Slack/\nDiscord adapters with real credentials. That converts \"architecture present\" into \"surface proven.\"\n\nFull record: `studies/m1frame-v1.3-readiness/` (ROADMAP \u00b7 QA_GATE \u00b7 council \u00b7 FINAL_REPORT)."
+  },
+  {
+    "title": "m1frame Constellation Release",
+    "type": "synthesis",
+    "tags": [
+      "release",
+      "gateways",
+      "tools",
+      "mcp",
+      "deploy",
+      "hermes",
+      "readiness"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/m1frame-constellation.md",
+    "body": "# m1frame Constellation Release\n\n**v1.3 \"Constellation\"** is the release where [[m1frame]] stopped being \"a great dashboard with a thin agent\"\nand became a credible agent that still leads on auditability. It closes \u2014 *in code, tested* \u2014 the architecture\ngaps that were real against **Hermes Agent** in v1.2.\n\n## What shipped (commit `3c3b6f9`)\n- **Messaging gateways** (`gateways/`): one transport-agnostic `GatewayRouter` (commands \u00b7 `/run` deliberation \u00b7\n  grounded chat) behind **Telegram / Slack / Discord / webhook / CLI** adapters. API `POST /gateway/{platform}/webhook`\n  (SSRF-guarded), `GET /gateway/status`. Run locally via `python -m gateways`.\n- **Agent tool surface** (`tools/`): a `ToolRegistry` + auditable built-ins (AST-safe calculator, wiki_search,\n  datetime, word_count, SSRF-guarded http_get) + an **MCP client** connector. API `GET /tools`, `POST /tools/call`.\n- **Persistent run store**: runs written atomically to `runs/<id>.json`, reloaded on startup, searchable via\n  `GET /runs/search` \u2014 history survives restarts and stays replayable in [[m1frame Studio]].\n- **More providers** (nous / novita / nvidia_nim \u2192 9 backends) and **Docker** (`docker compose up`).\n\n## The honest verdict\nReadiness audit (this pipeline): **GO for its positioning** \u2014 *the most auditable multi-agent workspace* \u2014 at\ncouncil consensus **8.3/10**, **90/90** offline QA, 0 wiki lint errors. It is **not** \"superior to Hermes\noverall\": Hermes still leads on tool **breadth** (40+ vs 5), gateway **platform count**, deploy **targets**, and\n~10k-commit **maturity**. Those are breadth-and-time gaps, not architecture gaps. See\n[[Is m1frame v1.3 Production Ready]] and `studies/m1frame-v1.3-readiness/`.\n\n## The #1 remaining gap\n**Tool breadth + live-validated channels** \u2014 deepen the `tools/` set and exercise the gateway adapters against\nreal Telegram/Slack credentials. Highest leverage because it converts \"architecture present\" into \"surface area\nproven,\" which is the last thing standing between m1frame and a head-to-head with Hermes on its own turf."
+  },
+  {
+    "title": "m1frame Studio",
+    "type": "synthesis",
+    "tags": [
+      "ui",
+      "studio",
+      "real-time",
+      "sse",
+      "deliberation",
+      "hermes"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/m1frame-studio.md",
+    "body": "# m1frame Studio\n\nThe **real-time UI** for [[m1frame]] \u2014 a zero-build, offline, single-file web app that turns the batch pipeline\ninto a watchable **deliberation theatre**. Type a goal and see all seven pillars work live: BMAD stories appear,\nthe Council debates persona-by-persona with an **independent red-team that can veto a pass**, the knowledge graph\ngrows node-by-node, and the miras memory feed pulses.\n\n## What it is\nSeven surfaces over one event stream (`agents/events.py` \u2192 Server-Sent Events): **Studio** (live deliberation),\n**Chat** (grounded, cited), **Graph** (the knowledge constellation), **Runs** (replayable event traces),\n**Skills** (council-vetted learned recipes), **Wiki** (this graph), **Settings** (one-click backend switch,\ntools, gateways, scheduler, metrics). Three tiers so it always runs: live (FastAPI + key), server-replay (no\nkey), pure-static (no pip). Hand-built CSS, no CDN \u2014 a \"deep observatory\" aesthetic.\n\n## Why it matters (the honest positioning)\nBenchmarked against **Hermes Agent**, m1frame does **not** out-feature it on tool breadth or maturity. It leads\ndecisively on **one axis \u2014 transparency you can trust**: visible multi-agent deliberation, a red-team that\noverrides an overconfident pass (real in `agents/council.py`, not just the UI), click-through grounding in a live\nknowledge graph, and visible memory. The honest headline: *\"the most auditable multi-agent workspace there is.\"*\n\n## Proof\nThe bundled demo replays a full [[MVP Architecture Decision]] deliberation \u2014 the council debate, the red-team's\n\"microservices don't remove coupling\" correction, and the final verdict \u2014 with zero API key. The framework's own\ngateways, tool surface, and persistent runs are described in the [[m1frame Constellation Release]]."
+  },
+  {
+    "title": "MVP Architecture Decision",
+    "type": "synthesis",
+    "tags": [
+      "architecture",
+      "monolith",
+      "microservices",
+      "decision",
+      "demo"
+    ],
+    "confidence": "high",
+    "file": "wiki/synthesis/mvp-architecture-decision.md",
+    "body": "# MVP Architecture Decision\n\n**The answer:** ship a **[[Modular Monolith]]**, extraction-ready \u2014 *not* **[[Microservices]]**, not yet. This is\nthe bundled m1frame demo: a 3-member council plus a red-team deliberating a decision every software team faces.\n\n## The verdict\n1. **One deployable, many bounded contexts.** Model each domain as an in-process module behind a narrow\n   interface \u2014 one database, trivial CI. Simplicity is a feature.\n2. **Strict seams.** Because modules talk through interfaces, any one can later be lifted into a standalone\n   service **without a rewrite**.\n3. **Gate the split on real triggers:** sustained load a single box can't serve, a team large enough to own a\n   service end-to-end, or a genuine need for independent deploys.\n4. **Why now:** before product-market fit there is ~no scaling pressure, and distributed systems carry constant\n   ops cost \u2014 microservices **relocate** coupling to the network rather than removing it.\n\n## How the council got here\nThree independent lenses \u2014 product (ship speed), operations ([[Premature Decomposition]] is expensive), and\narchitecture ([[Conway's Law]]: one service per team you actually have) \u2014 converged. The lone \"microservices\nremove coupling\" dissent was **self-disqualified by the red-team**, which noted coupling merely moves to the\nnetwork (partial failure, retries, versioned contracts). Consensus **8.0/10**."
+  }
+]
