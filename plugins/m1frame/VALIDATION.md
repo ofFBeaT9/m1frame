@@ -1,28 +1,18 @@
-# Preview validation — 2026-10-01
+# Validation â€” preview 0.1.2
 
-## Passed
+Verified locally on Windows, 2026-10-02:
 
-- Windows / Python 3.13: 164 upstream offline QA checks and 61 regression tests.
-- Upstream Ruff checks and mypy checks (18 source files).
-- Plugin manifest and skill validation; wrapper lint.
-- Actual MCP startup, nine-tool discovery and boolean effect annotations.
-- Context, tool/skill listing, grounded retrieval and calculator.
-- Unapproved file write denied; approved test write succeeded; traversal rejected.
-- Unknown tool and missing model credentials returned honest errors.
-- Optimizer score did not decrease; optional sensor path returned bounded results.
-- Studio health/startup/reuse and invalid-port checks.
-- Studio rendered in the Codex browser; recorded demo completed in run history; wiki and graph displayed.
-- Restart preserved runtime data.
-- Isolated dependency installation from declared requirements.
+- 164 core offline QA checks.
+- 74 regression tests, including real subprocess MCP communication, approval enforcement, provider-setting persistence and investigator tools.
+- Runtime-upgrade backup/data-preservation test.
+- Real plugin protocol checks from fresh state: all nine tools, annotations, approvals, path boundaries, Studio lifecycle and persistence.
+- Browser tests: live/demo switching, provider updates, full chat, explicit quick mode, history, errors and mobile layout.
+- Ruff and mypy (18 source files).
+- Actual installed Headroom compression, SkillOpt editing and official Rust Sentrux measurement.
+- Scientific catalog: 163 skills, 540 Python resources syntax-checked; discovery and reading exercised.
 
-## Limits
+A real full self-audit made 28 OpenRouter free-model calls with total reported cost $0. All core stages executed. The council rejected the generated report at 3/10. That run exposed further bugs, now repaired: tool agents see their call budget, and rejected answers are labeled and excluded from wiki ingestion. A completed pipeline is not proof that its answer is correct. Optional service/hardware workflows are not all verified. See MODULE-AUDIT.md for the detailed evidence and limitations.
 
-- Live provider workflow: not verified. Claude login authenticated but tiny requests did not return. A US$0.02 per-request CLI cap was supplied; no successful response or final cost was reported. The publisher elected to defer live testing.
-- Rust Sentrux: not installed on the test machine. The separate Python package was detected and exercised; no successful Rust measurement is claimed.
-- Windows and Linux: plugin protocol CI passed for the preview. macOS was not tested.
-- A new Codex chat is needed to pick up installed tools. Direct protocol tests are distinct from host conversational routing.
-- No hosted service or universal-directory review/publication.
+The GitHub workflow repeats offline/runtime/plugin checks on Windows and Ubuntu. See the release's commit checks for their actual status.
 
-## Packaging
-
-Runtime source: fbb06dd5cb066d26627e3dc88868312016cebdbe, unmodified. Wrapper fixes are outside runtime/. Archives include manifests, skill, artwork, license, setup, tests and source. No .env files, virtual environments, Git metadata, local logs or test data are packaged.
+Real semantic wiki retrieval passed with all-MiniLM-L6-v2 and LanceDB, including existing-page lookup and duplicate prevention.

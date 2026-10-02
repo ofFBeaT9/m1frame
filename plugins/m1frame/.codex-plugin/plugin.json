@@ -1,6 +1,6 @@
 {
   "name": "m1frame",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Run m1frame workflows, query its local knowledge base, inspect tools and learned skills, and launch Studio through its existing MCP server.",
   "author": {
     "name": "ofFBeaT9",

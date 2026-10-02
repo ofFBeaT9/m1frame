@@ -16,7 +16,7 @@ from mcp.types import ToolAnnotations
 def configure_server(upstream):
     server = upstream.mcp
 
-    def scan_architecture(path: str = ".", council_score: float | None = None, timeout: int = 10) -> str:
+    def scan_architecture(path: str = ".", council_score: float | None = None, timeout: int = 45) -> str:
         """Measure architecture using the optional Sentrux CLI, or report why unavailable."""
         from sensors.tools import client, gate
         try:

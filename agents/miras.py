@@ -1,5 +1,5 @@
 """
-agents/miras.py — Miras Framework (The Orchestrator)
+agents/miras.py â€” Miras Framework (The Orchestrator)
 Based on: github.com/ofFBeaT9/miras
 
 Responsibility: Sub-agent routing and sequential state/memory handoffs.
@@ -7,9 +7,9 @@ Each BMAD Story is routed to a role-matched sub-agent. Declared dependency
 deliverables are passed in a bounded context; all outputs remain in AgentState.
 
 New in v1.1:
-  run_parallel() — executes independent stories concurrently via
+  run_parallel() â€” executes independent stories concurrently via
     ThreadPoolExecutor using Kahn's topological-batch algorithm.
-  Adaptive temperature — low/medium/high story complexity maps to
+  Adaptive temperature â€” low/medium/high story complexity maps to
     0.1 / 0.2 / 0.35 so deterministic stories stay deterministic.
 """
 
@@ -39,7 +39,7 @@ Return the deliverable with a concise explanation of decisions and any limitatio
 Do not claim code was executed or tests passed without execution evidence.
 """
 
-# Adaptive temperature — maps story complexity to temperature
+# Adaptive temperature â€” maps story complexity to temperature
 _COMPLEXITY_TEMP: dict[str, float] = {
     "low":    0.1,   # deterministic: planning, research, analysis
     "medium": 0.2,   # default
@@ -52,7 +52,7 @@ class AgentState:
     """Mutable state passed sequentially between sub-agents (Miras pattern)."""
     goal: str
     blueprint_summary: str
-    outputs: dict[int, str] = field(default_factory=dict)   # story_id → result
+    outputs: dict[int, str] = field(default_factory=dict)   # story_id â†’ result
     metadata: dict[str, Any] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
@@ -83,20 +83,20 @@ class AgentState:
 # Role descriptions aligned with BMAD roles + generic fallbacks
 ROLE_MAP: dict[str, str] = {
     # BMAD agile roles (bmad-code-org/BMAD-METHOD)
-    "analyst":      "Business Analyst — elicit requirements, produce a PRD with user stories and acceptance criteria.",
-    "architect":    "Software Architect — design the system, make tech decisions, produce architecture docs.",
-    "dev":          "Senior Developer — implement stories cleanly with tested, production-ready code.",
-    "qa":           "QA Engineer — write test plans, identify edge cases, validate all acceptance criteria.",
-    "scrum_master": "Scrum Master — decompose work, manage dependencies, keep scope tight and delivery moving.",
-    "pm":           "Product Manager — prioritise the backlog, define MVP scope, roadmap, and success metrics.",
+    "analyst":      "Business Analyst â€” elicit requirements, produce a PRD with user stories and acceptance criteria.",
+    "architect":    "Software Architect â€” design the system, make tech decisions, produce architecture docs.",
+    "dev":          "Senior Developer â€” implement stories cleanly with tested, production-ready code.",
+    "qa":           "QA Engineer â€” write test plans, identify edge cases, validate all acceptance criteria.",
+    "scrum_master": "Scrum Master â€” decompose work, manage dependencies, keep scope tight and delivery moving.",
+    "pm":           "Product Manager â€” prioritise the backlog, define MVP scope, roadmap, and success metrics.",
     # Generic fallbacks
-    "research":  "Research Analyst — gather, summarise, and cite relevant information.",
-    "code":      "Senior Software Engineer — write clean, tested, well-documented code.",
-    "analysis":  "Data & Logic Analyst — reason rigorously and draw evidence-based conclusions.",
-    "writing":   "Technical Writer — produce clear, structured, professional prose.",
-    "other":     "General Assistant — complete the task with care and precision.",
+    "research":  "Research Analyst â€” gather, summarise, and cite relevant information.",
+    "code":      "Senior Software Engineer â€” write clean, tested, well-documented code.",
+    "analysis":  "Data & Logic Analyst â€” reason rigorously and draw evidence-based conclusions.",
+    "writing":   "Technical Writer â€” produce clear, structured, professional prose.",
+    "other":     "General Assistant â€” complete the task with care and precision.",
     # OpenPlanter (Pillar 3)
-    "investigator": "OpenPlanter Investigator — ingest datasets, resolve entities, cross-reference sources, surface non-obvious connections.",
+    "investigator": "OpenPlanter Investigator â€” ingest datasets, resolve entities, cross-reference sources, surface non-obvious connections.",
 }
 
 
@@ -105,9 +105,9 @@ class MirasOrchestrator:
     Routes a Blueprint's stories to role-matched sub-agents.
 
     Two execution modes:
-      run()          — sequential (default); guaranteed order, safest for
+      run()          â€” sequential (default); guaranteed order, safest for
                        stories with tightly-coupled outputs.
-      run_parallel() — concurrent; independent stories (no shared deps) execute
+      run_parallel() â€” concurrent; independent stories (no shared deps) execute
                        in a thread pool, halving wall-clock time on wide backlogs.
 
     Usage:
@@ -136,7 +136,7 @@ class MirasOrchestrator:
         self.scientific_library = scientific_library
         self.scientific_config = scientific_config or {}
 
-    # ── Sequential execution (original behaviour) ─────────────────────────────
+    # â”€â”€ Sequential execution (original behaviour) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def run(self, blueprint: Blueprint, purpose_context: str = "") -> AgentState:
         """Execute all stories in dependency order, returning the final AgentState."""
@@ -176,11 +176,11 @@ class MirasOrchestrator:
             except Exception as exc:
                 story.status = "failed"
                 state.add_result(story_id, f"[ERROR] {exc}")
-                raise RuntimeError(f"Story {story_id} failed; dependent work stopped") from exc
+                raise RuntimeError(f"Story {story_id} failed: {exc}; dependent work stopped") from exc
 
         return state
 
-    # ── Parallel execution (Kahn's topological-batch algorithm) ──────────────
+    # â”€â”€ Parallel execution (Kahn's topological-batch algorithm) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def run_parallel(
         self,
@@ -238,7 +238,7 @@ class MirasOrchestrator:
                     except Exception as exc:
                         state.add_result(story.id, f"[ERROR] {exc}")
                         story.status = "failed"
-                        raise RuntimeError(f"Story {story.id} failed; dependent work stopped") from exc
+                        raise RuntimeError(f"Story {story.id} failed: {exc}; dependent work stopped") from exc
 
                     for dep_id in dependents.get(story.id, []):
                         in_degree[dep_id] -= 1
@@ -249,10 +249,10 @@ class MirasOrchestrator:
 
         return state
 
-    # ── Single-task helper ────────────────────────────────────────────────────
+    # â”€â”€ Single-task helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def route_single(self, task: str, role: str = "other", context: str = "") -> str:
-        """Execute a single task without a Blueprint — useful for quick one-off calls."""
+        """Execute a single task without a Blueprint â€” useful for quick one-off calls."""
         context = self._scientific_context(task, context)
         system = AGENT_SYSTEM_TEMPLATE.format(
             role=ROLE_MAP.get(role, ROLE_MAP["other"]),
@@ -261,7 +261,7 @@ class MirasOrchestrator:
         )
         return run_with_tools(self.llm, task, system, config=self.cfg, emit=self.emit)
 
-    # ── Private ───────────────────────────────────────────────────────────────
+    # â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _scientific_context(self, task: str, context: str) -> str:
         if self.scientific_library is None:

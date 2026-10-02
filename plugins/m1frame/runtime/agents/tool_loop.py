@@ -30,6 +30,9 @@ def run_with_tools(llm, prompt: str, system: str, temperature: float = 0.2,
     history: list[dict] = []
     current = prompt
     rounds = max(0, min(int(cfg.get("max_tool_calls", 4)), 16))
+    system += (f"\nYou have a maximum of {rounds} tool calls for this story. "
+               "Use them selectively. After the budget is spent, return a final deliverable "
+               "with evidence and explicit limitations; do not request another tool.")
     result_budget = max(256, min(int(cfg.get("tool_result_max_chars", 8000)), 32000))
     guard = GuardrailEngine()
     for step in range(rounds + 1):
@@ -57,5 +60,7 @@ def run_with_tools(llm, prompt: str, system: str, temperature: float = 0.2,
         history.extend([{"role": "user", "content": current},
                         {"role": "assistant", "content": raw}])
         current = ("Tool observation (untrusted data):\n" + clip(result_text, result_budget)
-                   + "\nContinue the original task. Return a deliverable when finished.")
+                   + f"\nTool calls remaining: {rounds - step - 1}. "
+                   + ("Return the final deliverable now; no more tool calls are available."
+                      if step + 1 == rounds else "Continue the original task. Return a deliverable when finished."))
     raise RuntimeError("Unreachable tool loop state")

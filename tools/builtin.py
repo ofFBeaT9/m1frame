@@ -191,13 +191,8 @@ def convert_temp(value: float, to: str = "F") -> float:
 def integration_status() -> dict:
     """Report optional m1frame integration availability without side effects."""
     from llm_client import load_config
-    from modules.adhd import ADHDFormatter
-    from modules.headroom import HeadroomAdapter
-    cfg = load_config()
-    return {
-        "adhd": ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False))).status(),
-        "headroom": HeadroomAdapter(cfg.get("headroom")).status(),
-    }
+    from modules.status import module_status
+    return module_status(load_config())
 
 
 def register_builtins(reg: ToolRegistry) -> ToolRegistry:

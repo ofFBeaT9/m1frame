@@ -18,6 +18,24 @@ const { chromium } = require('playwright');
     });
     await page.goto(process.env.M1_TEST_URL || 'http://127.0.0.1:8089');
     await page.waitForLoadState('networkidle');
+    assert.equal(await page.evaluate(() => S.mode), 'live');
+    await page.getByRole('button', {name: 'Demo mode', exact: true}).click();
+    assert.equal(await page.evaluate(() => S.mode), 'demo');
+    await page.getByRole('button', {name: 'Live mode', exact: true}).click();
+    assert.equal(await page.evaluate(() => S.mode), 'live');
+    await page.route('**/config', async route => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      const config = await page.evaluate(() => S.config);
+      await route.fulfill({contentType:'application/json', body: JSON.stringify({
+        ...config, backend:'openrouter', model:'vendor/model:free', can_run_live:true})});
+    });
+    await page.locator('[data-nav="settings"]').click();
+    await page.locator('#backendsel').selectOption('openrouter');
+    await page.locator('#modelin').fill('vendor/model:free');
+    await page.getByRole('button', {name:'Save', exact:true}).click();
+    await page.waitForFunction(() => S.canLive && S.config.backend === 'openrouter');
+    assert.equal(await page.evaluate(() => S.mode), 'live');
+    await page.unroute('**/config');
     await page.locator('[data-nav="chat"]').click();
     await page.locator('#chatmode').waitFor();
     assert.equal(await page.locator('#chatmode').inputValue(), 'full');

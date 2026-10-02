@@ -456,7 +456,7 @@ const SKILL_HUE="#fbbf24";
 
 /* ══════════════ state ══════════════ */
 const S = {
-  view:"studio", mode:"demo", server:false, canLive:false, config:null,
+  view:"studio", mode:"live", server:false, canLive:false, config:null,
   busy:false, run:null, runs:[], graph:{nodes:[],links:[]}, pages:[], memories:[], skills:[],
   chat:[], opts:{parallel:false, self_critique:true, skip_council:false, skip_wiki:false}, accent:"#34e7e4"
 };
@@ -505,7 +505,7 @@ function md(src){if(!src)return"";
 async function boot(){
   buildStars();
   try{const r=await fetch(API+"/health",{cache:"no-store"}); if(r.ok){const h=await r.json();
-    S.server=true; S.canLive=h.can_run_live; S.mode=h.can_run_live?"live":"demo";}}catch(e){S.server=false;}
+    S.server=true; S.canLive=h.can_run_live; S.mode="live";}}catch(e){S.server=false;}
   await loadData();
   renderShell(); route();
   window.addEventListener("hashchange",route);
@@ -545,7 +545,7 @@ function renderShell(){
     el("button",{class:"navbtn",id:"palbtn","aria-label":"Command palette (Ctrl or Cmd + K)","aria-expanded":"false",onclick:()=>togglePalette(true),html:svg(ICONS.spark)+'<span class="tip">⌘K</span>'})
   );
   const liveAttrs={class:"live"+(S.mode==="live"?" on":""),"aria-label":"Live mode",onclick:()=>setMode("live")};
-  if(!S.canLive){liveAttrs.disabled=""; liveAttrs.title="Set ANTHROPIC_API_KEY for live runs"; liveAttrs["aria-disabled"]="true";}
+  if(!S.canLive){liveAttrs.title="Configure a live provider in Settings";}
   const modeSeg = el("div",{class:"seg",role:"group","aria-label":"Run mode"},
     el("button",liveAttrs,"LIVE"),
     el("button",{class:"demo"+(S.mode==="demo"?" on demo":""),"aria-label":"Demo mode",onclick:()=>setMode("demo")},"DEMO"));
@@ -569,8 +569,8 @@ function route(){
   const v=$("#view"); v.scrollTop=0;
   ({studio:viewStudio,chat:viewChat,graph:viewGraph,runs:viewRuns,skills:viewSkills,wiki:viewWiki,settings:viewSettings}[S.view]||viewStudio)(v);
 }
-function setMode(m){ if(m==="live"&&!S.canLive){toast("No API key detected — staying in DEMO. Add ANTHROPIC_API_KEY for live runs.");return;}
-  S.mode=m; $$(".seg button").forEach(b=>b.classList.remove("on","demo"));
+function setMode(m){
+  S.mode=m; $$(".seg button").forEach(b=>b.classList.remove("on"));
   $(".seg button."+m).classList.add("on"); if(m==="demo")$(".seg button.demo").classList.add("demo");}
 
 /* ══════════════ STUDIO view ══════════════ */
@@ -651,9 +651,11 @@ async function startRun(goal){
   try{
     if(S.server){
       const body={goal,mode:S.mode,speed:S.mode==="demo"?2:1,...S.opts};
-      const r=await fetch(API+"/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+      const response=await fetch(API+"/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const r=await response.json(); if(!response.ok)throw new Error(r.detail||response.statusText);
       await streamSSE(API+"/run/"+r.run_id+"/events",null,onEvent);
     } else {
+      if(S.mode!=="demo")throw new Error("Start the local API server for live runs, or explicitly select Demo.");
       const fx=await fetch("studio/demo_run.json").then(r=>r.json());
       await replayFixture(fx.events);
     }
@@ -1077,7 +1079,7 @@ function viewSettings(v){v.innerHTML="";
     el("div",{style:{display:"flex",gap:"10px"}}, sel, modelIn, el("button",{class:"btn",onclick:saveBackend},"Save"))));
   // mode
   v.append(el("div",{class:"setrow"},
-    el("div",{}, el("div",{class:"k"},"Run mode"), el("div",{class:"d"},S.canLive?"A key is configured — live runs available.":"No API key — Studio runs in beautiful demo/replay mode.")),
+    el("div",{}, el("div",{class:"k"},"Run mode"), el("div",{class:"d"},S.canLive?"A key is configured — live runs available.":"Configure a live provider. Demo replay is available only when explicitly selected.")),
     el("div",{class:"seg"}, el("button",{class:S.mode==="live"?"on":"",onclick:()=>{setMode("live");viewSettings(v);}},"LIVE"),
       el("button",{class:S.mode==="demo"?"on demo":"",onclick:()=>{setMode("demo");viewSettings(v);}},"DEMO"))));
   // accent
@@ -1105,8 +1107,9 @@ function viewSettings(v){v.innerHTML="";
 }
 async function saveBackend(){const b=$("#backendsel").value,m=$("#modelin").value;
   if(!S.server){toast("Static demo — backend switch needs the API server.");return;}
-  try{const r=await fetch(API+"/config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({backend:b,model:m})}).then(r=>r.json());
-    S.config=r; toast("Backend → "+r.backend+" ("+(r.model||"")+")"); renderShell(); route();}catch(e){toast("Save failed: "+e.message);}}
+  try{const response=await fetch(API+"/config",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({backend:b,model:m})});
+    const r=await response.json(); if(!response.ok)throw new Error(r.detail||response.statusText);
+    S.config=r; S.canLive=r.can_run_live; S.mode="live"; toast("Backend → "+r.backend+" ("+(r.model||"")+")"); renderShell(); route();}catch(e){toast("Save failed: "+e.message);}}
 async function loadMetrics(wrap){let m={pillars:{},uptime_s:0,runs_total:S.runs.length};
   if(S.server){try{m=await fetch(API+"/metrics.json").then(r=>r.json());}catch(e){}}
   const cells=[["runs",m.runs_total],["uptime",Math.round(m.uptime_s||0)+"s"],
@@ -1155,7 +1158,7 @@ function togglePalette(open){const p=$("#palette"); p.classList.toggle("open",op
   if(open){const i=$("#palInput");i.value="";renderPalette("");i.focus();}}
 function renderPalette(q){const list=$("#palList");list.innerHTML="";
   const items=[...NAV.map(([id,l])=>({label:"Go to "+l,act:()=>{togglePalette(false);go(id);},pk:id})),
-    {label:"Run a demo deliberation",act:()=>{togglePalette(false);go("studio");setTimeout(()=>startRun("Should we ship our MVP as a monolith or microservices?"),120);},pk:"run"}];
+    {label:"Run a demo deliberation",act:()=>{togglePalette(false);go("studio");setTimeout(()=>{setMode("demo");startRun("Should we ship our MVP as a monolith or microservices?");},120);},pk:"run"}];
   const f=q?items.filter(i=>i.label.toLowerCase().includes(q.toLowerCase())):items;
   if(q&&!f.length){list.append(el("div",{class:"opt2",onclick:()=>{togglePalette(false);go("studio");setTimeout(()=>startRun(q),120);}},
     el("span",{html:svg(ICONS.play,"")}),"Run: "+q));return;}

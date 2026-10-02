@@ -172,6 +172,9 @@ class SentruxClient:
             found = shutil.which(env) or (env if Path(env).exists() else None)
             if found:
                 return [found]
+        local = _ROOT / ".external" / "sentrux" / ("sentrux.exe" if os.name == "nt" else "sentrux")
+        if local.is_file():
+            return [str(local)]
         found = shutil.which("sentrux")
         if found:
             return [found]
@@ -266,27 +269,37 @@ class SentruxClient:
         return self._flavour
 
     def scan(self, path: str = ".") -> SensorResult:
-        """Structural measurement of `path`, headless and CI-safe.
+        """Measure with Rust MCP scan, or the explicit legacy Python CLI.
 
-        Never invokes the Rust project's `scan` subcommand: that opens a GUI and
-        would hang here until the timeout. For that flavour we use `check`, which
-        is the CI-safe command and prints the same `Quality: NNNN` signal.
-
-        KNOWN LIMIT, measured against the real Rust binary (v0.5.7): `check` refuses
-        to run unless `<path>/.sentrux/rules.toml` exists — it prints "No
-        .sentrux/rules.toml found" on stderr, exits 1, and emits no Quality line at
-        all. So on the Rust flavour this returns no signal in any repo that has not
-        been set up for sentrux, which is most of them. The tool's intended headless
-        agent interface is the MCP server (`sentrux mcp`, see `mcp_command`), whose
-        `scan` tool returns `quality_signal` with no config and no side effects;
-        wiring m1frame to it is the real fix and is tracked as such. Meanwhile the
-        stderr reason is carried through to the gate's `reasons` rather than being
-        swallowed, so the sensor's silence is at least explained.
+        Rust check remains available for rules enforcement; scan needs no rules.
+        Every path is jailed before starting the read-only measurement process.
         """
         target = str(_safe_path(path))
         if self.flavour() == FLAVOUR_PYTHON:
             return self._run(["scan", target, "--json"])
-        return self._run(["check", target])
+        if not self.available():
+            return self._run(["check", target])
+        # The Rust CLI check requires rules.toml; the MCP scan measures any
+        # directory without inventing rules or opening the GUI.
+        from tools.mcp_client import MCPClient
+        command = self.mcp_command()
+        assert command is not None  # available() was checked above
+        started = time.perf_counter()
+        try:
+            with MCPClient(timeout=self.timeout).connect_stdio(command, cwd=str(_ROOT)) as client:
+                response = client.call_tool("scan", {"path": target})
+            raw = "\n".join(c.get("text", "") for c in response.get("content", []) if c.get("type") == "text")
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError("Sentrux returned a non-object measurement")
+            ok = not response.get("isError", False) and "quality_signal" in data
+            raw, truncated = _truncate(raw)
+            return SensorResult(command=command, available=True, ok=ok, data=data,
+                                raw=raw, truncated=truncated, error="" if ok else "Sentrux scan returned no measurement",
+                                duration_ms=int((time.perf_counter() - started) * 1000))
+        except Exception as exc:
+            return SensorResult(command=command or [], available=True, ok=False, error=str(exc),
+                                duration_ms=int((time.perf_counter() - started) * 1000))
 
     def mcp_command(self) -> list[str] | None:
         """argv for `sentrux mcp` — the Rust project's structured agent interface.

@@ -1,5 +1,5 @@
 """
-llm_client.py — Unified LLM adapter
+llm_client.py â€” Unified LLM adapter
 Supports: Anthropic Claude | OpenAI-compatible (Ollama, vLLM, LM Studio, OpenAI)
 """
 
@@ -38,7 +38,7 @@ class LLMClient:
         self.last_compression: CompressionResult | None = None
         self._client = self._build_client()
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def chat(
         self,
@@ -51,7 +51,7 @@ class LLMClient:
     ) -> str:
         """Send a chat message and return the assistant reply as a string.
 
-        `model` overrides the backend's configured model for this one call —
+        `model` overrides the backend's configured model for this one call â€”
         e.g. routing a single expensive judgment call to a stronger model
         while everything else stays on the cheaper default. Ignored (falls
         back to the configured default) on backends where that doesn't apply.
@@ -75,11 +75,11 @@ class LLMClient:
         else:
             yield from self._openai_stream(prompt, system, temperature, history)
 
-    # ── Private builders ──────────────────────────────────────────────────────
+    # â”€â”€ Private builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _build_client(self):
         if self.backend == "claudecli":
-            return None  # no SDK client — we shell out to the Claude Code CLI
+            return None  # no SDK client â€” we shell out to the Claude Code CLI
         if self.backend == "claude":
             try:
                 import anthropic
@@ -93,12 +93,15 @@ class LLMClient:
                 bcfg = self.cfg[self.backend]
                 api_key_env = bcfg.get("api_key_env")
                 api_key = os.environ.get(api_key_env) if api_key_env else "ollama"
+                if api_key_env and not api_key:
+                    raise RuntimeError(f"Missing {api_key_env} for backend {self.backend}")
                 base_url = bcfg.get("base_url")
-                return OpenAI(api_key=api_key or "local", base_url=base_url)
+                return OpenAI(api_key=api_key or "local", base_url=base_url,
+                              timeout=bcfg.get("timeout", 60), max_retries=bcfg.get("max_retries", 1))
             except ImportError:
                 raise ImportError("Run: pip install openai") from None
 
-    # ── Claude ────────────────────────────────────────────────────────────────
+    # â”€â”€ Claude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _claude_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg["claude"]
@@ -136,7 +139,7 @@ class LLMClient:
         with self._client.messages.stream(**kwargs) as stream:
             yield from stream.text_stream
 
-    # ── Claude Code CLI (no API key — uses your `claude` auth) ────────────────
+    # â”€â”€ Claude Code CLI (no API key â€” uses your `claude` auth) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     def _claudecli_chat(self, prompt, system, history, model=None) -> str:
         """Run the prompt through the Claude Code CLI headlessly (`claude -p`).
         Lets m1frame run with zero API key by reusing your Claude Code login."""
@@ -183,7 +186,18 @@ class LLMClient:
             raise RuntimeError(f"claude CLI error (exit {res.returncode}): {detail[:300]}")
         return (res.stdout or "").strip()
 
-    # ── OpenAI-compatible ────────────────────────────────────────────────────
+    # â”€â”€ OpenAI-compatible â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    def _openai_options(self, model: str) -> dict:
+        bcfg = self.cfg[self.backend]
+        extra: dict = {}
+        if self.backend == "openrouter" and bcfg.get("free_only", False):
+            if not model.endswith(":free"):
+                raise ValueError("OpenRouter free_only requires an explicit :free model")
+            extra["provider"] = {"max_price": {"prompt": 0, "completion": 0}}
+        if self.backend == "openrouter" and "reasoning_enabled" in bcfg:
+            extra["reasoning"] = {"enabled": bool(bcfg["reasoning_enabled"])}
+        return {"extra_body": extra} if extra else {}
 
     def _openai_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg[self.backend]
@@ -200,12 +214,15 @@ class LLMClient:
             messages=messages,
             max_tokens=max_tokens or bcfg["max_tokens"],
             temperature=temperature if temperature is not None else bcfg.get("temperature", 0.2),
+            **self._openai_options(model or bcfg["model"]),
         )
+        usage = getattr(response, "usage", None)
+        self.last_usage = usage.model_dump() if usage else {}
         msg = response.choices[0].message
-        # Reasoning models (e.g. Gemma 4 via LM Studio / Ollama) may return an
-        # empty `content` and place the text in `reasoning_content`. Fall back so
-        # the pipeline never silently receives an empty string.
-        return msg.content or getattr(msg, "reasoning_content", None) or ""
+        # Internal reasoning is not a substitute for a completed answer.
+        if not msg.content:
+            raise RuntimeError("Provider returned no final answer; reasoning-only output is not a deliverable")
+        return msg.content
 
     def _openai_stream(self, prompt, system, temperature, history=None):
         bcfg = self.cfg[self.backend]
@@ -220,16 +237,21 @@ class LLMClient:
             max_tokens=bcfg["max_tokens"],
             temperature=temperature if temperature is not None else bcfg.get("temperature", 0.2),
             stream=True,
+            **self._openai_options(bcfg["model"]),
         )
+        delivered = False
         for chunk in stream:
             if not chunk.choices:
                 continue
             d = chunk.choices[0].delta
-            delta = d.content or getattr(d, "reasoning_content", None)
+            delta = d.content
             if delta:
+                delivered = True
                 yield delta
+        if not delivered:
+            raise RuntimeError("Provider returned no final answer in the stream")
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @staticmethod
     def _build_messages(prompt: str, history: list[dict] | None) -> list[dict]:

@@ -166,8 +166,9 @@ class WikiPage:
     @classmethod
     def from_markdown(cls, text: str, filename: str = "") -> WikiPage:
         fm, _ = _split_frontmatter(text)
+        heading = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
         return cls(
-            title=fm.get("title", "Untitled"),
+            title=fm.get("title") or (heading.group(1).strip() if heading else Path(filename).stem or "Untitled"),
             tags=fm.get("tags") or [],
             related=fm.get("related") or [],
             created=str(fm.get("created", "")),
@@ -262,6 +263,7 @@ class LLMWiki:
         self.purpose_file = Path(self.cfg.get("purpose_file", "purpose.md"))
         self._vector_store = self.cfg.get("vector_store", "file")
         self._lancedb_table = None
+        self._embedding_model: object | None = None
         self._init_structure()
 
     # ── Three Operations ──────────────────────────────────────────────────────
@@ -436,12 +438,15 @@ class LLMWiki:
         try:
             clean = re.sub(r"```(?:json)?", "", raw).strip()
             data = json.loads(clean)
+            if (not isinstance(data, dict) or not isinstance(data.get("contradictions"), list)
+                    or not isinstance(data.get("clean"), bool)):
+                raise ValueError("Expected contradictions list and clean boolean")
             report = ContradictionReport(
-                contradictions=data.get("contradictions", []),
-                clean=bool(data.get("clean", True)),
+                contradictions=data["contradictions"],
+                clean=data["clean"] and not data["contradictions"],
             )
-        except (json.JSONDecodeError, ValueError):
-            report = ContradictionReport(contradictions=[], clean=True)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValueError("Contradiction check failed: invalid model response; no clean verdict recorded") from exc
 
         # Persist to wiki/contradictions.md
         self._write_contradictions(report)
@@ -472,8 +477,13 @@ class LLMWiki:
 
     def get_page(self, title: str) -> WikiPage | None:
         slug = _slugify(title)
-        for md_file in self.wiki_dir.rglob(f"{slug}*.md"):
-            return WikiPage.from_markdown(_read_text(md_file), filename=md_file.name)
+        pages = self._load_all_pages()
+        for page in pages:
+            if page.title.casefold() == title.casefold():
+                return page
+        for page in pages:
+            if _slugify(Path(page.filename).stem.replace("-", " ")) == slug:
+                return page
         return None
 
     def list_pages(self) -> list[str]:
@@ -500,7 +510,7 @@ class LLMWiki:
                 tbl = db.create_table("pages", data=data)
             else:
                 tbl = db.open_table("pages")
-                tbl.add(data)
+                tbl.merge_insert("id").when_matched_update_all().when_not_matched_insert_all().execute(data)
         except Exception:
             pass  # LanceDB not available — degrade to keyword search
 
@@ -531,8 +541,11 @@ class LLMWiki:
             return None
         try:
             from sentence_transformers import SentenceTransformer
-            model = SentenceTransformer(embed_model)
-            return model.encode(text).tolist()
+            if self._embedding_model is None:
+                self._embedding_model = SentenceTransformer(
+                    embed_model, local_files_only=bool(self.cfg.get("embed_local_only", False)))
+            encode = getattr(self._embedding_model, "encode")
+            return encode(text).tolist()
         except Exception:
             return None
 
@@ -656,7 +669,7 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
         if end != -1:
             try:
                 fm = yaml.safe_load(text[3:end])
-                return fm or {}, text[end + 3:].strip()
+                return fm if isinstance(fm, dict) else {}, text[end + 3:].strip()
             except yaml.YAMLError:
                 pass
     return {}, text

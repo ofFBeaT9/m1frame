@@ -74,9 +74,13 @@ def skill_optimize(text: str, keywords: list[str] | None = None,
         n = int(c["rounds"] if rounds is None else rounds)
     except Exception:     # noqa: BLE001
         n = int(c["rounds"])
+    selected = [str(k).strip()[:256] for k in (keywords or [])[:64] if str(k).strip()]
+    # The candidates must contain the requested vocabulary; a fixed generic
+    # phrase pool cannot improve coverage of arbitrary task-specific keywords.
+    pool = [f"Verify {keyword}." for keyword in selected] or None
     return optimizer(seed, prefer).optimize(
-        str(text or "")[:MAX_TEXT], keyword_scorer((keywords or [])[:64]),
-        rounds=max(0, min(MAX_ROUNDS, n))).to_dict()
+        str(text or "")[:MAX_TEXT], keyword_scorer(selected),
+        rounds=max(0, min(MAX_ROUNDS, n)), pool=pool).to_dict()
 
 
 def register_optimizer_tools(reg):

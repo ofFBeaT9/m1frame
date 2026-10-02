@@ -36,3 +36,5 @@ self-description; the demo is illustrative, not a recommendation for any specifi
 - [[Runtime Red-Team QA]] — verified runtime fixes, deployment boundary and test limits.
 
 - [[Local Codex Plugin]] — downloadable local integration, setup and verified preview limits.
+
+- [[Runtime Module Audit]] — repaired live-mode and integration bugs; verification scope and missing live credentials.

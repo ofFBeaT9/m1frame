@@ -43,12 +43,10 @@ INVESTIGATION_SYSTEM = """You are an OpenPlanter Investigation Agent.
 Your specialty: ingesting heterogeneous datasets and surfacing non-obvious connections
 through evidence-backed, recursive analysis.
 
-You have access to these conceptual tool categories:
-  1. Dataset ingestion  — read files, map repos, search within datasets
-  2. Shell execution    — run analysis scripts and data pipelines
-  3. Web research       — search the web, fetch URLs, resolve entities online
-  4. Sub-agent delegation — spawn recursive investigation threads for sub-tasks
-  5. Cross-referencing  — find overlaps between datasets (e.g. vendor payments vs lobbying)
+Use only tools listed in the registered tool catalog appended below.
+Read provided dataset files with read_file before making claims about their contents.
+Do not claim shell execution, external web search, or recursive delegation unless
+an actual tool observation supports it. Report missing evidence explicitly.
 
 Always begin with a <thought> block:
   - What datasets are relevant?
@@ -260,10 +258,13 @@ class OpenPlanterAgent:
                     for r in web_results[:5]
                 )
 
-        raw = self.llm.chat(
+        from agents.tool_loop import run_with_tools
+        raw = run_with_tools(
+            self.llm,
             prompt=f"Investigation task: {task}{dataset_context}{web_context}",
             system=INVESTIGATION_SYSTEM,
             temperature=0.2,
+            config=self.cfg,
         )
 
         # Parse thought chain
@@ -467,7 +468,8 @@ class OpenPlanterAgent:
 
     @property
     def mode(self) -> str:
-        parts = ["full" if self._openplanter_available else "llm-only"]
+        # Importability of another package does not mean its engine was invoked.
+        parts = ["m1frame-tools" if self.cfg.get("tools_enabled", True) else "llm-only"]
         if self._exa_key:
             parts.append("exa")
         if self._voyage_key:

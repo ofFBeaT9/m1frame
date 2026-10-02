@@ -9,7 +9,7 @@ Nine MCP tools, persistent local knowledge, and the m1frame workflow skill. Publ
 Requirements: Codex with local plugin support, Git, and Python 3.10+ available as `python`.
 
 ```sh
-git clone --branch m1frame-plugin-v0.1.1 --single-branch https://github.com/ofFBeaT9/m1frame.git m1frame-plugin
+git clone --branch m1frame-plugin-v0.1.2 --single-branch https://github.com/ofFBeaT9/m1frame.git m1frame-plugin
 cd m1frame-plugin
 python plugins/m1frame/scripts/setup.py
 codex plugin marketplace add .
@@ -26,7 +26,9 @@ Setup installs dependencies into an isolated `.venv` under `~/Documents/Codex/m1
 
 Edit config.yaml in the persistent runtime to select a provider and an available model. Use the adjacent .env.example to create a local .env with your provider key, or supply environment variables. Keep credentials out of the plugin folder and Git.
 
-Full workflows may make multiple paid model calls. Live provider execution is **not verified in this preview**: a tiny request through the test computer's existing Claude CLI login timed out. The full pipeline passed offline mock tests. Studio's bundled demo is recorded example content, not a live provider result.
+Full workflows can make many model calls. This version completed a real 28-call self-audit on an OpenRouter free model at a reported cost of $0. Its council rejected the answer at 3/10; this verifies live execution, not universal task quality. Failed council results are marked and excluded from wiki ingestion. See VALIDATION.md and MODULE-AUDIT.md.
+
+To restrict OpenRouter to free usage, set `free_only: true` in its config section and choose an explicit `:free` model. The client rejects other model IDs and caps provider prices at zero.
 
 ## Try it
 
@@ -39,11 +41,11 @@ Bundled wiki pages and learned recipes are upstream examples, not your history. 
 
 ## State and updates
 
-State lives under M1FRAME_HOME when set, otherwise ~/Documents/Codex/m1frame-data. Set M1FRAME_HOME to an absolute existing complete m1frame checkout or a new directory before setup and before launching Codex. Existing runtime files are never overwritten by setup or plugin updates.
+State lives under M1FRAME_HOME when set, otherwise ~/Documents/Codex/m1frame-data. Set M1FRAME_HOME to an absolute existing complete m1frame checkout or a new directory before setup and before launching Codex. The launcher preserves existing runtime files. To apply a runtime update, stop Studio and run `python plugins/m1frame/scripts/setup.py --upgrade-runtime`. Changed code is backed up under `.runtime-backups`; configuration, keys, wiki, logs and history are preserved. Restart the plugin connection afterward.
 
 The wrapper adds no analytics or remote account service. Live workflows send prompts and relevant context to your configured provider; individual tools may make network requests when invoked. Wiki, skills, runs and logs are stored locally. Review files before sharing them. This is a local single-user integration.
 
-Back up your runtime and update it separately, or select a new M1FRAME_HOME for a fresh bundled copy. Removing the plugin does not delete persistent data.
+Use the explicit updater above, or select a new M1FRAME_HOME for a fresh bundled copy. Removing the plugin does not delete persistent data.
 
 ## Tools and limits
 
@@ -59,4 +61,16 @@ See [VALIDATION.md](VALIDATION.md). Run tests/check_mcp.py with the Python execu
 
 Report problems at [m1frame issues](https://github.com/ofFBeaT9/m1frame/issues), with your OS, Python/plugin versions and a redacted error. Never include keys or private wiki content.
 
-The unchanged bundled runtime is version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe. Integration fixes live in scripts/plugin_server.py. Plugin version: 0.1.1. See LICENSE for upstream attribution and terms.
+The bundled runtime derives from version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe, with the runtime fixes documented in MODULE-AUDIT.md. Both root runtime source and bundled code are included in the release. Plugin version: 0.1.2. See LICENSE for upstream attribution and terms.
+
+## Optional modules and free testing
+
+Run setup with `--scientific --headroom --skillopt` to install the pinned catalog and tested optional adapters. Enable Headroom in runtime config.yaml after installing it. The scientific catalog supplies instructions and resources; it does not install or verify every scientific workflow's dependencies.
+
+For Sentrux, download the official Rust binary from https://github.com/sentrux/sentrux/releases and place it at runtime `.external/sentrux/sentrux.exe` (Windows) or `.external/sentrux/sentrux` (macOS/Linux), or set SENTRUX_BIN. Do not install the unrelated PyPI package.
+
+For OpenRouter, save OPENROUTER_API_KEY in the runtime's local .env, then select `openrouter` and a currently available free model in Studio Settings. Model identifiers ending in `:free` are supported. Verify current pricing in the provider catalog. The model list is not an API key; each user creates their own key. Studio never silently substitutes demo for a live request.
+
+Call `integration_status` through m1frame_call_tool to see missing configuration. See [module audit](MODULE-AUDIT.md) for execution evidence and remaining limits. The plugin does not intercept unrelated Codex prompts; select it or request m1frame explicitly.
+
+Semantic wiki search requires `lancedb` and `sentence-transformers`, plus an embedding model. The tested model is `sentence-transformers/all-MiniLM-L6-v2`; set wiki.vector_store to lancedb and wiki.embed_model to that model. These dependencies and model data are not bundled in the archive.

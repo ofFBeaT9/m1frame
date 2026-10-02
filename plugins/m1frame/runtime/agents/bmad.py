@@ -56,6 +56,10 @@ BMAD_ROLES = {
 
 BMAD_SYSTEM = """You are a BMAD Scrum Master Agent.
 Your job: decompose a product goal into an ordered, dependency-aware story backlog.
+Stories are executable work items, not fictional narratives. Plan only work needed
+for the user's requested deliverable and supported by the registered capabilities.
+The outer pipeline already performs council review and wiki ingestion; do not
+make agents duplicate these orchestration stages or invent unavailable tools.
 
 BMAD Role Assignments per story:
   research/analysis → analyst

@@ -34,3 +34,7 @@ No orphans (every page is linked here and cross-linked). Confidence: high on the
 self-description; the demo is illustrative, not a recommendation for any specific real project.
 
 - [[Runtime Red-Team QA]] — verified runtime fixes, deployment boundary and test limits.
+
+- [[Local Codex Plugin]] — downloadable local integration, setup and verified preview limits.
+
+- [[Runtime Module Audit]] — repaired live-mode and integration bugs; verification scope and missing live credentials.

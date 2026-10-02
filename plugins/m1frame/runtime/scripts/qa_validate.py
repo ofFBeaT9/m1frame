@@ -496,7 +496,7 @@ def t_op_mode(m):
     from agents.openplanter import OpenPlanterAgent
     tmp=Path(tempfile.mkdtemp())
     op=OpenPlanterAgent(m,workspace=str(tmp))
-    assert "llm-only" in op.mode or "full" in op.mode
+    assert "llm-only" in op.mode or "m1frame-tools" in op.mode
 
 def t_op_web_results_field(m):
     from agents.openplanter import OpenPlanterAgent
@@ -1012,7 +1012,7 @@ def t_sensor_fake_scan(m):
     with tempfile.TemporaryDirectory() as d:
         c=SentruxClient(binary=_fake_sentrux(Path(d)))
         assert c.available() is True
-        r=c.scan(".")
+        r=c.check(".")
         assert r.ok and r.available and r.exit_code==0
         assert r.data["quality_signal"]==7342 and r.data["files"]==139
         assert r.quality_signal==7342 and r.duration_ms>=0
@@ -1020,7 +1020,7 @@ def t_sensor_fake_scan(m):
 def t_sensor_nonjson_stdout(m):
     from sensors import SentruxClient
     with tempfile.TemporaryDirectory() as d:
-        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="not json at all")).scan(".")
+        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="not json at all")).check(".")
         assert r.ok and r.data=={} and r.raw=="not json at all"   # raw kept, no crash
 
 def t_sensor_nonzero_exit(m):
@@ -1032,7 +1032,7 @@ def t_sensor_nonzero_exit(m):
 def t_sensor_timeout(m):
     from sensors import SentruxClient
     with tempfile.TemporaryDirectory() as d:
-        r=SentruxClient(binary=_fake_sentrux(Path(d), sleep=5), timeout=1).scan(".")
+        r=SentruxClient(binary=_fake_sentrux(Path(d), sleep=5), timeout=1).check(".")
         assert r.available and r.ok is False and "timed out" in r.error
 
 def t_sensor_path_jail(m):
@@ -1048,7 +1048,7 @@ def t_sensor_raw_truncated(m):
     from sensors import SentruxClient
     from sensors.sentrux import _MAX_RAW
     with tempfile.TemporaryDirectory() as d:
-        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="x"*(_MAX_RAW+500))).scan(".")
+        r=SentruxClient(binary=_fake_sentrux(Path(d), stdout="x"*(_MAX_RAW+500))).check(".")
         assert r.truncated is True and len(r.raw)==_MAX_RAW
 
 def t_sensor_result_serialisable(m):
@@ -1260,14 +1260,14 @@ def t_sensor_flavour_detection(m):
         assert rs.flavour()==FLAVOUR_RUST
 
 def t_sensor_never_launches_gui(m):
-    # Against the Rust flavour, scan() must route to `check` — never the GUI subcommand.
+    # Against the Rust flavour, scan() must route to MCP — never the GUI subcommand.
     from sensors import SentruxClient
     from sensors.sentrux import FLAVOUR_RUST
     with tempfile.TemporaryDirectory() as d:
         c=SentruxClient(binary=_fake_sentrux(Path(d), stdout="Usage: sentrux scan [PATH]\n"))
         assert c.flavour()==FLAVOUR_RUST
         r=c.scan(".")
-        assert "check" in r.command and "--json" not in r.command
+        assert "mcp" in r.command and "--json" not in r.command
         assert r.command.count("scan")==0            # the GUI subcommand is never invoked
 
 def t_sensor_mcp_command(m):

@@ -8,6 +8,7 @@ from agents.miras import ROLE_MAP
 from agents.skills import SkillLibrary
 from llm_client import load_config
 from modules.headroom import HeadroomAdapter
+from modules.status import module_status
 from scientific import ScientificLibrary
 from tools import default_registry
 
@@ -20,6 +21,7 @@ def inspect_context(query: str = "", cfg: dict | None = None) -> dict:
     backend = cfg.get("backend", "claude")
     return {
         "backend": backend,
+        "module_status": module_status(cfg),
         "chat_default": "full",
         "agents": ROLE_MAP,
         "tools": default_registry().list(),

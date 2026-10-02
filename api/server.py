@@ -14,7 +14,7 @@ Classic REST (unchanged):
 Studio additions:
   GET  /                        → serves m1frame-studio.html
   GET  /studio/demo_run.json    → the bundled demo fixture
-  POST /run                     → start a run; mode=live|demo (auto-demo w/o key)
+  POST /run                     → start a run; mode=live|demo (live by default; demo is explicit)
   GET  /run/{run_id}/events     → Server-Sent Events stream of pipeline progress
   POST /chat                    → SSE token stream, grounded in the wiki
   GET  /wiki/graph              → knowledge-graph nodes + links
@@ -79,7 +79,7 @@ if _FASTAPI:
     class RunRequest(BaseModel):
         goal: str = Field(min_length=1, max_length=24000)
         backend: str | None = None
-        mode: Literal["live", "demo"] | None = None          # live | demo (auto-demo without a key)
+        mode: Literal["live", "demo"] | None = None          # live | demo (live by default)
         speed: float = Field(default=1.0, ge=0.1, le=100)                  # demo replay speed multiplier
         skip_council: bool = False
         skip_wiki: bool = False
@@ -202,6 +202,8 @@ def _load_persisted_runs(limit: int = 50) -> int:
 
 
 def _can_run_live(cfg: dict, backend: str | None = None) -> bool:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env", override=False)
     b = backend or cfg.get("backend", "claude")
     if b in LOCAL_BACKENDS:
         return True
@@ -209,7 +211,7 @@ def _can_run_live(cfg: dict, backend: str | None = None) -> bool:
     return bool(env and os.environ.get(env))
 
 
-_MODEL_RE = re.compile(r"^[A-Za-z0-9._/-]{1,80}$")   # PATCH /config: no ':' (YAML), no spaces/newlines
+_MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:-]{0,199}$")
 
 
 def _persist_config(backend: str | None, model: str | None) -> None:
@@ -217,7 +219,7 @@ def _persist_config(backend: str | None, model: str | None) -> None:
     path = ROOT / "config.yaml"
     if not path.exists():
         return
-    if model is not None and not _MODEL_RE.match(model):
+    if model is not None and not _MODEL_RE.fullmatch(model):
         return  # ignore unsafe model strings — never write them to disk
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     target = backend
@@ -237,7 +239,7 @@ def _persist_config(backend: str | None, model: str | None) -> None:
                     break
                 if re.match(r"^\s+model:\s*", ln):
                     indent = ln[:len(ln) - len(ln.lstrip())]
-                    lines[i] = f"{indent}model: {model}\n"
+                    lines[i] = f"{indent}model: {json.dumps(model)}\n"
                     break
     path.write_text("".join(lines), encoding="utf-8")
 
@@ -345,11 +347,14 @@ def create_app() -> FastAPI:
             "backends": ALL_BACKENDS,
             "models": {b: cfg.get(b, {}).get("model") for b in ALL_BACKENDS},
             "can_run_live": _can_run_live(cfg),
-            "default_mode": "live" if _can_run_live(cfg) else "demo",
+            "default_mode": "live",
         }
 
     @app.patch("/config")
     async def patch_config(req: ConfigPatch):
+        # Validate the whole request before mutating the active configuration.
+        if req.model and not _MODEL_RE.fullmatch(req.model):
+            raise HTTPException(400, "invalid model string")
         if req.backend:
             if req.backend not in ALL_BACKENDS:
                 raise HTTPException(400, f"unknown backend '{req.backend}'")
@@ -358,22 +363,24 @@ def create_app() -> FastAPI:
             if not _MODEL_RE.match(req.model):
                 raise HTTPException(400, "invalid model string")
             cfg.setdefault(cfg["backend"], {})["model"] = req.model
-        _persist_config(req.backend, req.model)
+        _persist_config(cfg.get("backend"), req.model)
         logger.info("api", "config_patched", backend=cfg.get("backend"))
         return await get_config()
 
     # ── runs ─────────────────────────────────────────────────────────────────────
     @app.post("/run", status_code=202)
     async def submit_run(req: RunRequest):
+        if req.backend and req.backend not in ALL_BACKENDS:
+            raise HTTPException(400, f"unknown backend '{req.backend}'")
+        if req.mode != "demo" and not _can_run_live(cfg, req.backend):
+            raise HTTPException(503, "Live backend is not configured. Configure a provider in Settings or explicitly select Demo.")
         run_id = _new_run(req.goal)
         run = _RUNS[run_id]
         bus = EventBus()
         run["bus"] = bus
         bus.subscribe_sync(lambda ev, r=run: r["events"].append(ev.to_dict()))
 
-        mode = (req.mode or "").lower()
-        want_live = mode == "live" or (mode != "demo" and _can_run_live(cfg, req.backend))
-        if want_live and mode != "demo":
+        if req.mode != "demo":
             run["mode"] = "live"
             run["task"] = asyncio.create_task(_run_live(run_id, req, bus))
         else:
@@ -781,7 +788,8 @@ def create_app() -> FastAPI:
             verdict = results.get("verdict")
             run["output"] = results.get("output", "")
             run["score"] = verdict.consensus_score if verdict else None
-            run["status"] = "complete"
+            run["approved"] = verdict.passed if verdict else None
+            run["status"] = "needs_review" if verdict and not verdict.passed else "complete"
             logger.info("api", "run_complete", run_id=run_id)
         except Exception as exc:
             run["status"] = "error"

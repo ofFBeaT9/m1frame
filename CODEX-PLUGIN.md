@@ -8,4 +8,6 @@ codex plugin marketplace add .
 codex plugin add m1frame@m1frame-local
 ```
 
-Then start a new Codex chat. See [full setup and configuration](plugins/m1frame/README.md) and [verified checks and remaining limits](plugins/m1frame/VALIDATION.md). Live provider execution remains unverified; offline checks and the Studio demo passed. This is a GitHub marketplace preview, not a universal-directory listing.
+Then start a new Codex chat. See [full setup and configuration](plugins/m1frame/README.md) and [verified checks and remaining limits](plugins/m1frame/VALIDATION.md). Live execution completed on a free model, but its council rejected the report. Offline, browser, semantic-search and optional-adapter checks passed. This is a GitHub marketplace preview, not a universal-directory listing.
+
+Update existing runtime code with `python plugins/m1frame/scripts/setup.py --upgrade-runtime`. See [module audit](MODULE-AUDIT.md) for repaired bugs and remaining live-test requirements.

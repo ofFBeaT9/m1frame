@@ -553,6 +553,13 @@ def run_workflow(
     else:
         final_output = gout.text
 
+    review = results.get("verdict")
+    results["approved"] = review.passed if review else None
+    if review and not review.passed:
+        fixes = "; ".join(review.required_fixes) or review.summary
+        final_output = (f"NOT APPROVED by council ({review.consensus_score}/10). "
+                        f"Required review: {fixes}\n\nDraft for review:\n{final_output}")
+
     results["integrations"] = {
         "adhd": formatter.status(),
         "headroom": (
@@ -563,7 +570,7 @@ def run_workflow(
     }
 
     page = None
-    if not skip_wiki:
+    if not skip_wiki and gout.allowed and (review is None or review.passed):
         _bar("PILLAR 7 · LLM WIKI  —  Knowledge Graph Ingest")
         emit("pillar_start", pillar="wiki", idx=7, label="LLM Wiki · Knowledge Graph Ingest")
         t0 = time.perf_counter()
@@ -579,6 +586,8 @@ def run_workflow(
         emit("graph_delta", pillar="wiki",
              nodes=[{"id": page.title, "type": page.page_type}], links=[])
         emit("pillar_done", pillar="wiki", ms=round(ms))
+    elif not skip_wiki:
+        emit("pillar_skipped", pillar="wiki", reason="Rejected or blocked output is not stored as knowledge")
 
     results["output"] = final_output
     _bar("FINAL OUTPUT")
