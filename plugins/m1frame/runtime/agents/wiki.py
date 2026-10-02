@@ -32,6 +32,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -263,7 +264,7 @@ class LLMWiki:
         self.purpose_file = Path(self.cfg.get("purpose_file", "purpose.md"))
         self._vector_store = self.cfg.get("vector_store", "file")
         self._lancedb_table = None
-        self._embedding_model: object | None = None
+        self._embedding_model: Any = None
         self._init_structure()
 
     # ── Three Operations ──────────────────────────────────────────────────────
@@ -544,8 +545,7 @@ class LLMWiki:
             if self._embedding_model is None:
                 self._embedding_model = SentenceTransformer(
                     embed_model, local_files_only=bool(self.cfg.get("embed_local_only", False)))
-            encode = getattr(self._embedding_model, "encode")
-            return encode(text).tolist()
+            return self._embedding_model.encode(text).tolist()
         except Exception:
             return None
 
