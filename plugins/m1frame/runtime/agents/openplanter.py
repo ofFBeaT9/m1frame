@@ -16,11 +16,13 @@ New in v1.1:
   Exa web search — when EXA_API_KEY is set, investigate() fetches live web
     search results to enrich dataset investigations.
 
-Tools available (from OpenPlanter's 19-tool suite, abstracted here):
-  Dataset tools  — list_files, search_files, read_file, write_file, repo_map
-  Shell tools    — run_shell (analysis scripts, data pipelines)
-  Web tools      — web_search (via EXA_API_KEY), fetch_url, recursive sub-agents
-  Analysis tools — entity_resolution, cross_reference, surface_connections
+Execution surface:
+  Dataset evidence comes from m1frame's registered file/search tools.
+  Writes require explicit caller approval; the story loop cannot self-approve.
+  Web enrichment uses Exa when configured; HTTP fetch uses the registered tool.
+  Entity resolution and cross-reference are methods on this local adapter.
+  An upstream OpenPlanter engine, shell execution and recursive external agents
+  are not automatically provided by installing this module.
 
 Supported backends (OpenPlanter providers):
   anthropic  → claude-opus-5    (ANTHROPIC_API_KEY)
@@ -164,6 +166,7 @@ class InvestigationResult:
     raw_analysis: str = ""
     workspace_files: list[str] = field(default_factory=list)
     web_results: list[dict] = field(default_factory=list)
+    integration_errors: dict[str, str] = field(default_factory=dict)
 
     def report(self) -> str:
         lines = [
@@ -184,6 +187,8 @@ class InvestigationResult:
                 lines.append(f"  → {' → '.join(c.path)}: {c.significance}")
         if self.web_results:
             lines.append(f"Web sources consulted: {len(self.web_results)}")
+        for name, error in self.integration_errors.items():
+            lines.append(f"Integration unavailable ({name}): {error}")
         return "\n".join(lines)
 
 
@@ -201,9 +206,8 @@ class OpenPlanterAgent:
     Exa web search: set EXA_API_KEY to enrich investigations with live web data.
     Voyage embeddings: set VOYAGE_API_KEY for semantic entity matching.
 
-    # BETA: workspace file I/O and shell execution require OpenPlanter installed:
-    #   pip install git+https://github.com/ShinMegamiBoson/OpenPlanter.git
-    # Without it, the agent operates in LLM-only mode (all reasoning, no real file/shell tools).
+    Uses m1frame's registered tools, not an installed upstream OpenPlanter engine.
+    External search and embedding services require their own credentials.
     """
 
     SUPPORTED_PROVIDERS = {
@@ -221,11 +225,12 @@ class OpenPlanterAgent:
     ) -> None:
         self.llm = llm_client
         self.cfg = config or {}
-        self.workspace = Path(workspace) if workspace else Path("workspace")
+        self.workspace = Path(workspace or self.cfg.get("workspace") or "workspace")
         self.workspace.mkdir(parents=True, exist_ok=True)
         self._openplanter_available = self._check_openplanter()
         self._exa_key = os.environ.get("EXA_API_KEY", "")
         self._voyage_key = os.environ.get("VOYAGE_API_KEY", "")
+        self.integration_errors: dict[str, str] = {}
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -276,7 +281,8 @@ class OpenPlanterAgent:
             answer = raw[m.end():].strip()
 
         # Save raw output to workspace
-        out_file = self.workspace / "investigation_result.md"
+        import uuid
+        out_file = self.workspace / f"investigation_{uuid.uuid4().hex}.md"
         out_file.write_text(f"# Investigation: {task}\n\n{answer}", encoding="utf-8")
 
         return InvestigationResult(
@@ -286,6 +292,7 @@ class OpenPlanterAgent:
             raw_analysis=answer,
             workspace_files=[str(out_file)],
             web_results=web_results,
+            integration_errors=dict(self.integration_errors),
         )
 
     def resolve_entities(self, raw_data: str) -> list[Entity]:
@@ -388,7 +395,8 @@ class OpenPlanterAgent:
                 }
                 for r in response.results
             ]
-        except Exception:
+        except Exception as exc:
+            self.integration_errors["exa"] = f"{type(exc).__name__}: verify SDK, credentials and service"
             return []
 
     # ── Voyage semantic entity merging ────────────────────────────────────────
@@ -437,21 +445,31 @@ class OpenPlanterAgent:
 
             # Apply merges
             updated: list[Entity] = []
-            seen_canonical: set[str] = set()
+            by_canonical: dict[str, Entity] = {}
             for e in entities:
                 canon = merged_map.get(e.canonical_name, e.canonical_name)
-                if canon not in seen_canonical:
-                    seen_canonical.add(canon)
-                    updated.append(Entity(
+                if canon not in by_canonical:
+                    combined = Entity(
                         canonical_name=canon,
-                        aliases=list({e.canonical_name, *e.aliases}),
+                        aliases=list(dict.fromkeys([e.canonical_name, *e.aliases])),
                         entity_type=e.entity_type,
                         confidence=e.confidence,
-                        sources=e.sources,
-                    ))
+                        sources=list(e.sources),
+                    )
+                    by_canonical[canon] = combined
+                    updated.append(combined)
+                else:
+                    combined = by_canonical[canon]
+                    combined.aliases = list(dict.fromkeys(
+                        [*combined.aliases, e.canonical_name, *e.aliases]))
+                    combined.sources = list(dict.fromkeys([*combined.sources, *e.sources]))
+                    rank = {"low": 0, "medium": 1, "high": 2}
+                    combined.confidence = min(
+                        (combined.confidence, e.confidence), key=lambda c: rank.get(c, 0))
             return updated or entities
 
-        except Exception:
+        except Exception as exc:
+            self.integration_errors["voyage"] = f"{type(exc).__name__}: verify SDK, credentials and service"
             return entities
 
     # ── Private ───────────────────────────────────────────────────────────────

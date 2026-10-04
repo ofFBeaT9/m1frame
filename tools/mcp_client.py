@@ -40,9 +40,7 @@ class MCPClient:
                 async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
                     self._session = session
                     await session.initialize()
-                    result = await session.list_tools()
-                    self._specs = [{'name': t.name, 'description': t.description or '',
-                                    'schema': t.inputSchema} for t in result.tools]
+                    self._specs = await self._discover_tools(session)
                     ready.set_result(True)
                     await self._stop.wait()
             except BaseException as exc:
@@ -62,6 +60,23 @@ class MCPClient:
             self.close()
             raise
         return self
+
+    @staticmethod
+    async def _discover_tools(session) -> list[dict]:
+        specs: list[dict] = []
+        seen: set[str] = set()
+        cursor = None
+        for _ in range(100):
+            result = await session.list_tools(cursor=cursor) if cursor else await session.list_tools()
+            specs.extend({'name': t.name, 'description': t.description or '',
+                          'schema': t.inputSchema} for t in result.tools)
+            cursor = result.nextCursor
+            if not cursor:
+                return specs
+            if cursor in seen:
+                raise RuntimeError('MCP server repeated its tool pagination cursor')
+            seen.add(cursor)
+        raise RuntimeError('MCP tool discovery exceeded 100 pages')
 
     def list_tools(self) -> list[dict]:
         return list(self._specs)

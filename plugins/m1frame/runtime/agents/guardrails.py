@@ -264,7 +264,7 @@ class GuardrailEngine:
         if self._sg_client is None:
             from openai import OpenAI  # local import; openai is already a dep
             base = self.sg_base_url or "http://localhost:1234/v1"
-            self._sg_client = OpenAI(api_key="local", base_url=base)
+            self._sg_client = OpenAI(api_key="local", base_url=base, timeout=15, max_retries=0)
         return self._sg_client
 
     def _shieldgemma_verdict(self, text: str) -> bool:
@@ -281,7 +281,10 @@ class GuardrailEngine:
             max_tokens=4, temperature=0.0,
         )
         out = (resp.choices[0].message.content or "").strip().lower()
-        return out.startswith("yes")
+        answer = out.rstrip(".! ")
+        if answer not in {"yes", "no"}:
+            raise ValueError("Classifier returned neither Yes nor No")
+        return answer == "yes"
 
     # ── Audit ────────────────────────────────────────────────────────────────────
 
@@ -316,7 +319,11 @@ class GuardedLLMClient:
         if not gi.allowed:
             yield self.engine.refusal_text(gi)
             return
-        yield from self.inner.stream(gi.text, system=system, **kw)
+        # Buffer until the output gate can inspect the complete answer. Streaming
+        # unchecked fragments would bypass the wrapper's output-safety contract.
+        reply = "".join(self.inner.stream(gi.text, system=system, **kw))
+        go = self.engine.check_output(reply)
+        yield go.text if go.allowed else self.engine.refusal_text(go)
 
     def __getattr__(self, name):  # delegate everything else (backend, etc.)
         return getattr(self.inner, name)

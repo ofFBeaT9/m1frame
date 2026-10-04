@@ -68,6 +68,10 @@ class HeadroomAdapter:
             for key in ("model_limit", "target_ratio", "protect_recent", "min_tokens_to_compress")
             if key in self.config and self.config[key] is not None
         }
+        # ML compression downloads a model on first use. Keep the lightweight
+        # transforms useful offline; users can explicitly select a Kompress model.
+        kwargs["kompress_model"] = self.config.get("kompress_model") or "disabled"
+        kwargs["compress_system_messages"] = False
         try:
             result = self._compress(
                 deepcopy(original),
@@ -117,4 +121,5 @@ class HeadroomAdapter:
             "available": self._compress is not None,
             "error": self._import_error,
             "source": SOURCE,
+            "kompress_model": self.config.get("kompress_model") or "disabled",
         }

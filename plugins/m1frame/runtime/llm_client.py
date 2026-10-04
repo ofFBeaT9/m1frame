@@ -1,5 +1,5 @@
 """
-llm_client.py â€” Unified LLM adapter
+llm_client.py — Unified LLM adapter
 Supports: Anthropic Claude | OpenAI-compatible (Ollama, vLLM, LM Studio, OpenAI)
 """
 
@@ -38,7 +38,7 @@ class LLMClient:
         self.last_compression: CompressionResult | None = None
         self._client = self._build_client()
 
-    # â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Public API ────────────────────────────────────────────────────────────
 
     def chat(
         self,
@@ -51,7 +51,7 @@ class LLMClient:
     ) -> str:
         """Send a chat message and return the assistant reply as a string.
 
-        `model` overrides the backend's configured model for this one call â€”
+        `model` overrides the backend's configured model for this one call —
         e.g. routing a single expensive judgment call to a stronger model
         while everything else stays on the cheaper default. Ignored (falls
         back to the configured default) on backends where that doesn't apply.
@@ -75,16 +75,23 @@ class LLMClient:
         else:
             yield from self._openai_stream(prompt, system, temperature, history)
 
-    # â”€â”€ Private builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Private builders ──────────────────────────────────────────────────────
 
     def _build_client(self):
         if self.backend == "claudecli":
-            return None  # no SDK client â€” we shell out to the Claude Code CLI
+            return None  # no SDK client — we shell out to the Claude Code CLI
         if self.backend == "claude":
             try:
                 import anthropic
                 api_key = os.environ.get(self.cfg["claude"]["api_key_env"])
-                return anthropic.Anthropic(api_key=api_key)
+                if not api_key and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+                    raise RuntimeError(
+                        f"Missing {self.cfg['claude']['api_key_env']} for backend claude. "
+                        "Configure the credential in the local .env or choose a configured backend."
+                    )
+                bcfg = self.cfg["claude"]
+                return anthropic.Anthropic(api_key=api_key, timeout=bcfg.get("timeout", 60),
+                                           max_retries=bcfg.get("max_retries", 1))
             except ImportError:
                 raise ImportError("Run: pip install anthropic") from None
         else:
@@ -101,7 +108,7 @@ class LLMClient:
             except ImportError:
                 raise ImportError("Run: pip install openai") from None
 
-    # â”€â”€ Claude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Claude ────────────────────────────────────────────────────────────────
 
     def _claude_chat(self, prompt, system, temperature, max_tokens, history, model=None) -> str:
         bcfg = self.cfg["claude"]
@@ -139,7 +146,7 @@ class LLMClient:
         with self._client.messages.stream(**kwargs) as stream:
             yield from stream.text_stream
 
-    # â”€â”€ Claude Code CLI (no API key â€” uses your `claude` auth) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Claude Code CLI (no API key — uses your `claude` auth) ────────────────
     def _claudecli_chat(self, prompt, system, history, model=None) -> str:
         """Run the prompt through the Claude Code CLI headlessly (`claude -p`).
         Lets m1frame run with zero API key by reusing your Claude Code login."""
@@ -186,7 +193,7 @@ class LLMClient:
             raise RuntimeError(f"claude CLI error (exit {res.returncode}): {detail[:300]}")
         return (res.stdout or "").strip()
 
-    # â”€â”€ OpenAI-compatible â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── OpenAI-compatible ────────────────────────────────────────────────────
 
     def _openai_options(self, model: str) -> dict:
         bcfg = self.cfg[self.backend]
@@ -251,7 +258,7 @@ class LLMClient:
         if not delivered:
             raise RuntimeError("Provider returned no final answer in the stream")
 
-    # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
     def _build_messages(prompt: str, history: list[dict] | None) -> list[dict]:
