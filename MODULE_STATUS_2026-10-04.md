@@ -2,7 +2,7 @@
 
 Audited October 4, 2026. This is an evidence-based readiness chart, not a claim of perfection.
 
-**Verification:** 164 core checks + 87 regression tests passed (251 total); repository-wide lint and type checking passed. Plugin protocol/lifecycle checks and one upgrade-preservation test passed. Wheel building passed. Real optional-module probes are distinguished from offline fixtures.
+**Verification:** 164 core checks + 87 regression tests passed (251 total); repository-wide lint and type checking passed. Plugin protocol/lifecycle checks and one upgrade-preservation test passed. Wheel building passed. GitHub CI passed all nine OS/Python combinations and both plugin checks on code commit `3dbb31f`. [Core CI](https://github.com/ofFBeaT9/m1frame/actions/runs/37238064149) · [Plugin CI](https://github.com/ofFBeaT9/m1frame/actions/runs/37238064113). Real optional-module probes are distinguished from offline fixtures.
 
 **Current live blocker:** the configured model provider returns HTTP 403. A prior run completed but failed council approval; it is not counted as a current live pass. Exa/Voyage credentials and a local classifier endpoint are also missing.
 
@@ -53,7 +53,7 @@ Audited October 4, 2026. This is an evidence-based readiness chart, not a claim 
 | Ollama / vLLM | Provider | Partial | Compatible adapter paths exist; no live inference service verified in this audit. |
 | LM Studio | Provider | Blocked | Configured local endpoint refused connections; installed CLI timed out starting its daemon. Local service repair required. |
 | Wheel packaging | Delivery | Verified offline | Wheel builds successfully. Fresh-environment deployment across every optional service remains a separate setup task. |
-| Cross-platform CI | Delivery | Pending | Windows local verification passed; branch CI is enabled for the authorized push. Remote outcomes recorded after dispatch. |
+| Cross-platform CI | Delivery | Verified offline | GitHub CI passed on code commit 3dbb31f: all nine Windows/macOS/Linux × Python 3.10/3.11/3.12 jobs, lint/type checks, and both plugin platform checks. |
 | Autonomous code/test execution | Scope | Partial | The framework plans, reviews and calls bounded tools. Arbitrary shell execution and unattended write approval are not part of its current tool loop; use host development tools. |
 
 ## Reproduce
