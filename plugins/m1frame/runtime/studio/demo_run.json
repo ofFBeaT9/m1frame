@@ -1,0 +1,1152 @@
+{
+  "version": 1,
+  "goal": "Should we ship our MVP as a monolith or microservices?",
+  "generated": "2026-06-04 04:17",
+  "duration_ms": 30020,
+  "events": [
+    {
+      "delay_ms": 0,
+      "type": "run_start",
+      "seq": 1,
+      "goal": "Should we ship our MVP as a monolith or microservices?",
+      "options": {
+        "backend": "claude (demo replay)",
+        "parallel": false,
+        "self_critique": true
+      }
+    },
+    {
+      "delay_ms": 300,
+      "type": "skill_suggested",
+      "seq": 2,
+      "pillar": "bmad",
+      "skills": [
+        {
+          "id": "b7c2d9e1",
+          "title": "Architecture Decision Recipe",
+          "uses": 2,
+          "score": 8.4
+        }
+      ]
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_start",
+      "seq": 3,
+      "pillar": "bmad",
+      "idx": 1,
+      "label": "BMAD \u00b7 Story Backlog"
+    },
+    {
+      "delay_ms": 700,
+      "type": "bmad_blueprint",
+      "seq": 4,
+      "pillar": "bmad",
+      "project": "MVP Architecture Decision",
+      "domain": "software architecture",
+      "mvp": "Pick an architecture that ships the MVP fast without blocking future scale",
+      "issues": [],
+      "stories": [
+        {
+          "id": 1,
+          "title": "Frame the speed-vs-scale tradeoff",
+          "role": "analyst",
+          "complexity": "medium",
+          "depends_on": [],
+          "acceptance_criteria": [
+            "Decide what 'scale' actually means for this MVP"
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Investigate the real cost of distributed ops",
+          "role": "investigator",
+          "complexity": "high",
+          "depends_on": [
+            1
+          ],
+          "acceptance_criteria": [
+            "Quantify team-size vs service-count overhead"
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Design a modular monolith",
+          "role": "architect",
+          "complexity": "high",
+          "depends_on": [
+            1
+          ],
+          "acceptance_criteria": [
+            "Clear module seams; one deploy, many bounded contexts"
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Plan the service-extraction path",
+          "role": "architect",
+          "complexity": "medium",
+          "depends_on": [
+            3
+          ],
+          "acceptance_criteria": [
+            "A module can become a service without a rewrite"
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Red-team the microservices hype",
+          "role": "qa",
+          "complexity": "high",
+          "depends_on": [
+            2,
+            3
+          ],
+          "acceptance_criteria": [
+            "Test the claim that microservices reduce coupling"
+          ]
+        }
+      ]
+    },
+    {
+      "delay_ms": 500,
+      "type": "pillar_done",
+      "seq": 5,
+      "pillar": "bmad",
+      "ms": 1180
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 6,
+      "pillar": "council",
+      "idx": 2,
+      "label": "Council \u00b7 Brainstorm"
+    },
+    {
+      "delay_ms": 450,
+      "type": "council_persona_start",
+      "seq": 7,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Critic"
+    },
+    {
+      "delay_ms": 900,
+      "type": "council_persona",
+      "seq": 8,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Critic",
+      "approach": "Attack the premise that microservices are the 'scalable' default.",
+      "considerations": [
+        "A pre-PMF MVP has near-zero scaling pressure"
+      ],
+      "risks": [
+        "Premature decomposition spends the team's budget on plumbing, not product"
+      ],
+      "opportunities": [
+        "Shipping speed is the only scalability that matters before product-market fit"
+      ],
+      "direction": "Optimize for the fastest path to a shippable product, not for hypothetical scale."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 9,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Advocate"
+    },
+    {
+      "delay_ms": 850,
+      "type": "council_persona",
+      "seq": 10,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Advocate",
+      "approach": "Steelman a modular monolith with clean seams.",
+      "considerations": [
+        "One deploy, one DB, bounded contexts as modules",
+        "CI stays trivial"
+      ],
+      "risks": [
+        "Sloppy modules become a big ball of mud"
+      ],
+      "opportunities": [
+        "Refactor in-process now; extract a service later for ~free"
+      ],
+      "direction": "Build a modular monolith; keep module boundaries strict so extraction is cheap."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 11,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Domain Expert"
+    },
+    {
+      "delay_ms": 950,
+      "type": "council_persona",
+      "seq": 12,
+      "pillar": "council",
+      "mode": "brainstorm",
+      "persona": "Domain Expert",
+      "approach": "Bound the real cost of distributed systems.",
+      "considerations": [
+        "Network calls add partial-failure, retries, idempotency, tracing",
+        "A 3\u20136 person team can't staff per-service on-call"
+      ],
+      "risks": [
+        "Distributed transactions and eventual consistency dominate early eng time"
+      ],
+      "opportunities": [
+        "Conway's Law: ship one service per team you actually have (one)"
+      ],
+      "direction": "Don't pay distributed-systems tax before you have the team or the load to justify it."
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_brainstorm",
+      "seq": 13,
+      "pillar": "council",
+      "plan": "Converge on a modular monolith; treat microservices as a later, trigger-gated extraction.",
+      "steps": [
+        "Quantify the ops tax",
+        "Design strict module seams",
+        "Define extraction triggers",
+        "Red-team the coupling claim"
+      ],
+      "risks": [
+        "A 'microservices reduce coupling' claim may hide coupling moving to the network"
+      ],
+      "confidence": "high"
+    },
+    {
+      "delay_ms": 400,
+      "type": "pillar_done",
+      "seq": 14,
+      "pillar": "council",
+      "ms": 4250,
+      "phase": "brainstorm"
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 15,
+      "pillar": "openplanter",
+      "idx": 3,
+      "label": "OpenPlanter \u00b7 Investigation"
+    },
+    {
+      "delay_ms": 1100,
+      "type": "openplanter_result",
+      "seq": 16,
+      "pillar": "openplanter",
+      "mode": "llm+grounded",
+      "summary": "Investigation across team-size and failure-mode data: below ~15\u201320 engineers, microservices overhead (CI/CD per service, network partial-failure handling, distributed tracing, on-call fan-out) consistently outweighs the scaling benefit for a pre-PMF product. The recurring failure pattern is 'distributed monolith': services so chatty they must deploy together \u2014 all of the cost of distribution, none of the independence.",
+      "web_results": 3
+    },
+    {
+      "delay_ms": 450,
+      "type": "pillar_done",
+      "seq": 17,
+      "pillar": "openplanter",
+      "ms": 1400
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 18,
+      "pillar": "miras",
+      "idx": 4,
+      "label": "Miras \u00b7 Multi-Agent Execution"
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 19,
+      "pillar": "miras",
+      "id": 1,
+      "role": "analyst",
+      "title": "Frame speed-vs-scale"
+    },
+    {
+      "delay_ms": 800,
+      "type": "story_done",
+      "seq": 20,
+      "pillar": "miras",
+      "id": 1,
+      "role": "analyst",
+      "preview": "Before product-market fit, shipping speed dominates; 'scale' is a problem you want to have."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 21,
+      "pillar": "miras",
+      "id": 2,
+      "role": "investigator",
+      "title": "Cost of distributed ops"
+    },
+    {
+      "delay_ms": 850,
+      "type": "story_done",
+      "seq": 22,
+      "pillar": "miras",
+      "id": 2,
+      "role": "investigator",
+      "preview": "Per-service CI, on-call, and network failure-handling exceed the benefit below ~15\u201320 engineers."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 23,
+      "pillar": "miras",
+      "id": 3,
+      "role": "architect",
+      "title": "Modular monolith design"
+    },
+    {
+      "delay_ms": 900,
+      "type": "story_done",
+      "seq": 24,
+      "pillar": "miras",
+      "id": 3,
+      "role": "architect",
+      "preview": "Bounded contexts as in-process modules behind interfaces; one deploy, one DB, strict seams."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 25,
+      "pillar": "miras",
+      "id": 4,
+      "role": "architect",
+      "title": "Service-extraction path"
+    },
+    {
+      "delay_ms": 800,
+      "type": "story_done",
+      "seq": 26,
+      "pillar": "miras",
+      "id": 4,
+      "role": "architect",
+      "preview": "Each module exposes a narrow interface so it can be lifted to a service without a rewrite."
+    },
+    {
+      "delay_ms": 250,
+      "type": "story_start",
+      "seq": 27,
+      "pillar": "miras",
+      "id": 5,
+      "role": "qa",
+      "title": "Red-team the coupling claim"
+    },
+    {
+      "delay_ms": 900,
+      "type": "story_done",
+      "seq": 28,
+      "pillar": "miras",
+      "id": 5,
+      "role": "qa",
+      "preview": "Microservices don't remove coupling \u2014 they relocate it to the network, adding partial failure."
+    },
+    {
+      "delay_ms": 400,
+      "type": "pillar_done",
+      "seq": 29,
+      "pillar": "miras",
+      "ms": 5600,
+      "stories_done": 5
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 30,
+      "pillar": "karpathy",
+      "idx": 5,
+      "label": "Karpathy \u00b7 CoT Refinement"
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 31,
+      "pillar": "karpathy",
+      "chunk": "Ship "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 32,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 33,
+      "pillar": "karpathy",
+      "chunk": "modular "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 34,
+      "pillar": "karpathy",
+      "chunk": "monolith "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 35,
+      "pillar": "karpathy",
+      "chunk": "first. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 36,
+      "pillar": "karpathy",
+      "chunk": "Simplicity "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 37,
+      "pillar": "karpathy",
+      "chunk": "is "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 38,
+      "pillar": "karpathy",
+      "chunk": "the "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 39,
+      "pillar": "karpathy",
+      "chunk": "product, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 40,
+      "pillar": "karpathy",
+      "chunk": "not "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 41,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 42,
+      "pillar": "karpathy",
+      "chunk": "compromise. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 43,
+      "pillar": "karpathy",
+      "chunk": "Enforce "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 44,
+      "pillar": "karpathy",
+      "chunk": "strict "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 45,
+      "pillar": "karpathy",
+      "chunk": "module "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 46,
+      "pillar": "karpathy",
+      "chunk": "boundaries "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 47,
+      "pillar": "karpathy",
+      "chunk": "now "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 48,
+      "pillar": "karpathy",
+      "chunk": "so "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 49,
+      "pillar": "karpathy",
+      "chunk": "any "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 50,
+      "pillar": "karpathy",
+      "chunk": "module "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 51,
+      "pillar": "karpathy",
+      "chunk": "can "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 52,
+      "pillar": "karpathy",
+      "chunk": "be "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 53,
+      "pillar": "karpathy",
+      "chunk": "extracted "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 54,
+      "pillar": "karpathy",
+      "chunk": "into "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 55,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 56,
+      "pillar": "karpathy",
+      "chunk": "service "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 57,
+      "pillar": "karpathy",
+      "chunk": "the "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 58,
+      "pillar": "karpathy",
+      "chunk": "day "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 59,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 60,
+      "pillar": "karpathy",
+      "chunk": "real "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 61,
+      "pillar": "karpathy",
+      "chunk": "scaling "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 62,
+      "pillar": "karpathy",
+      "chunk": "trigger "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 63,
+      "pillar": "karpathy",
+      "chunk": "appears "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 64,
+      "pillar": "karpathy",
+      "chunk": "\u2014 "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 65,
+      "pillar": "karpathy",
+      "chunk": "sustained "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 66,
+      "pillar": "karpathy",
+      "chunk": "load "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 67,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 68,
+      "pillar": "karpathy",
+      "chunk": "single "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 69,
+      "pillar": "karpathy",
+      "chunk": "box "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 70,
+      "pillar": "karpathy",
+      "chunk": "can't "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 71,
+      "pillar": "karpathy",
+      "chunk": "serve, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 72,
+      "pillar": "karpathy",
+      "chunk": "or "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 73,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 74,
+      "pillar": "karpathy",
+      "chunk": "team "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 75,
+      "pillar": "karpathy",
+      "chunk": "big "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 76,
+      "pillar": "karpathy",
+      "chunk": "enough "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 77,
+      "pillar": "karpathy",
+      "chunk": "to "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 78,
+      "pillar": "karpathy",
+      "chunk": "own "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 79,
+      "pillar": "karpathy",
+      "chunk": "a "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 80,
+      "pillar": "karpathy",
+      "chunk": "service "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 81,
+      "pillar": "karpathy",
+      "chunk": "end-to-end. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 82,
+      "pillar": "karpathy",
+      "chunk": "Until "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 83,
+      "pillar": "karpathy",
+      "chunk": "then, "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 84,
+      "pillar": "karpathy",
+      "chunk": "one "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 85,
+      "pillar": "karpathy",
+      "chunk": "deploy "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 86,
+      "pillar": "karpathy",
+      "chunk": "beats "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 87,
+      "pillar": "karpathy",
+      "chunk": "ten. "
+    },
+    {
+      "delay_ms": 60,
+      "type": "karpathy_token",
+      "seq": 88,
+      "pillar": "karpathy",
+      "chunk": " "
+    },
+    {
+      "delay_ms": 300,
+      "type": "karpathy_done",
+      "seq": 89,
+      "pillar": "karpathy",
+      "had_cot": true,
+      "thought": "Restate: pick an MVP architecture. Known: pre-PMF has ~no scaling pressure; distributed ops carry real, constant cost; coupling doesn't vanish under microservices. Therefore the modular monolith wins now; keep seams strict so extraction is cheap later. Gate splits behind real triggers.",
+      "answer_preview": "Ship a modular monolith; extract services only on a real scaling trigger."
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 90,
+      "pillar": "karpathy",
+      "ms": 3900
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 91,
+      "pillar": "council",
+      "idx": 6,
+      "label": "Council \u00b7 QA Gate Review"
+    },
+    {
+      "delay_ms": 450,
+      "type": "council_persona_start",
+      "seq": 92,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Critic"
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_persona",
+      "seq": 93,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Critic",
+      "verdict": "conditional",
+      "score": 8,
+      "key_points": [
+        "Strong, but name the explicit extraction triggers"
+      ],
+      "recommendation": "State the split triggers (sustained load / team size / independent deploy need) explicitly."
+    },
+    {
+      "delay_ms": 300,
+      "type": "council_persona_start",
+      "seq": 94,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Advocate"
+    },
+    {
+      "delay_ms": 750,
+      "type": "council_persona",
+      "seq": 95,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Advocate",
+      "verdict": "pass",
+      "score": 9,
+      "key_points": [
+        "Three independent lenses converge on the same answer"
+      ],
+      "recommendation": "Ship the decision; the convergence is the signal."
+    },
+    {
+      "delay_ms": 300,
+      "type": "council_persona_start",
+      "seq": 96,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Domain Expert"
+    },
+    {
+      "delay_ms": 800,
+      "type": "council_persona",
+      "seq": 97,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Domain Expert",
+      "verdict": "pass",
+      "score": 8,
+      "key_points": [
+        "Extraction path keeps the door open to services"
+      ],
+      "recommendation": "Keep module interfaces narrow so the later split stays a refactor, not a rewrite."
+    },
+    {
+      "delay_ms": 350,
+      "type": "council_persona_start",
+      "seq": 98,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Red-Team"
+    },
+    {
+      "delay_ms": 950,
+      "type": "council_persona",
+      "seq": 99,
+      "pillar": "council",
+      "mode": "review",
+      "persona": "Red-Team",
+      "verdict": "conditional",
+      "score": 7,
+      "key_points": [
+        "A council member implied microservices 'eliminate coupling' \u2014 FALSE",
+        "They move coupling to the network: partial failure, retries, versioned contracts"
+      ],
+      "recommendation": "Drop the 'eliminates coupling' framing; the monolith's in-process coupling is cheaper to change."
+    },
+    {
+      "delay_ms": 900,
+      "type": "council_verdict",
+      "seq": 100,
+      "pillar": "council",
+      "score": 8.0,
+      "verdict": "pass",
+      "passed": true,
+      "summary": "Ship a modular monolith, extraction-ready, with explicit split triggers. The single 'microservices remove coupling' claim was an internal contradiction the red-team removed.",
+      "required_fixes": [
+        "State the extraction triggers explicitly",
+        "Drop the 'eliminates coupling' claim"
+      ]
+    },
+    {
+      "delay_ms": 300,
+      "type": "qa_gate",
+      "seq": 101,
+      "pillar": "council",
+      "gate": "results-review",
+      "status": "PASS",
+      "score": 8.0
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 102,
+      "pillar": "council",
+      "ms": 6100,
+      "phase": "review"
+    },
+    {
+      "delay_ms": 300,
+      "type": "skill_learned",
+      "seq": 103,
+      "pillar": "council",
+      "id": "b7c2d9e1",
+      "title": "Architecture Decision Recipe",
+      "score": 8.4,
+      "uses": 3
+    },
+    {
+      "delay_ms": 300,
+      "type": "pillar_start",
+      "seq": 104,
+      "pillar": "wiki",
+      "idx": 7,
+      "label": "LLM Wiki \u00b7 Knowledge Graph Ingest"
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 105,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "Conway's Law",
+          "type": "concept"
+        },
+        {
+          "id": "Premature Decomposition",
+          "type": "concept"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 106,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "m1frame",
+          "type": "entity"
+        },
+        {
+          "id": "Microservices",
+          "type": "entity"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 107,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "Modular Monolith",
+          "type": "entity"
+        },
+        {
+          "id": "Is m1frame v1.3 Production Ready",
+          "type": "query"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 108,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "m1frame Constellation Release",
+          "type": "synthesis"
+        },
+        {
+          "id": "m1frame Studio",
+          "type": "synthesis"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 160,
+      "type": "graph_delta",
+      "seq": 109,
+      "pillar": "wiki",
+      "nodes": [
+        {
+          "id": "MVP Architecture Decision",
+          "type": "synthesis"
+        }
+      ],
+      "links": []
+    },
+    {
+      "delay_ms": 220,
+      "type": "graph_delta",
+      "seq": 110,
+      "pillar": "wiki",
+      "nodes": [],
+      "links": [
+        {
+          "source": "Conway's Law",
+          "target": "MVP Architecture Decision"
+        },
+        {
+          "source": "Conway's Law",
+          "target": "Microservices"
+        },
+        {
+          "source": "Conway's Law",
+          "target": "Modular Monolith"
+        },
+        {
+          "source": "Premature Decomposition",
+          "target": "MVP Architecture Decision"
+        },
+        {
+          "source": "Premature Decomposition",
+          "target": "Modular Monolith"
+        },
+        {
+          "source": "m1frame",
+          "target": "m1frame Studio"
+        },
+        {
+          "source": "m1frame",
+          "target": "MVP Architecture Decision"
+        },
+        {
+          "source": "m1frame",
+          "target": "m1frame Constellation Release"
+        },
+        {
+          "source": "Microservices",
+          "target": "MVP Architecture Decision"
+        },
+        {
+          "source": "Microservices",
+          "target": "Modular Monolith"
+        },
+        {
+          "source": "Modular Monolith",
+          "target": "MVP Architecture Decision"
+        },
+        {
+          "source": "Is m1frame v1.3 Production Ready",
+          "target": "m1frame Constellation Release"
+        },
+        {
+          "source": "Is m1frame v1.3 Production Ready",
+          "target": "m1frame"
+        },
+        {
+          "source": "m1frame Constellation Release",
+          "target": "m1frame Studio"
+        },
+        {
+          "source": "m1frame Studio",
+          "target": "MVP Architecture Decision"
+        }
+      ]
+    },
+    {
+      "delay_ms": 300,
+      "type": "wiki_page",
+      "seq": 111,
+      "pillar": "wiki",
+      "title": "MVP Architecture Decision",
+      "page_type": "synthesis",
+      "filename": "synthesis/mvp-architecture-decision.md",
+      "tags": [
+        "architecture",
+        "monolith",
+        "microservices",
+        "decision"
+      ]
+    },
+    {
+      "delay_ms": 350,
+      "type": "pillar_done",
+      "seq": 112,
+      "pillar": "wiki",
+      "ms": 2100
+    },
+    {
+      "delay_ms": 300,
+      "type": "memory_added",
+      "seq": 113,
+      "type_": "decision",
+      "agent": "architect",
+      "text": "SHIP A MODULAR MONOLITH first; keep strict module seams so a service can be extracted later for ~free."
+    },
+    {
+      "delay_ms": 260,
+      "type": "memory_added",
+      "seq": 114,
+      "type_": "constraint",
+      "agent": "qa",
+      "text": "RED-TEAM LESSON: microservices don't remove coupling \u2014 they relocate it to the network (partial failure, retries)."
+    },
+    {
+      "delay_ms": 260,
+      "type": "memory_added",
+      "seq": 115,
+      "type_": "decision",
+      "agent": "analyst",
+      "text": "KEY PRINCIPLE: before product-market fit, shipping speed dominates hypothetical scale."
+    },
+    {
+      "delay_ms": 500,
+      "type": "final",
+      "seq": 116,
+      "output": "# Decision: ship a modular monolith (extraction-ready)\n\n**Not microservices \u2014 not yet.**\n\n1. **Build one deployable, many bounded contexts.** Model each domain as an in-process module behind a narrow interface, with one database and trivial CI. Simplicity is a feature.\n2. **Keep the seams strict.** Because modules talk through interfaces, any one can be lifted into a standalone service later **without a rewrite**.\n3. **Don't split yet \u2014 gate it on real triggers:** sustained load a single box can't serve, a team large enough to own a service end-to-end, or a genuine need for independent deploys.\n4. **Why the monolith wins now:** before product-market fit there is ~no scaling pressure, and distributed systems carry constant ops cost \u2014 microservices **relocate** coupling to the network rather than removing it.\n\n*Three independent lenses \u2014 product, operations, architecture \u2014 converged on the same answer. The lone 'microservices remove coupling' dissent was self-disqualified by the red-team.*",
+      "score": 8.0,
+      "passed": true,
+      "wiki_page": "synthesis/mvp-architecture-decision.md"
+    },
+    {
+      "delay_ms": 200,
+      "type": "done",
+      "seq": 117,
+      "ms": 38240
+    }
+  ]
+}

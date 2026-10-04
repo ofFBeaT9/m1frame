@@ -1,0 +1,3 @@
+-r runtime/requirements.txt
+# Public FastMCP tool replacement and annotations used by the plugin wrapper.
+mcp>=1.20.0,<2

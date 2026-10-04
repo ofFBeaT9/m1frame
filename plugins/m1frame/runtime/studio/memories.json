@@ -1,0 +1,20 @@
+[
+  {
+    "type": "decision",
+    "agent": "architect",
+    "text": "SHIP A MODULAR MONOLITH first; keep strict module seams so a service can be extracted later for ~free.",
+    "tags": ""
+  },
+  {
+    "type": "constraint",
+    "agent": "qa",
+    "text": "RED-TEAM LESSON: microservices don't remove coupling \u2014 they relocate it to the network (partial failure, retries).",
+    "tags": ""
+  },
+  {
+    "type": "decision",
+    "agent": "analyst",
+    "text": "KEY PRINCIPLE: before product-market fit, shipping speed dominates hypothetical scale.",
+    "tags": ""
+  }
+]
