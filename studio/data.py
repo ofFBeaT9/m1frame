@@ -25,25 +25,28 @@ def _strip_frontmatter(text: str) -> str:
 
 def _pages() -> list[dict]:
     """Parse every non-structural wiki page → list of rich page dicts."""
+    from llm_client import load_config
+    wiki = WIKI
+    if WIKI == ROOT / "wiki":
+        cfg = load_config(str(ROOT / 'config.yaml'))
+        wiki = Path((cfg.get('wiki') or {}).get('directory', WIKI))
     out = []
-    for p in sorted(WIKI.rglob("*.md")):
+    for p in sorted(wiki.rglob("*.md")):
+        if 'raw' in p.relative_to(wiki).parts:
+            continue
         if p.stem in STRUCTURAL:
             continue
         text = p.read_text(encoding="utf-8")
-        mt = re.search(r"^title:\s*(.+)$", text, re.M)
-        if not mt:
+        from agents.wiki_contract import split_page
+        try:
+            fm, body = split_page(text)
+        except ValueError:
             continue
-        pt = re.search(r"^page_type:\s*(.+)$", text, re.M)
-        tags = re.search(r"^tags:\s*\[(.*)\]", text, re.M)
-        conf = re.search(r"^confidence:\s*(.+)$", text, re.M)
         out.append({
-            "title": mt.group(1).strip(),
-            "type": pt.group(1).strip() if pt else "page",
-            "tags": [t.strip().strip('"\'') for t in (tags.group(1).split(",") if tags else []) if t.strip()],
-            "confidence": conf.group(1).strip() if conf else "",
-            "file": str(p.relative_to(ROOT)).replace("\\", "/"),
-            "links": [ln.strip() for ln in _LINK.findall(text)],
-            "body": _strip_frontmatter(text),
+            "title": fm['title'], "type": fm.get('page_type', 'page'),
+            "tags": fm.get('tags') or [], "confidence": fm.get('confidence', ''),
+            "file": str(p.relative_to(wiki)).replace("\\", "/"),
+            "links": list(dict.fromkeys(_LINK.findall(body))), "body": body,
         })
     return out
 

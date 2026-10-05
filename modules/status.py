@@ -1,6 +1,8 @@
 """Local module inventory. Availability is not a claim of successful live execution."""
 import importlib.util
 import os
+import sys
+from pathlib import Path
 
 
 def module_status(cfg: dict) -> dict:
@@ -20,9 +22,12 @@ def module_status(cfg: dict) -> dict:
     wiki = cfg.get('wiki') or {}
     return {
         'execution_verified': False,
+        'runtime': {'source_root': str(Path(__file__).resolve().parent.parent),
+                    'working_directory': str(Path.cwd()), 'python': sys.executable},
         'note': 'Inventory only. Run a live workflow and inspect emitted events to verify execution.',
         'provider': {'backend': backend, 'model': provider.get('model'),
-                     'key_configured': bool(key_env and os.environ.get(key_env)), 'live_verified': False},
+                     'key_configured': bool(key_env and os.environ.get(key_env)),
+                     'requires_key': bool(key_env), 'live_verified': False},
         'core': {'bmad': 'local implementation', 'council': 'local implementation',
                  'miras': 'local orchestration; external memory is a separate host connection',
                  'karpathy': 'local refinement', 'wiki': 'local knowledge store',
@@ -36,6 +41,13 @@ def module_status(cfg: dict) -> dict:
         'scientific': {'enabled': (cfg.get('scientific') or {}).get('enabled', True),
                        'count': len(library.skills), 'errors': library.errors,
                        'scope': 'Instructions and resources; scientific workflows need their own dependencies and validation'},
+        'wiki_paths': {'directory': str(Path(wiki.get('directory', 'wiki')).resolve()),
+                       'index': str(Path(wiki.get('index_file', 'wiki/index.md')).resolve()),
+                       'purpose': str(Path(wiki.get('purpose_file', 'purpose.md')).resolve())},
+        'council': {'backend': backend, 'persona_model': provider.get('model'),
+                    'requested_judge_model': (cfg.get('council') or {}).get('judge_model'),
+                    'effective_judge_model': ((cfg.get('council') or {}).get('judge_model')
+                                             if backend in {'claude', 'claudecli'} else None) or provider.get('model')},
         'semantic_wiki': {'configured': wiki.get('vector_store') == 'lancedb',
                           'lancedb_installed': available('lancedb'),
                           'embeddings_installed': available('sentence_transformers'),

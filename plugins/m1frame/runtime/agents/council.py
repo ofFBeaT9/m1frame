@@ -62,13 +62,18 @@ REVIEW_PERSONA_SYSTEM = """You are {name}, a council reviewer.
 Your role: {role}
 
 You will receive the original task and the output to review in the user message.
-Assess the output critically and specifically. Cite exact issues.
+Assess the output against the requested deliverable. Cite exact issues in that output.
+A story/agent/role is an executable work item, NOT a fictional story required in the answer.
+Do not require process narration when the user requests only the answer. Tool execution
+is verified by runtime observations supplied with the task, not by simulated button presses.
+Do not invent missing sections or facts: quote the exact candidate text for each defect.
+A correct concise answer may pass; additional prose is not intrinsically higher quality.
 
 Respond ONLY in this JSON (no preamble, no fences):
 {{
   "persona": "{name}",
   "verdict": "pass|fail|conditional",
-  "score": <integer 1-10>,
+  "score": 7,
   "key_points": ["...", "..."],
   "recommendation": "..."
 }}"""
@@ -76,32 +81,35 @@ Respond ONLY in this JSON (no preamble, no fences):
 REVIEW_SYNTHESIS_SYSTEM = """You are the Council Synthesiser in review mode.
 You will receive individual persona assessments in the user message.
 Weigh them, resolve conflicts, and produce the final consensus verdict.
-If the output needs fixes, provide the corrected version in approved_output.
+Resolve each criticism against the exact candidate text and original requirements.
+Reject criticisms that demand forbidden narration or fabricate omissions. Process roles
+are execution instructions, not additional prose deliverables. If the candidate passes,
+copy it unchanged in approved_output. If it fails, propose a corrected version for a
+subsequent review. Do not claim external execution, approval or persistence.
 
 Respond ONLY in this JSON (no preamble, no fences):
 {
-  "consensus_score": <float 1-10>,
+  "consensus_score": 7.0,
   "verdict": "pass|fail|conditional",
   "summary": "...",
   "required_fixes": ["..."],
   "approved_output": "..."
 }"""
 
-RED_TEAM_SYSTEM = """You are the Red-Team — an INDEPENDENT adversary, not a council member.
-The council has just reached a verdict on an output. Your job is to ATTACK that verdict.
-Assume the council was too agreeable. Hunt for: overclaims, hidden assumptions, contradictions,
-unsupported numbers, missing edge cases, and anything a confident-but-wrong council would wave through.
-
-You have VETO power: if the output has a material flaw the council missed, return verdict "fail".
-Only return "pass" if you genuinely cannot break it. Be specific — cite the exact flaw.
-
-Respond ONLY in this JSON (no preamble, no fences):
+RED_TEAM_SYSTEM = """You are the Red-Team, an independent reviewer of a candidate answer.
+Evaluate the candidate itself against the task and runtime evidence. Find material
+errors, unsupported claims or violations of explicit output constraints. Do not invent
+requirements or require fictional narratives for executable agent stories. Do not demand
+simulated tool output when actual runtime observations are supplied. A correct, concise
+answer should pass. Disagreement with another reviewer's judgment is not a defect in
+this answer. Cite exact candidate text for every material flaw.
+Return only JSON:
 {
   "persona": "Red-Team",
   "verdict": "pass|fail|conditional",
-  "score": <integer 1-10>,
-  "key_points": ["the specific flaws you found, or why it survives attack"],
-  "recommendation": "the single most important correction"
+  "score": 7,
+  "key_points": ["specific candidate defects or why the answer is supported"],
+  "recommendation": "most important correction, or none"
 }"""
 
 
@@ -218,6 +226,16 @@ class LLMCouncil:
                             if getattr(llm_client, "backend", "claude") in {"claude", "claudecli"}
                             else None)
 
+    def model_status(self) -> dict:
+        backend = getattr(self.llm, 'backend', 'unknown')
+        cfg = getattr(self.llm, 'cfg', {})
+        base = cfg.get(backend, {}).get('model') if isinstance(cfg, dict) else None
+        return {'backend': backend, 'persona_model': base,
+                'requested_judge_model': self.cfg.get('judge_model'),
+                'effective_judge_model': self.judge_model or base,
+                'judge_override_applied': self.judge_model is not None,
+                'scope': 'same provider client; role diversity does not imply model diversity'}
+
     # ── Mode 1: Brainstorm ────────────────────────────────────────────────────
 
     def brainstorm(
@@ -293,7 +311,7 @@ class LLMCouncil:
         if self.red_team:
             if on_persona_start:
                 on_persona_start("review", "Red-Team")
-            rt = self._red_team(task, verdict.approved_output, verdict)
+            rt = self._red_team(task, output, verdict)
             if on_persona_done:
                 on_persona_done("review", "Red-Team", {
                     "verdict": rt.verdict, "score": rt.score,
@@ -423,14 +441,14 @@ class LLMCouncil:
                 verdict=d.get("verdict", "conditional"),
                 summary=d.get("summary", ""),
                 required_fixes=d.get("required_fixes", []),
-                approved_output=d.get("approved_output", output),
+                approved_output=output if d.get("verdict") == "pass" else d.get("approved_output", output),
             )
         except (ValueError, TypeError, OverflowError):
             avg = sum(a.score for a in assessments) / max(len(assessments), 1)
             return CouncilVerdict(
                 consensus_score=avg,
                 verdict="conditional" if avg >= self.threshold else "fail",
-                summary="Synthesiser parse error — falling back to score average.",
+                summary="Synthesiser response failed schema validation — not approved.",
                 required_fixes=["Re-run council for a structured verdict."],
                 approved_output=output,
             )
@@ -439,13 +457,7 @@ class LLMCouncil:
 
     def _red_team(self, task: str, output: str, verdict: CouncilVerdict) -> PersonaAssessment:
         """Adversarial pass that attacks the council's verdict; may veto a pass."""
-        prompt = (
-            f"Task:\n{task}\n\n"
-            f"Output under review:\n{output}\n\n"
-            f"The council concluded: verdict={verdict.verdict}, "
-            f"score={verdict.consensus_score:.1f}/10, summary={verdict.summary}\n\n"
-            "Attack this verdict. What did the council miss?"
-        )
+        prompt = f"Task and execution evidence:\n{task}\n\nCandidate answer:\n{output}"
         raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3,
                             model=self.judge_model)
         try:
@@ -470,9 +482,12 @@ class LLMCouncil:
 
 def _parse_json(text: str) -> dict:
     """Strip markdown fences and parse JSON. Raises ValueError on failure."""
-    clean = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
+    from modules.output import clean_answer
+    clean = clean_answer(text).strip()
+    if clean.startswith('```') and clean.endswith('```'):
+        clean = re.sub(r'^```(?:json)?\s*', '', clean, count=1).removesuffix('```').strip()
     try:
-        value = json.loads(clean)
+        value = json.loads(clean, strict=False)
         if not isinstance(value, dict):
             raise ValueError("Expected a JSON object")
         return value

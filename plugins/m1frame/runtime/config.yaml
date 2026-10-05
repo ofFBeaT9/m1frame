@@ -89,8 +89,8 @@ miras:
 
 # ── Pillar: Karpathy ─────────────────────────────────────────────
 karpathy:
-  thought_tag: thought     # wraps CoT as <thought>...</thought>
-  force_cot: true
+  thought_tag: thought     # legacy tag recognized by final-answer cleanup
+  force_cot: false         # final-answer prompts; no private reasoning requested
   temperature_override: 0.1
   refine: false            # opt in to an additional rewrite model call
   synthesis_max_chars: 32000 # reserve space for every story, including QA

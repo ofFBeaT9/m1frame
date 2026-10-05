@@ -18,7 +18,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -r plugins/m1frame/requirements.txt
+      - run: python plugins/m1frame/scripts/sync_runtime.py --check
       - run: python plugins/m1frame/tests/check_mcp.py
       - run: python plugins/m1frame/tests/check_upgrade.py
-      - run: python -m unittest scripts.test_live_configuration scripts.test_mcp_connector scripts.test_full_system scripts.test_integrations scripts.test_scientific scripts.test_efficiency scripts.test_redteam
+      - run: python -m unittest discover -s scripts -p "test_*.py"
       - run: python scripts/qa_validate.py

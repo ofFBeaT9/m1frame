@@ -34,10 +34,8 @@ jobs:
         run: python scripts/qa_validate.py
 
       - name: Efficiency and reliability regression tests
-        run: python -m unittest scripts.test_efficiency scripts.test_full_system scripts.test_integrations scripts.test_redteam
+        run: python -m unittest discover -s scripts -p "test_*.py"
 
-      - name: Scientific module integration tests
-        run: python -m unittest scripts.test_scientific
 
   lint:
     name: Lint & Type Check
@@ -50,6 +48,8 @@ jobs:
           cache: pip
       - name: Install dev dependencies
         run: pip install ruff mypy pyyaml types-PyYAML python-dotenv
+      - name: Check bundled runtime matches source
+        run: python plugins/m1frame/scripts/sync_runtime.py --check
       - name: Ruff lint
         run: ruff check .
       - name: Mypy type check

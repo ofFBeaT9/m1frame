@@ -59,7 +59,7 @@ except ImportError:
     BaseModel = object  # type: ignore[assignment,misc]
 
 from agents.context import chat_input
-from agents.events import EventBus, make_emitter
+from agents.events import EventBus
 from agents.logger import PillarLogger
 from agents.metrics import get_metrics
 from llm_client import LLMClient, load_config
@@ -515,7 +515,13 @@ def create_app() -> FastAPI:
             def produce():
                 try:
                     client = LLMClient()
-                    for chunk in client.stream(prompt=prompt, system=system, history=history):
+                    from agents.guardrails import GuardrailEngine
+                    from modules.output import delivery_text
+                    reply = delivery_text(''.join(client.stream(prompt=prompt, system=system, history=history)))
+                    gate = GuardrailEngine(cfg.get('guardrails'))
+                    checked = gate.check_output(formatter.format(reply))
+                    answer = checked.text if checked.allowed else gate.refusal_text(checked)
+                    for chunk in [answer]:
                         if stop.is_set():
                             return
                         loop.call_soon_threadsafe(q.put_nowait, ("token", chunk))
@@ -771,7 +777,15 @@ def create_app() -> FastAPI:
         run = _RUNS[run_id]
         run["status"] = "running"
         t0 = time.time()
-        emit = make_emitter(bus)
+        def emit(event, **data):
+            # Persist the final state before allowing the SSE consumer to finish.
+            if event == 'done':
+                return  # the executor closes the bus after storing results
+            if event == 'final':
+                run['output'] = data.get('output', '')
+                run['score'] = data.get('score')
+                run['approved'] = data.get('passed')
+            bus.emit(event, **data)
         loop = asyncio.get_running_loop()
 
         def work():
@@ -788,8 +802,8 @@ def create_app() -> FastAPI:
             verdict = results.get("verdict")
             run["output"] = results.get("output", "")
             run["score"] = verdict.consensus_score if verdict else None
-            run["approved"] = verdict.passed if verdict else None
-            run["status"] = "needs_review" if verdict and not verdict.passed else "complete"
+            run["approved"] = results.get("approved", verdict.passed if verdict else None)
+            run["status"] = "needs_review" if run["approved"] is False else "complete"
             logger.info("api", "run_complete", run_id=run_id)
         except Exception as exc:
             run["status"] = "error"
