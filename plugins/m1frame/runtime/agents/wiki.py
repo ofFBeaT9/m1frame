@@ -275,13 +275,13 @@ class LLMWiki:
           Step 1 — Analysis: understand the source, find connections & contradictions
           Step 2 — Generation: write wiki pages based on analysis
         """
-        # Save raw source
-        if source_name:
-            raw_path = self.wiki_dir / "raw" / "sources" / f"{_slugify(source_name)}.md"
-            if raw_path.exists():
-                raw_path = raw_path.with_name(raw_path.stem + "_" + uuid.uuid4().hex + ".md")
-            with raw_path.open("x", encoding="utf-8") as handle:
-                handle.write(raw_text)
+        # Every ingest has immutable source evidence, including unnamed input.
+        source_slug = _slugify(source_name) or f"source_{uuid.uuid4().hex}"
+        raw_path = self.wiki_dir / "raw" / "sources" / f"{source_slug}.md"
+        if raw_path.exists():
+            raw_path = raw_path.with_name(raw_path.stem + "_" + uuid.uuid4().hex + ".md")
+        with raw_path.open("x", encoding="utf-8", newline="") as handle:
+            handle.write(raw_text)
 
         # Step 1: Analysis
         index_snapshot = self._read_index_snapshot()
@@ -569,11 +569,10 @@ class LLMWiki:
         )
         return self.llm.chat(prompt=prompt, system=GENERATION_SYSTEM, temperature=0.2)
 
-    # BETA: overview regeneration heuristic — output quality varies by model
     def _update_overview(self):
+        """Refresh navigation without a third generation pass or invented claims."""
         index = _read_text(self.index_file) if self.index_file.exists() else ""
-        prompt = f"Current wiki index:\n{index[:3000]}\n\nDate: {datetime.date.today().isoformat()}"
-        overview_text = self.llm.chat(prompt=prompt, system=OVERVIEW_SYSTEM, temperature=0.3)
+        overview_text = "# Wiki Overview\n\nGenerated from the current index.\n\n" + index
         overview_path = self.wiki_dir / "overview.md"
         overview_path.write_text(overview_text, encoding="utf-8")
 

@@ -185,14 +185,14 @@ scheduler:
 # ── m1frame Studio (real-time UI) ────────────────────────────────
 studio:
   # Launch: python api/server.py  → open http://localhost:8080
-  # No API key? The UI runs in beautiful DEMO/replay mode automatically.
-  default_mode: auto         # auto | live | demo  (auto = live if a key is set)
+  # Live requires authentication. Demo is selected explicitly.
+  default_mode: live
   accent: "#34e7e4"          # signal colour (overridable in Settings)
   demo_speed: 1.0            # demo replay speed multiplier
 
 # ── Sensors: objective structural measurement (Sentrux) ──────────
 # Adapter for https://github.com/sentrux/sentrux (MIT) — a Rust analyser that
-# scores a codebase 0-10000. OPTIONAL: `pip install sentrux`. With nothing
+# scores a codebase 0-10000. Use the official Rust release, not PyPI sentrux. With nothing
 # installed every sensor call returns available=false and m1frame is unaffected.
 sensors:
   enabled: true
@@ -243,3 +243,5 @@ headroom:
   target_ratio: null
   protect_recent: 4
   min_tokens_to_compress: 250
+
+  kompress_model: disabled   # opt in to ML compression with a specific model; may download weights

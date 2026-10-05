@@ -61,7 +61,7 @@ See [VALIDATION.md](VALIDATION.md). Run tests/check_mcp.py with the Python execu
 
 Report problems at [m1frame issues](https://github.com/ofFBeaT9/m1frame/issues), with your OS, Python/plugin versions and a redacted error. Never include keys or private wiki content.
 
-The bundled runtime derives from version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe, with the runtime fixes documented in MODULE-AUDIT.md. Both root runtime source and bundled code are included in the release. Plugin version: 0.1.2. See LICENSE for upstream attribution and terms.
+The bundled runtime derives from version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe, with the runtime fixes documented in MODULE-AUDIT.md. Both root runtime source and bundled code are included in the release. Plugin version: 0.1.3. See LICENSE for upstream attribution and terms.
 
 ## Optional modules and free testing
 
@@ -74,3 +74,14 @@ For OpenRouter, save OPENROUTER_API_KEY in the runtime's local .env, then select
 Call `integration_status` through m1frame_call_tool to see missing configuration. See [module audit](MODULE-AUDIT.md) for execution evidence and remaining limits. The plugin does not intercept unrelated Codex prompts; select it or request m1frame explicitly.
 
 Semantic wiki search requires `lancedb` and `sentence-transformers`, plus an embedding model. The tested model is `sentence-transformers/all-MiniLM-L6-v2`; set wiki.vector_store to lancedb and wiki.embed_model to that model. These dependencies and model data are not bundled in the archive.
+
+
+### Module reliability update (0.1.3)
+
+This patch preserves immutable unnamed wiki sources, enforces two-pass ingest,
+retains semantic-merge evidence, validates classifier responses, checks guarded
+stream output, supports paginated MCP discovery, and avoids implicit compression
+model downloads. Run `python -m scripts.doctor --live` in the configured runtime
+for fresh evidence. Provider credentials and a running optional classifier remain
+external requirements. Apply with `scripts/setup.py --upgrade-runtime`, then
+reconnect the MCP session. See the repository's dated module status chart.

@@ -207,7 +207,7 @@ class Suite:
         ok=sum(1 for r in self.results if r.passed); n=len(self.results)
         sep="="*65
         print(f"\n{sep}\n  m1frame QA: {ok}/{n} passed")
-        if ok==n: print("  ALL TESTS PASSED -- release ready")
+        if ok==n: print("  OFFLINE TESTS PASSED -- live integrations require separate verification")
         else:
             print(f"  {n-ok} FAILED:")
             [print(f"     * {r.name}: {r.msg}") for r in self.results if not r.passed]
