@@ -84,6 +84,10 @@ def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) 
                 f" · Wiki saved: {'yes' if res.get('wiki_page') else 'no'}"
                 f" · Learning saved: {'yes' if res.get('skill') else 'no'}"
                 f"\nReceipt: {res.get('receipt', 'unavailable')}")
+    if res.get("controller", {}).get("policy", {}).get("enabled"):
+        usage = res.get("usage", {})
+        evidence += (f"\nController: full workflow · Headroom checks: {usage.get('headroom_checks', 0)}"
+                     f" · SkillOpt evaluations: {usage.get('skillopt_evaluations', 0)}")
     return head + output + (evidence if res.get("receipt") else "")
 
 

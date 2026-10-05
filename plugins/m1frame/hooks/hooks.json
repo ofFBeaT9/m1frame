@@ -1,0 +1,17 @@
+{
+  "description": "Main-agent routing context for user-enabled m1frame controller; no prompt export.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/runtime/scripts/prompt_route.py\"",
+            "timeout": 10,
+            "statusMessage": "Loading m1frame routing policy"
+          }
+        ]
+      }
+    ]
+  }
+}

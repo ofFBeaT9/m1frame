@@ -18,3 +18,7 @@ Call `m1frame_open_studio` only when requested, then check its returned URL befo
 Provide final artifacts, concise rationale, council verdict and relevant evidence. Do not expose hidden chain-of-thought traces. A council score is not a substitute for running tests. Distinguish offline checks, demo content, live model calls and optional integrations.
 
 State lives at M1FRAME_HOME if set, otherwise ~/Documents/Codex/m1frame-data. The launcher seeds the bundled runtime only when absent. Run `scripts/setup.py --upgrade-runtime` when updating: it backs up changed code and preserves keys, config, wiki, and history. Optional adapters must be configured and tested separately; catalog entries are not proof of execution. The plugin cannot automatically intercept every unrelated Codex prompt. See the plugin README for setup and upgrade details.
+
+## Main-agent controller
+
+When the user enables the controller, use this skill for their substantive goals and prompts, preserving the goal and constraints. Call m1frame_run with all stages enabled. The runtime checks Headroom on every model request and evaluates execution guidance through SkillOpt on every admitted goal; it retains the approval gates for persistence. The optional UserPromptSubmit hook adds routing context only after the host trusts and activates it. It does not itself run inference, export prompts, or prove that Codex invoked a workflow. Keep offline status/recall available and report provider/module blocks without claiming execution. Never recursively call a workflow from inside its own story.

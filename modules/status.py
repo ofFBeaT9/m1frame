@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 def module_status(cfg: dict) -> dict:
+    from modules.controller import controller_policy, effective_config
+    cfg = effective_config(cfg)
     from modules.adhd import ADHDFormatter
     from modules.headroom import HeadroomAdapter
     from optimizers.skillopt import SkillOptAdapter
@@ -22,6 +24,7 @@ def module_status(cfg: dict) -> dict:
     wiki = cfg.get('wiki') or {}
     return {
         'execution_verified': False,
+        'controller': controller_policy(cfg),
         'runtime': {'source_root': str(Path(__file__).resolve().parent.parent),
                     'working_directory': str(Path.cwd()), 'python': sys.executable},
         'note': 'Inventory only. Run a live workflow and inspect emitted events to verify execution.',

@@ -24,7 +24,8 @@ def load_config(config_path: str = "config.yaml") -> dict:
         cfg = yaml.safe_load(f) or {}
     if cfg.get('environment_file'):
         load_dotenv(Path(cfg['environment_file']), override=False)
-    return cfg
+    from modules.controller import effective_config
+    return effective_config(cfg)
 
 
 class LLMClient:
@@ -105,18 +106,7 @@ class LLMClient:
                     "No paid fallback or automatic purchase was attempted.") from exc
             raise
         finally:
-            if getattr(self, "receipt", None) is not None:
-                usage = self._local.usage
-                compression = self._local.compression
-                self.receipt.request(
-                    backend=self.backend, model=model or self.cfg[self.backend].get('model'),
-                    seconds=round(time.perf_counter()-started, 3), failed=failed, attempts=attempts,
-                    status_code=status, usage_available=bool(usage),
-                    input_tokens=usage.get('prompt_tokens', usage.get('input_tokens', 0)),
-                    output_tokens=usage.get('completion_tokens', usage.get('output_tokens', 0)),
-                    tokens_saved=getattr(compression, 'tokens_saved', 0),
-                    compression_applied=getattr(compression, 'applied', False),
-                    compression_error=bool(getattr(compression, 'error', None)))
+            self._record_request(started, failed, status, attempts, model)
 
     def stream(self, prompt: str, system: str = "", temperature: float | None = None,
                history: list[dict] | None = None):
@@ -126,15 +116,40 @@ class LLMClient:
         check_headroom(self.cfg, self.backend, prompt, system, history)
         if not hasattr(self, "_local"):
             self._local = threading.local()
-        if self.backend == "claude":
-            chunks = self._claude_stream(prompt, system, temperature, history)
-        elif self.backend == "claudecli":
-            chunks = [self._claudecli_chat(prompt, system, history)]
-        else:
-            chunks = self._openai_stream(prompt, system, temperature, history)
-        text = delivery_text(''.join(chunks))
-        for offset in range(0, len(text), 256):
-            yield text[offset:offset + 256]
+        started = time.perf_counter()
+        self._local.usage = {}
+        self._local.compression = None
+        failed, status = False, None
+        try:
+            if self.backend == "claude":
+                chunks = self._claude_stream(prompt, system, temperature, history)
+            elif self.backend == "claudecli":
+                chunks = [self._claudecli_chat(prompt, system, history)]
+            else:
+                chunks = self._openai_stream(prompt, system, temperature, history)
+            text = delivery_text(''.join(chunks))
+            for offset in range(0, len(text), 256):
+                yield text[offset:offset + 256]
+        except Exception as exc:
+            failed, status = True, getattr(exc, 'status_code', None)
+            raise
+        finally:
+            self._record_request(started, failed, status, 1, stream=True)
+
+    def _record_request(self, started, failed, status, attempts, model=None, stream=False):
+        if getattr(self, "receipt", None) is None:
+            return
+        usage = self._local.usage
+        compression = self._local.compression
+        self.receipt.request(
+            backend=self.backend, model=model or self.cfg[self.backend].get('model'),
+            seconds=round(time.perf_counter()-started, 3), failed=failed, attempts=attempts,
+            stream=stream, status_code=status, usage_available=bool(usage),
+            input_tokens=usage.get('prompt_tokens', usage.get('input_tokens', 0)),
+            output_tokens=usage.get('completion_tokens', usage.get('output_tokens', 0)),
+            tokens_saved=getattr(compression, 'tokens_saved', 0),
+            compression_applied=getattr(compression, 'applied', False),
+            compression_error=bool(getattr(compression, 'error', None)))
 
     # ── Private builders ──────────────────────────────────────────────────────
 
@@ -214,10 +229,13 @@ class LLMClient:
         Lets m1frame run with zero API key by reusing your Claude Code login."""
         import subprocess
         bcfg = self.cfg.get("claudecli", {}) or {}
-        full = prompt
-        if history:
-            convo = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
-            full = convo + "\nuser: " + prompt
+        messages = self._build_messages(prompt, history)
+        if system:
+            messages.insert(0, {"role": "system", "content": system})
+        messages = self._prepare_messages(messages, model or bcfg.get("model") or "claudecli")
+        # System text is preserved separately by the CLI's explicit system flag.
+        dialogue = [m for m in messages if m.get("role") != "system"]
+        full = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in dialogue) if history else prompt
         args = ["claude", "-p", "--output-format", "text", "--tools", "",
                 "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
                 "--no-session-persistence"]
@@ -235,6 +253,7 @@ class LLMClient:
         # a separate short-lived process, so drop the marker for the child only. Without
         # this, the claudecli backend cannot be used from the m1frame MCP server.
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        env["M1FRAME_INTERNAL_CALL"] = "1"
         if os.name == "nt" and not env.get("CLAUDE_CODE_GIT_BASH_PATH"):
             import shutil
             git = shutil.which("git")
@@ -337,6 +356,15 @@ class LLMClient:
         self.last_compression = result
         if hasattr(self, "_local"):
             self._local.compression = result
+        receipt = getattr(self, "receipt", None)
+        if receipt is not None:
+            receipt.event("headroom_checked", pillar="headroom",
+                          status=("error" if result.error else "compressed" if result.applied
+                                  else "checked_no_change" if result.available else "disabled"),
+                          tokens_before=result.tokens_before, tokens_after=result.tokens_after,
+                          available=result.available, required=bool(adapter.config.get("required")))
+        if adapter.config.get("required") and (not result.available or result.error):
+            raise RuntimeError("Required Headroom processing failed or is unavailable; request not sent.")
         return result.messages
 
     def __repr__(self):

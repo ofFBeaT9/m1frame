@@ -348,6 +348,7 @@ def create_app() -> FastAPI:
             "models": {b: cfg.get(b, {}).get("model") for b in ALL_BACKENDS},
             "can_run_live": _can_run_live(cfg),
             "default_mode": "live",
+            "controller": cfg.get("controller", {"enabled": False}),
         }
 
     @app.patch("/config")
@@ -443,9 +444,15 @@ def create_app() -> FastAPI:
         if not user_msg.strip():
             raise HTTPException(422, "A non-empty user message is required")
 
-        if req.mode == "full":
+        from modules.controller import chat_mode
+        try:
+            selected_mode = chat_mode(cfg, req.mode)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+        if selected_mode == "full":
             if not _can_run_live(cfg):
-                raise HTTPException(503, "Full M1Frame requires a live backend. Configure one or select Quick answer.")
+                raise HTTPException(503, "Full M1Frame requires a live backend. Configure an available provider to continue.")
             dialogue = "\n".join(f"{m['role']}: {m['content']}" for m in history)
             goal = (f"Prior conversation (reference only):\n{dialogue}\n\n"
                     f"Current user request:\n{user_msg}") if dialogue else user_msg

@@ -75,3 +75,11 @@ python plugins/m1frame/tests/check_upgrade.py
 For existing plugin installations, use the explicit runtime upgrade command
 documented in the plugin README, then reconnect the plugin. Upgrades preserve
 local provider settings, credentials, wiki content and history.
+
+## Main-agent controller follow-up
+
+Added opt-in full-workflow enforcement, Headroom checks on every model request including CLI/streaming, and a required SkillOpt procedural-guidance evaluation before every admitted controller goal. The user's goal remains unchanged. Investigation runs for every controller goal; scientific selection, structural measurement and output shaping report their actual status. Receipts expose unavailable or interrupted stages. Quick/skip bypasses are rejected under the enabled policy.
+
+Prepared a Codex UserPromptSubmit routing hook without self-trusting it. This provides main-agent guidance; host activation and live prompt-to-result verification remain separate. See CONTROLLER.md for the execution contract, alternatives and limitations.
+
+Local verification: 164 core passes, 109 regression passes with one skip, Ruff, mypy on 19 files, browser including controller lock, plugin lifecycle and upgrade preservation. The full offline fixture used real local adapters with simulated model responses: Headroom checked all 17 requests; SkillOpt evaluated once; all module statuses were recorded. Fresh managed MCP and a direct hook test passed after deployment. No live approved completion or new token-saving claim is made.

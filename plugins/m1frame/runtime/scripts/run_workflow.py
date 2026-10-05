@@ -6,7 +6,7 @@ m1frame — Main Workflow Runner
   2. Council Brainstorm→ personas consult BEFORE generation
   3. OpenPlanter       → investigation pass (auto-invoked for investigator stories)
   4. Miras             → execute all stories with sequential state handoffs
-  5. Karpathy          → <thought> CoT refinement + optional self-critique
+  5. Karpathy          → final-answer refinement + optional self-critique
   6. Council Review    → QA gate, consensus ≥ 7 → approved
   7. LLM Wiki          → two-step Analysis→Generation ingest
 
@@ -47,6 +47,7 @@ from agents.skills import SkillLibrary
 from agents.wiki import LLMWiki
 from llm_client import LLMClient, load_config
 from modules.adhd import ADHDFormatter
+from modules.controller import optimize_execution_guidance, validate_workflow
 from modules.receipts import record_run
 
 
@@ -143,6 +144,8 @@ def run_workflow(
             return None
 
     cfg = load_config()
+    policy = validate_workflow(cfg, skip_council=skip_council, skip_wiki=skip_wiki,
+                               skip_openplanter=skip_openplanter, skip_guardrails=skip_guardrails)
     client = LLMClient(override_backend=backend)
     purpose_path = Path((cfg.get('wiki') or {}).get('purpose_file', 'purpose.md'))
     purpose = purpose_path.read_text(encoding='utf-8') if purpose_path.exists() else ''
@@ -185,6 +188,24 @@ def run_workflow(
         emit("done", ms=round((time.perf_counter() - _t_run) * 1000))
         return results
 
+    # Controller runs once per admitted goal, before the first provider request.
+    execution_guidance = ""
+    results["controller"] = {"policy": policy, "goal_preserved": True}
+    if policy["enabled"]:
+        emit("controller_start", pillar="controller", status="admitted")
+        if policy["headroom_required"]:
+            adapter = getattr(client, "headroom", None)
+            if adapter is None or not adapter.status().get("available"):
+                emit("headroom_checked", pillar="headroom", status="unavailable", required=True)
+                raise RuntimeError("Controller requires Headroom; install its optional dependency before running.")
+        try:
+            execution_guidance, optimization = optimize_execution_guidance(cfg)
+        except Exception:
+            emit("skillopt_evaluated", pillar="skillopt", status="failed", persisted=False)
+            raise
+        results["controller"]["skillopt"] = optimization
+        emit("skillopt_evaluated", pillar="skillopt", **optimization)
+
     # ── Skill recall (self-improving): seed planning with prior VETTED approaches ──
     # Defensive throughout: the learning loop must never be able to break a run.
     skills = None
@@ -216,6 +237,8 @@ def run_workflow(
             results["scientific"] = {"available": bool(scientific_library.skills),
                                      "catalog_count": len(scientific_library.skills),
                                      "selected": selected, "errors": scientific_library.errors}
+            emit("module_checked", pillar="scientific",
+                 status="selected" if selected else "checked_no_match" if scientific_library.skills else "unavailable")
             if selected:
                 emit("scientific_selected", pillar="scientific", skills=selected)
         except Exception as exc:  # noqa: BLE001 — optional module must not break a run
@@ -223,6 +246,7 @@ def run_workflow(
             scientific_ctx = ""
             logger.warn("scientific", "load_error", error=str(exc))
             results["scientific"] = {"available": False, "error": str(exc)}
+            emit("module_checked", pillar="scientific", status="error")
 
     # Recall existing evidence before planning; retrieval adds no model request.
     memory_ctx = ""
@@ -258,7 +282,7 @@ def run_workflow(
     emit("pillar_start", pillar="bmad", idx=1, label="BMAD · Story Backlog")
     t0 = time.perf_counter()
     bmad = BMADAgent(client, config=cfg.get("bmad"))
-    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], capability_ctx, memory_ctx, skill_ctx, scientific_ctx])))
+    blueprint = bmad.plan(goal, extra_context="\n\n".join(filter(None, [purpose[:400], execution_guidance, capability_ctx, memory_ctx, skill_ctx, scientific_ctx])))
     issues = bmad.validate(blueprint)
     if issues:
         raise ValueError("Invalid blueprint: " + "; ".join(issues))
@@ -320,7 +344,7 @@ def run_workflow(
     has_investigator_stories = any(
         getattr(s, "role", "") == "investigator" for s in blueprint.stories
     )
-    if not skip_openplanter and has_investigator_stories:
+    if not skip_openplanter and (has_investigator_stories or (policy["enabled"] and policy["investigate_every_goal"])):
         _bar("PILLAR 3 · OPENPLANTER  —  Investigation")
         emit("pillar_start", pillar="openplanter", idx=3, label="OpenPlanter · Investigation")
         t0 = time.perf_counter()
@@ -374,7 +398,7 @@ def run_workflow(
         scientific_library=scientific_library, scientific_config=scientific_cfg, emit=emit,
     )
     ctx = pack_sections([(name, text) for name, text in [
-        ("Purpose", purpose), ("Wiki reference material", memory_ctx),
+        ("Purpose", purpose), ("Execution guidance", execution_guidance), ("Wiki reference material", memory_ctx),
         ("Council plan", brainstorm_context), ("Learned approaches", skill_ctx),
         ("Investigation", investigation_context)] if text],
         int((cfg.get("miras") or {}).get("context_max_chars", 16000)))
@@ -386,9 +410,9 @@ def run_workflow(
     emit("pillar_done", pillar="miras", ms=round(ms), stories_done=len(state.outputs))
 
     # ── 5. Karpathy — Refinement ──────────────────────────────────────────────
-    _bar("PILLAR 5 · KARPATHY  —  Chain-of-Thought Refinement" + (" + Self-Critique" if self_critique else ""))
+    _bar("PILLAR 5 · KARPATHY  —  Answer Refinement" + (" + Self-Critique" if self_critique else ""))
     emit("pillar_start", pillar="karpathy", idx=5,
-         label="Karpathy · Chain-of-Thought Refinement")
+         label="Karpathy · Answer Refinement")
     t0 = time.perf_counter()
     engine = KarpathyEngine(client, config=cfg.get("karpathy"))
     synthesis_context = state.summary(
@@ -487,8 +511,11 @@ def run_workflow(
                 if verbose and _sv.structural_score is not None:
                     print(f"  ◆ structural {_sv.structural_score:.3f}/10 "
                           f"({_sv.basis}, {'enforced' if _sv.enforced else 'advisory'})")
+            else:
+                emit("module_checked", pillar="sentrux", status="unavailable_or_disabled")
         except Exception as e:  # noqa: BLE001 — a sensor must never break a run
             logger.warn("council", "sensor_error", error=str(e))
+            emit("module_checked", pillar="sentrux", status="error")
 
         emit("qa_gate", pillar="council", gate="results-review",
              status=gate_status, score=verdict.consensus_score)
@@ -498,6 +525,7 @@ def run_workflow(
     # ── Guardrail · OUTPUT gate ───────────────────────────────────────────────
     formatter = ADHDFormatter(bool((cfg.get("adhd") or {}).get("enabled", False)))
     final_output = formatter.format(final_output)
+    emit("module_checked", pillar="adhd", status="completed" if formatter.status().get("enabled") else "disabled")
 
     # Redact PII/secrets from, or block, the final answer before it is printed
     # and ingested into the knowledge graph.
@@ -619,6 +647,8 @@ def run_workflow(
         _fire_webhook(webhook_url, payload)
         say(f"  ✓  Webhook delivered to {webhook_url}")
 
+    if policy["enabled"]:
+        emit("controller_done", pillar="controller", status="completed")
     return results
 
 

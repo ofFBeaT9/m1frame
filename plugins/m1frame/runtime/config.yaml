@@ -74,6 +74,14 @@ nvidia_nim:               # NVIDIA NIM / Nemotron
   temperature: 0.2
   api_key_env: NVIDIA_API_KEY
 
+# Controller is opt-in for portable installs; enable to enforce full goal routing.
+controller:
+  enabled: false
+  require_full_workflow: true
+  headroom_required: true
+  skillopt_required: true
+  investigate_every_goal: true
+
 # ── Pillar: BMAD ─────────────────────────────────────────────────
 bmad:
   max_subtasks: 10         # max stories in one Blueprint

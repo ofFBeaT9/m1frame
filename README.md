@@ -604,3 +604,5 @@ See [SECURITY.md](SECURITY.md) for gateway authentication and deployment limits.
 The static demo server exposes only bundled UI assets; repository artifact links
 should be opened locally. Run the installed CLI from a workspace containing
 `config.yaml`, `purpose.md` and the project's knowledge files.
+
+For main-agent routing and required Headroom/SkillOpt execution, see [the controller contract](CONTROLLER.md).

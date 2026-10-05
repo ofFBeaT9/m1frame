@@ -951,7 +951,7 @@ function viewChat(v){v.innerHTML="";
   const bar=el("div",{class:"chatbar"},
     el("select",{id:"chatmode","aria-label":"Response mode",onchange:e=>{S.chatMode=e.target.value;}},
       el("option",{value:"full",selected:S.chatMode!=="quick"?"":null},"Full M1Frame"),
-      el("option",{value:"quick",selected:S.chatMode==="quick"?"":null},"Quick answer")),
+      el("option",{value:"quick",disabled:S.config?.controller?.enabled&&S.config?.controller?.require_full_workflow!==false?"":null,selected:S.chatMode==="quick"?"":null},"Quick answer")),
     el("input",{id:"chatin",placeholder:"Message m1frame…",onkeydown:e=>{if(e.key==="Enter")sendChat();}}),
     el("button",{class:"btn",onclick:()=>sendChat()},"Send"));
   v.append(el("div",{class:"chatwrap"},thread,bar));
