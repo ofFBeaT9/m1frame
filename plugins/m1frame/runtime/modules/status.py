@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 def module_status(cfg: dict) -> dict:
+    from modules.controller import controller_policy, effective_config
+    cfg = effective_config(cfg)
     from modules.adhd import ADHDFormatter
     from modules.headroom import HeadroomAdapter
     from optimizers.skillopt import SkillOptAdapter
@@ -22,6 +24,7 @@ def module_status(cfg: dict) -> dict:
     wiki = cfg.get('wiki') or {}
     return {
         'execution_verified': False,
+        'controller': controller_policy(cfg),
         'runtime': {'source_root': str(Path(__file__).resolve().parent.parent),
                     'working_directory': str(Path.cwd()), 'python': sys.executable},
         'note': 'Inventory only. Run a live workflow and inspect emitted events to verify execution.',
@@ -41,6 +44,13 @@ def module_status(cfg: dict) -> dict:
         'scientific': {'enabled': (cfg.get('scientific') or {}).get('enabled', True),
                        'count': len(library.skills), 'errors': library.errors,
                        'scope': 'Instructions and resources; scientific workflows need their own dependencies and validation'},
+        'wiki_paths': {'directory': str(Path(wiki.get('directory', 'wiki')).resolve()),
+                       'index': str(Path(wiki.get('index_file', 'wiki/index.md')).resolve()),
+                       'purpose': str(Path(wiki.get('purpose_file', 'purpose.md')).resolve())},
+        'council': {'backend': backend, 'persona_model': provider.get('model'),
+                    'requested_judge_model': (cfg.get('council') or {}).get('judge_model'),
+                    'effective_judge_model': ((cfg.get('council') or {}).get('judge_model')
+                                             if backend in {'claude', 'claudecli'} else None) or provider.get('model')},
         'semantic_wiki': {'configured': wiki.get('vector_store') == 'lancedb',
                           'lancedb_installed': available('lancedb'),
                           'embeddings_installed': available('sentence_transformers'),

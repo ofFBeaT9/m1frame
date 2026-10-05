@@ -70,9 +70,19 @@ const { chromium } = require('playwright');
       Graph.prototype.move.call(graph,{clientX:0,clientY:0});
       return tip.querySelector('img,svg')===null && tip.textContent.includes('<img');
     }), true, 'Graph tooltips must render untrusted titles as text');
+    await page.route('**/config', async route => {
+      const config = await page.evaluate(() => S.config);
+      await route.fulfill({contentType:'application/json', body: JSON.stringify({
+        ...config, controller:{enabled:true, require_full_workflow:true}})});
+    });
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.locator('[data-nav="chat"]').click();
+    assert.equal(await page.locator('#chatmode option[value="quick"]').isDisabled(), true);
+    assert.equal(await page.locator('#chatmode').inputValue(), 'full');
     await page.screenshot({path: '.test-tmp/studio-full-chat.png', fullPage: true});
     assert.deepEqual(errors, []);
-    console.log('Studio browser QA passed: full default, quick opt-in, history, HTTP error display, mobile layout, graph XSS defense; no page errors.');
+    console.log('Studio browser QA passed: full default, quick opt-in and controller lock, history, HTTP error display, mobile layout, graph XSS defense; no page errors.');
   } finally {
     await browser.close();
   }

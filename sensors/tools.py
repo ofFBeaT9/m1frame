@@ -51,7 +51,7 @@ def sentrux_available() -> dict:
     argv = c.resolve()
     return {"available": argv is not None, "binary": argv[0] if argv else None,
             "flavour": c.flavour(), "mcp_command": c.mcp_command(),
-            "install": "pip install sentrux"}
+            "install": "https://github.com/sentrux/sentrux (official Rust binary)"}
 
 
 def sentrux_scan(path: str = ".", timeout: int | None = None) -> dict:

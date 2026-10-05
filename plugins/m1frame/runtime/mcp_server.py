@@ -60,7 +60,7 @@ def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) 
 
     Use this for any non-trivial decision, design, or investigation where you want
     a *deliberated, grounded* answer rather than a one-shot reply: BMAD planning →
-    council brainstorm → investigation → multi-agent execution → chain-of-thought
+    council brainstorm → investigation → multi-agent execution → final-answer
     refinement → a council QA gate with an independent red-team → knowledge-graph
     ingest. Uses m1frame's configured backend (set `backend: claudecli` in
     config.yaml to run on your Claude Code login with no API key).
@@ -78,9 +78,17 @@ def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) 
     verdict = res.get("verdict")
     output = res.get("output") or "(no output)"
     score = getattr(verdict, "consensus_score", None) if verdict else None
-    passed = getattr(verdict, "passed", None) if verdict else None
+    passed = res.get("approved", getattr(verdict, "passed", None) if verdict else None)
     head = f"**Score:** {score}/10  ·  **Gate:** {'PASS' if passed else 'review'}\n\n" if verdict else ""
-    return head + output
+    evidence = (f"\n\nRuntime record: {res.get('run_id', 'unavailable')}"
+                f" · Wiki saved: {'yes' if res.get('wiki_page') else 'no'}"
+                f" · Learning saved: {'yes' if res.get('skill') else 'no'}"
+                f"\nReceipt: {res.get('receipt', 'unavailable')}")
+    if res.get("controller", {}).get("policy", {}).get("enabled"):
+        usage = res.get("usage", {})
+        evidence += (f"\nController: full workflow · Headroom checks: {usage.get('headroom_checks', 0)}"
+                     f" · SkillOpt evaluations: {usage.get('skillopt_evaluations', 0)}")
+    return head + output + (evidence if res.get("receipt") else "")
 
 
 @mcp.tool()
@@ -163,7 +171,7 @@ def m1frame_scan_architecture(path: str = ".", council_score: float | None = Non
 
     Gives objective structural evidence (0-10000 across modularity, acyclicity, depth,
     equality, redundancy) next to m1frame's LLM judgement. Requires the optional
-    Sentrux binary (`pip install sentrux`); without it this reports availability
+    Sentrux binary (`https://github.com/sentrux/sentrux (official Rust binary)`); without it this reports availability
     cleanly rather than failing.
 
     Args:
@@ -183,7 +191,7 @@ def m1frame_scan_architecture(path: str = ".", council_score: float | None = Non
     verdict = gate().fuse(council_score, result)
     if not result.available:
         return (f"Sentrux is not installed — no structural measurement taken.\n"
-                f"Install with: pip install sentrux\n"
+                f"Install with: https://github.com/sentrux/sentrux (official Rust binary)\n"
                 f"Verdict basis: {verdict.basis} ({verdict.verdict})")
     return json.dumps({"sensor": result.to_dict(), "verdict": verdict.to_dict()}, indent=2)
 

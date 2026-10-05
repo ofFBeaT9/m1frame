@@ -28,6 +28,8 @@ New in v1.1:
 from __future__ import annotations
 
 import datetime
+import functools
+import json
 import re
 import uuid
 from dataclasses import dataclass
@@ -37,6 +39,7 @@ from typing import Any
 import yaml
 
 from agents.skills import _keywords
+from agents.wiki_contract import inspect_pages, normalize_page, render_page, split_page
 
 
 def _read_text(path: Path) -> str:
@@ -89,13 +92,16 @@ Using the analysis, generate wiki pages in Markdown with YAML frontmatter.
 
 Rules:
 - Start each page with --- YAML frontmatter
-- Include: title, tags, related (as [[WikiLinks]]), created (ISO date), sources (list), page_type
+- For valid quoting, write the frontmatter as one JSON object (JSON is valid YAML),
+  bounded by --- lines. All keys and string values must use double quotes.
+  Never emit bare [[WikiLinks]] as YAML values. Related links are strings in an array.
+- Include: title, tags, related (as [[WikiLinks]]), created (ISO date), sources (list), page_type, confidence (high|medium|low)
 - Use [[WikiLinks]] to link to other pages
 - Write ## Summary, ## Key Concepts, ## Details, ## Related, ## Open Questions sections
 - Keep factual, concise, no filler
 - Source pages go in sources/, entity pages in entities/, concepts in concepts/
 
-Generate a source summary page for this ingestion. No code fences. Start with ---
+Generate one page using the requested page type and project tag from the topic instructions. Default to a source summary when none is specified. No code fences. Start with ---
 """
 
 LINT_SYSTEM = """You are a Wiki Lint Agent.
@@ -243,6 +249,15 @@ class ContradictionReport:
 
 # ── Main class ────────────────────────────────────────────────────────────────
 
+def _locked_ingest(fn):
+    @functools.wraps(fn)
+    def wrapped(self, *args, **kwargs):
+        from filelock import FileLock
+        with FileLock(str(self.wiki_dir / '.ingest.lock'), timeout=30):
+            return fn(self, *args, **kwargs)
+    return wrapped
+
+
 class LLMWiki:
     """
     Portable LLM Wiki implementing Karpathy's three-layer pattern.
@@ -260,7 +275,7 @@ class LLMWiki:
         self.llm = llm_client
         self.cfg = config or {}
         self.wiki_dir = Path(self.cfg.get("directory", "wiki"))
-        self.index_file = Path(self.cfg.get("index_file", "wiki/index.md"))
+        self.index_file = Path(self.cfg.get("index_file", str(self.wiki_dir / "index.md")))
         self.purpose_file = Path(self.cfg.get("purpose_file", "purpose.md"))
         self._vector_store = self.cfg.get("vector_store", "file")
         self._lancedb_table = None
@@ -269,7 +284,10 @@ class LLMWiki:
 
     # ── Three Operations ──────────────────────────────────────────────────────
 
-    def ingest(self, raw_text: str, topic_hint: str = "", source_name: str = "") -> WikiPage:
+    @_locked_ingest
+    def ingest(self, raw_text: str, topic_hint: str = "", source_name: str = "",
+               page_type: str | None = None, project: str = "",
+               _analysis: str | None = None) -> WikiPage:
         """
         Two-step ingest (Karpathy + nashsu pattern):
           Step 1 — Analysis: understand the source, find connections & contradictions
@@ -286,16 +304,43 @@ class LLMWiki:
         # Step 1: Analysis
         index_snapshot = self._read_index_snapshot()
         purpose = self.read_purpose()
-        analysis = self._analyse(raw_text, topic_hint, index_snapshot, purpose)
+        if page_type:
+            topic_hint += f"\nRequired page_type: {page_type}. Project tag: {project}"
+        analysis = _analysis if _analysis is not None else self._analyse(raw_text, topic_hint, index_snapshot, purpose)
 
         # Step 2: Generation
         page_text = self._generate(raw_text, topic_hint, analysis, index_snapshot)
+        known = {p.title for p in self._load_all_pages()}
+        fm, _ = split_page(page_text)
+        # Creation is runtime metadata, never a date invented by the model.
+        fm['created'] = datetime.date.today().isoformat()
+        _, generated_body = split_page(page_text)
+        page_text = render_page(fm, generated_body)
+        kind = page_type or fm.get('page_type', 'source')
+        source_id = raw_path.stem
+        if kind != 'source':
+            # An evidence pointer is deterministic bookkeeping, not a third LLM pass.
+            evidence_title = f"Source Evidence {source_id}"
+            evidence_fm = {'title': evidence_title, 'tags': [project] if project else [],
+                           'related': [], 'created': datetime.date.today().isoformat(),
+                           'page_type': 'source', 'confidence': 'medium',
+                           'raw_source': str(raw_path.relative_to(self.wiki_dir)).replace('\\', '/')}
+            evidence_text = render_page(evidence_fm, f"Immutable source record: [raw input](../raw/sources/{raw_path.name}).")
+            evidence = WikiPage.from_markdown(evidence_text)
+            evidence.filename = self._save_page(evidence, evidence_text, subdir='sources')
+            self._update_index(evidence)
+            known.add(evidence_title)
+            source_id = Path(evidence.filename).stem
+            page_text += f"\n\n## Source evidence\n[[{evidence_title}]]\n"
+        if fm['title'] in known:
+            fm['title'] += ' ' + uuid.uuid4().hex[:8]
+            _, body = split_page(page_text)
+            page_text = render_page(fm, body)
+        page_text = normalize_page(page_text, known, page_type=kind,
+                                   sources=[source_id] if kind != 'source' else [], project=project,
+                                   raw_source=str(raw_path.relative_to(self.wiki_dir)).replace('\\', '/'))
         page = WikiPage.from_markdown(page_text)
-
-        # Save to sources/ subdirectory
-        subdir = self._subdir_for_type(page.page_type)
-        filename = self._save_page(page, page_text, subdir=subdir)
-        page.filename = filename
+        page.filename = self._save_page(page, page_text, subdir=self._subdir_for_type(page.page_type))
 
         # Update index, log, overview
         self._update_index(page)
@@ -306,7 +351,11 @@ class LLMWiki:
             self._lancedb_upsert(page)
 
         self._update_overview()
-
+        count = sum(1 for line in _read_text(self.wiki_dir / 'log.md').splitlines()
+                    if '] ingest |' in line)
+        if count and count % 5 == 0:
+            self.decay_confidence()
+            self.lint()
         return page
 
     def query(self, question: str, max_pages: int = 5) -> str:
@@ -315,6 +364,8 @@ class LLMWiki:
         Follows Karpathy's query pattern — index.md as navigation entry point.
         Uses LanceDB semantic search when available, keyword search otherwise.
         """
+        index = self._read_index_snapshot()
+        purpose = self.read_purpose()
         if self._vector_store == "lancedb":
             relevant = self._lancedb_search(question, max_pages)
         else:
@@ -329,7 +380,7 @@ class LLMWiki:
         system = (
             "You are a Wiki Query Agent. Answer the question using only the wiki pages provided. "
             "Cite pages by [[title]]. If the answer requires pages not shown, say so.\n\n"
-            f"Wiki index (for navigation):\n{index[:1500]}"
+            f"Purpose: {purpose[:1500]}\nWiki index (for navigation):\n{index[:1500]}"
         )
         answer = self.llm.chat(prompt=prompt, system=system, temperature=0.2)
         self._append_log("query", question[:100])
@@ -339,32 +390,18 @@ class LLMWiki:
         """
         Health-check the wiki: find contradictions, orphans, gaps, stale claims.
         """
-        import json
+        self.read_purpose()
+        index = self._read_index_snapshot()
         pages = self._load_all_pages()
-        page_summaries = "\n".join(
-            f"- [[{p.title}]] (type={p.page_type}, tags={p.tags}): {p.excerpt(150)}"
-            for p in pages[:30]   # limit to avoid token overflow
-        )
-        index = _read_text(self.index_file) if self.index_file.exists() else ""
-        prompt = (
-            f"Wiki index:\n{index[:1000]}\n\n"
-            f"Page summaries:\n{page_summaries}"
-        )
-        raw = self.llm.chat(prompt=prompt, system=LINT_SYSTEM, temperature=0.1)
-        try:
-            clean = re.sub(r"```(?:json)?", "", raw).strip()
-            data = json.loads(clean)
-            report = LintReport(
-                contradictions=data.get("contradictions", []),
-                orphan_pages=data.get("orphan_pages", []),
-                missing_pages=data.get("missing_pages", []),
-                knowledge_gaps=data.get("knowledge_gaps", []),
-                health_score=int(data.get("health_score", 5)),
-                recommendations=data.get("recommendations", []),
-            )
-        except (json.JSONDecodeError, ValueError):
-            report = LintReport([], [], [], [], 5, ["Lint parse error — re-run."])
-        self._append_log("lint", f"score={report.health_score}")
+        missing, orphans, issues = inspect_pages(pages, index)
+        affected = {page.title for page in pages
+                    if page.title in orphans
+                    or any(item.startswith(page.title + ' ->') for item in missing)
+                    or any(item.startswith(page.title + ':') or item.startswith(page.filename + ':')
+                           for item in issues)}
+        report = LintReport([], orphans, missing, [],
+                            round(10 * (1 - len(affected) / max(1, len(pages)))), issues)
+        self._append_log("lint", f"score={report.health_score}; pages={len(pages)}; semantic contradictions not assessed")
         return report
 
     # ── New v1.1 Operations ───────────────────────────────────────────────────
@@ -383,9 +420,11 @@ class LLMWiki:
 
         Returns the number of pages whose confidence was updated.
         """
+        self.read_purpose()
+        self._read_index_snapshot()
         updated = 0
         for md_file in self.wiki_dir.rglob("*.md"):
-            if md_file.name in ("index.md", "log.md", "overview.md", "contradictions.md"):
+            if md_file.name in ("index.md", "log.md", "overview.md", "contradictions.md", "purpose.md"):
                 continue
             if "raw" in md_file.parts:
                 continue
@@ -393,6 +432,16 @@ class LLMWiki:
             page = WikiPage.from_markdown(content, filename=md_file.name)
             current = page.confidence
             age = page.age_days
+            fm, _ = _split_frontmatter(content)
+            # A confirmed date must accompany explicit confirming source references.
+            if fm.get('confirming_sources') and fm.get('last_confirmed'):
+                try:
+                    confirmed = datetime.date.fromisoformat(str(fm['last_confirmed']))
+                    source_stems = {Path(p.filename).stem for p in self._load_all_pages() if p.page_type == 'source'}
+                    if all(ref in source_stems for ref in fm['confirming_sources']):
+                        age = min(age, (datetime.date.today() - confirmed).days)
+                except ValueError:
+                    pass
 
             new_confidence = current
             if current == "high" and age >= medium_after_days:
@@ -420,7 +469,9 @@ class LLMWiki:
         Writes a summary to wiki/contradictions.md.
         Returns a ContradictionReport.
         """
-        import json
+        if hasattr(self, "purpose_file"):
+            self.read_purpose()
+            self._read_index_snapshot()
         pages = self._load_all_pages()
         if len(pages) < 2:
             report = ContradictionReport(contradictions=[], clean=True)
@@ -429,8 +480,10 @@ class LLMWiki:
 
         excerpts = "\n\n".join(
             f"=== [[{p.title}]] (type={p.page_type}) ===\n{p.excerpt(400)}"
-            for p in pages[:20]
+            for p in pages
         )
+        if len(excerpts) > int(getattr(self, 'cfg', {}).get('contradiction_max_chars', 100000)):
+            raise ValueError('Contradiction corpus exceeds configured limit; no clean verdict recorded')
         raw = self.llm.chat(
             prompt=f"Analyse these wiki pages for contradictions:\n\n{excerpts}",
             system=CONTRADICTION_SYSTEM,
@@ -451,6 +504,10 @@ class LLMWiki:
 
         # Persist to wiki/contradictions.md
         self._write_contradictions(report)
+        if report.contradictions:
+            # Detection supplied the Analysis pass; Generation is the second call.
+            self.ingest(excerpts, topic_hint="Document the detected source contradictions and evidence limits",
+                        page_type="synthesis", project="wiki-contradictions", _analysis=raw)
         self._append_log("contradictions", f"found={len(report.contradictions)}")
         return report
 
@@ -458,6 +515,8 @@ class LLMWiki:
 
     def search(self, query: str, max_results: int = 5) -> list[WikiPage]:
         """Rank meaningful query terms instead of requiring a whole-sentence match."""
+        self.read_purpose()
+        self._read_index_snapshot()
         terms = set(_keywords(query))
         if not terms or max_results <= 0:
             return []
@@ -477,6 +536,8 @@ class LLMWiki:
         return [page for _, page in ranked[:max_results]]
 
     def get_page(self, title: str) -> WikiPage | None:
+        self.read_purpose()
+        self._read_index_snapshot()
         slug = _slugify(title)
         pages = self._load_all_pages()
         for page in pages:
@@ -488,9 +549,11 @@ class LLMWiki:
         return None
 
     def list_pages(self) -> list[str]:
+        self.read_purpose()
+        self._read_index_snapshot()
         return [
             f.stem for f in sorted(self.wiki_dir.rglob("*.md"))
-            if f.name not in ("index.md", "log.md", "overview.md", "contradictions.md")
+            if f.name not in ("index.md", "log.md", "overview.md", "contradictions.md", "purpose.md")
             and "raw" not in f.parts
         ]
 
@@ -628,9 +691,9 @@ class LLMWiki:
     def _load_all_pages(self) -> list[WikiPage]:
         pages = []
         for f in sorted(self.wiki_dir.rglob("*.md")):
-            if f.name in ("index.md", "log.md", "overview.md", "contradictions.md") or "raw" in f.parts:
+            if f.name in ("index.md", "log.md", "overview.md", "contradictions.md", "purpose.md") or "raw" in f.parts:
                 continue
-            pages.append(WikiPage.from_markdown(_read_text(f), filename=f.name))
+            pages.append(WikiPage.from_markdown(_read_text(f), filename=str(f.relative_to(self.wiki_dir)).replace("\\", "/")))
         return pages
 
     def _init_structure(self):

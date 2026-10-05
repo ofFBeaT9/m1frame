@@ -222,8 +222,10 @@ class OpenPlanterAgent:
         llm_client,
         config: dict | None = None,
         workspace: str | None = None,
+        emit=None,
     ) -> None:
         self.llm = llm_client
+        self.emit = emit
         self.cfg = config or {}
         self.workspace = Path(workspace or self.cfg.get("workspace") or "workspace")
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -269,7 +271,7 @@ class OpenPlanterAgent:
             prompt=f"Investigation task: {task}{dataset_context}{web_context}",
             system=INVESTIGATION_SYSTEM,
             temperature=0.2,
-            config=self.cfg,
+            config=self.cfg, emit=self.emit,
         )
 
         # Parse thought chain

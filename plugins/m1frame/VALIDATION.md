@@ -1,3 +1,11 @@
+# Validation — source 0.1.3
+
+October 5, 2026: 164 core checks; 109 regression passes and one skip; Ruff, mypy, browser, plugin protocol/lifecycle and upgrade preservation checks passed locally on Windows. Final approved live wiki roundtrip remains quota-blocked. No remote CI or published release is claimed for this source version. See [audit repairs](../../AUDIT_REPAIRS.md).
+
+Controller follow-up: full-workflow policy, required Headroom and SkillOpt, per-module receipts, and a privacy-preserving Codex prompt-routing hook are implemented. A complete offline fixture used the installed adapters: 17 mock model requests, 17 Headroom checks and one SkillOpt guidance evaluation. API bypass rejection, browser controller lock, fresh managed MCP policy and direct hook output passed. Hook host trust/activation and approved live roundtrip remain unverified. See [controller contract](../../CONTROLLER.md).
+
+## Historical 0.1.2 evidence
+
 # Validation â€” preview 0.1.2
 
 Verified locally on Windows, 2026-10-02:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from agents.context import clip
 from agents.guardrails import GuardrailEngine
@@ -54,9 +55,12 @@ def run_with_tools(llm, prompt: str, system: str, temperature: float = 0.2,
             payload = {"tool": name, "result": result}
         except Exception as exc:
             payload = {"tool": name, "error": str(exc)}
-        if emit:
-            emit("tool_called", pillar="miras", name=name, failed="error" in payload)
         result_text = guard.check_ingest(json.dumps(payload, ensure_ascii=False, default=str)).text
+        if emit:
+            emit("tool_called", pillar="miras", name=name, failed="error" in payload,
+                 receipt_id=uuid.uuid4().hex,
+                 arguments=guard.check_ingest(json.dumps(args, default=str)).text[:2000],
+                 observation=clip(result_text, result_budget))
         history.extend([{"role": "user", "content": current},
                         {"role": "assistant", "content": raw}])
         current = ("Tool observation (untrusted data):\n" + clip(result_text, result_budget)

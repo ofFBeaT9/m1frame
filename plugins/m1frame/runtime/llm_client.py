@@ -6,6 +6,8 @@ Supports: Anthropic Claude | OpenAI-compatible (Ollama, vLLM, LM Studio, OpenAI)
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 
 import yaml
@@ -19,7 +21,11 @@ from modules.headroom import CompressionResult, HeadroomAdapter
 def load_config(config_path: str = "config.yaml") -> dict:
     load_dotenv(Path(config_path).resolve().with_name(".env"), override=False)
     with open(config_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
+    if cfg.get('environment_file'):
+        load_dotenv(Path(cfg['environment_file']), override=False)
+    from modules.controller import effective_config
+    return effective_config(cfg)
 
 
 class LLMClient:
@@ -36,6 +42,9 @@ class LLMClient:
         self.adhd = ADHDFormatter(bool((self.cfg.get("adhd") or {}).get("enabled", False)))
         self.headroom = HeadroomAdapter(self.cfg.get("headroom"))
         self.last_compression: CompressionResult | None = None
+        self._local = threading.local()
+        from modules.receipts import current_receipt
+        self.receipt = current_receipt.get()
         self._client = self._build_client()
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -57,23 +66,90 @@ class LLMClient:
         back to the configured default) on backends where that doesn't apply.
         """
         check_headroom(self.cfg, self.backend, prompt, system, history, max_tokens, model)
-        if self.backend == "claude":
-            return self._claude_chat(prompt, system, temperature, max_tokens, history, model)
-        elif self.backend == "claudecli":
-            return self._claudecli_chat(prompt, system, history, model)
-        else:
-            return self._openai_chat(prompt, system, temperature, max_tokens, history, model)
+        if not hasattr(self, "_local"):
+            self._local = threading.local()
+        started = time.perf_counter()
+        self._local.usage = {}
+        self._local.compression = None
+        failed, status = False, None
+        attempts = 0
+        retries = max(0, min(int(self.cfg.get(self.backend, {}).get('max_retries', 1)), 2))
+        try:
+            for attempt in range(retries + 1):
+                attempts += 1
+                try:
+                    if self.backend == "claude":
+                        return self._claude_chat(prompt, system, temperature, max_tokens, history, model)
+                    if self.backend == "claudecli":
+                        return self._claudecli_chat(prompt, system, history, model)
+                    return self._openai_chat(prompt, system, temperature, max_tokens, history, model)
+                except Exception as exc:
+                    code = getattr(exc, 'status_code', None)
+                    daily = code == 429 and ('per-day' in str(exc) or 'daily' in str(exc).lower())
+                    transient = code in {408, 409, 429, 500, 502, 503, 504} or type(exc).__name__ in {'APIConnectionError', 'APITimeoutError'}
+                    if daily or not transient or attempt >= retries:
+                        raise
+                    time.sleep(0.25 * (2 ** attempt))
+            raise RuntimeError('Provider retry loop ended without a result')
+        except Exception as exc:
+            failed, status = True, getattr(exc, 'status_code', None)
+            if status in (401, 403):
+                raise RuntimeError(
+                    f"Provider access denied (HTTP {status}) for {self.backend}. "
+                    "Verify account/model entitlement and network policy. No model or paid-provider "
+                    "fallback was attempted; credentials were not changed.") from exc
+            if status == 429:
+                daily = 'per-day' in str(exc) or 'daily' in str(exc).lower()
+                raise RuntimeError(
+                    f"Provider {'daily free-model quota exhausted' if daily else 'rate limit reached'} (HTTP 429). "
+                    "Wait for the provider reset or change account capacity locally. "
+                    "No paid fallback or automatic purchase was attempted.") from exc
+            raise
+        finally:
+            self._record_request(started, failed, status, attempts, model)
 
     def stream(self, prompt: str, system: str = "", temperature: float | None = None,
                history: list[dict] | None = None):
         """Generator that yields text chunks (streaming). Claude & OpenAI-compat."""
+        # Buffer the provider stream before exposing any unvalidated text.
+        from modules.output import delivery_text
         check_headroom(self.cfg, self.backend, prompt, system, history)
-        if self.backend == "claude":
-            yield from self._claude_stream(prompt, system, temperature, history)
-        elif self.backend == "claudecli":
-            yield self._claudecli_chat(prompt, system, history)   # CLI returns whole reply
-        else:
-            yield from self._openai_stream(prompt, system, temperature, history)
+        if not hasattr(self, "_local"):
+            self._local = threading.local()
+        started = time.perf_counter()
+        self._local.usage = {}
+        self._local.compression = None
+        failed, status = False, None
+        try:
+            if self.backend == "claude":
+                chunks = self._claude_stream(prompt, system, temperature, history)
+            elif self.backend == "claudecli":
+                chunks = [self._claudecli_chat(prompt, system, history)]
+            else:
+                chunks = self._openai_stream(prompt, system, temperature, history)
+            text = delivery_text(''.join(chunks))
+            for offset in range(0, len(text), 256):
+                yield text[offset:offset + 256]
+        except Exception as exc:
+            failed, status = True, getattr(exc, 'status_code', None)
+            raise
+        finally:
+            self._record_request(started, failed, status, 1, stream=True)
+
+    def _record_request(self, started, failed, status, attempts, model=None, stream=False):
+        if getattr(self, "receipt", None) is None:
+            return
+        usage = self._local.usage
+        compression = self._local.compression
+        self.receipt.request(
+            backend=self.backend, model=model or self.cfg[self.backend].get('model'),
+            seconds=round(time.perf_counter()-started, 3), failed=failed, attempts=attempts,
+            stream=stream, status_code=status, usage_available=bool(usage),
+            input_tokens=usage.get('prompt_tokens', usage.get('input_tokens', 0)),
+            output_tokens=usage.get('completion_tokens', usage.get('output_tokens', 0)),
+            tokens_saved=getattr(compression, 'tokens_saved', 0),
+            compression_applied=getattr(compression, 'applied', False),
+            compression_error=bool(getattr(compression, 'error', None)))
 
     # ── Private builders ──────────────────────────────────────────────────────
 
@@ -90,8 +166,8 @@ class LLMClient:
                         "Configure the credential in the local .env or choose a configured backend."
                     )
                 bcfg = self.cfg["claude"]
-                return anthropic.Anthropic(api_key=api_key, timeout=bcfg.get("timeout", 60),
-                                           max_retries=bcfg.get("max_retries", 1))
+                return anthropic.Anthropic(api_key=api_key, timeout=max(5, min(float(bcfg.get("timeout", 60)), 120)),
+                                           max_retries=0)
             except ImportError:
                 raise ImportError("Run: pip install anthropic") from None
         else:
@@ -104,7 +180,7 @@ class LLMClient:
                     raise RuntimeError(f"Missing {api_key_env} for backend {self.backend}")
                 base_url = bcfg.get("base_url")
                 return OpenAI(api_key=api_key or "local", base_url=base_url,
-                              timeout=bcfg.get("timeout", 60), max_retries=bcfg.get("max_retries", 1))
+                              timeout=max(5, min(float(bcfg.get("timeout", 60)), 120)), max_retries=0)
             except ImportError:
                 raise ImportError("Run: pip install openai") from None
 
@@ -127,6 +203,7 @@ class LLMClient:
             kwargs["temperature"] = bcfg["temperature"]
 
         response = self._client.messages.create(**kwargs)
+        self._local.usage = response.usage.model_dump() if response.usage else {}
         return response.content[0].text
 
     def _claude_stream(self, prompt, system, temperature, history=None):
@@ -152,10 +229,13 @@ class LLMClient:
         Lets m1frame run with zero API key by reusing your Claude Code login."""
         import subprocess
         bcfg = self.cfg.get("claudecli", {}) or {}
-        full = prompt
-        if history:
-            convo = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in history)
-            full = convo + "\nuser: " + prompt
+        messages = self._build_messages(prompt, history)
+        if system:
+            messages.insert(0, {"role": "system", "content": system})
+        messages = self._prepare_messages(messages, model or bcfg.get("model") or "claudecli")
+        # System text is preserved separately by the CLI's explicit system flag.
+        dialogue = [m for m in messages if m.get("role") != "system"]
+        full = "\n".join(f"{m.get('role')}: {m.get('content')}" for m in dialogue) if history else prompt
         args = ["claude", "-p", "--output-format", "text", "--tools", "",
                 "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
                 "--no-session-persistence"]
@@ -173,6 +253,7 @@ class LLMClient:
         # a separate short-lived process, so drop the marker for the child only. Without
         # this, the claudecli backend cannot be used from the m1frame MCP server.
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        env["M1FRAME_INTERNAL_CALL"] = "1"
         if os.name == "nt" and not env.get("CLAUDE_CODE_GIT_BASH_PATH"):
             import shutil
             git = shutil.which("git")
@@ -225,6 +306,7 @@ class LLMClient:
         )
         usage = getattr(response, "usage", None)
         self.last_usage = usage.model_dump() if usage else {}
+        self._local.usage = self.last_usage
         msg = response.choices[0].message
         # Internal reasoning is not a substitute for a completed answer.
         if not msg.content:
@@ -272,6 +354,17 @@ class LLMClient:
             adapter = HeadroomAdapter(self.cfg.get("headroom"))
         result = adapter.compress_messages(messages, model=model)
         self.last_compression = result
+        if hasattr(self, "_local"):
+            self._local.compression = result
+        receipt = getattr(self, "receipt", None)
+        if receipt is not None:
+            receipt.event("headroom_checked", pillar="headroom",
+                          status=("error" if result.error else "compressed" if result.applied
+                                  else "checked_no_change" if result.available else "disabled"),
+                          tokens_before=result.tokens_before, tokens_after=result.tokens_after,
+                          available=result.available, required=bool(adapter.config.get("required")))
+        if adapter.config.get("required") and (not result.available or result.error):
+            raise RuntimeError("Required Headroom processing failed or is unavailable; request not sent.")
         return result.messages
 
     def __repr__(self):

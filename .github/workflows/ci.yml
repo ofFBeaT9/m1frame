@@ -33,8 +33,9 @@ jobs:
       - name: Run QA suite (offline mock — no API key needed)
         run: python scripts/qa_validate.py
 
-      - name: Run integration regression tests
+      - name: Efficiency and reliability regression tests
         run: python -m unittest discover -s scripts -p "test_*.py"
+
 
   lint:
     name: Lint & Type Check
@@ -47,6 +48,8 @@ jobs:
           cache: pip
       - name: Install dev dependencies
         run: pip install ruff mypy pyyaml types-PyYAML python-dotenv
+      - name: Check bundled runtime matches source
+        run: python plugins/m1frame/scripts/sync_runtime.py --check
       - name: Ruff lint
         run: ruff check .
       - name: Mypy type check

@@ -118,6 +118,7 @@ class HeadroomAdapter:
     def status(self) -> dict:
         return {
             "enabled": self.enabled,
+            "required": bool(self.config.get("required", False)),
             "available": self._compress is not None,
             "error": self._import_error,
             "source": SOURCE,

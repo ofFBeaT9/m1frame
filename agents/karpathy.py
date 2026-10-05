@@ -1,6 +1,6 @@
 """
 agents/karpathy.py — Karpathy Patterns (The Engine)
-Responsibility: Minimalist, deterministic prompting with forced chain-of-thought via <thought> tags.
+Responsibility: Concise final-answer synthesis and optional refinement.
 
 New in v1.1:
   self_critique() — two-pass method where the model first produces an answer,
@@ -13,42 +13,20 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-KARPATHY_SYSTEM = """You are a precise, minimalist reasoning engine.
-
-Rules you MUST follow:
-1. Always begin with a <thought> block. Think step-by-step before answering.
-2. Inside <thought>, reason out loud: restate the problem, identify what you know,
-   identify what you don't know, plan your approach.
-3. After </thought>, give your final answer — clear, concise, direct.
-4. Never repeat yourself. Never pad. No filler phrases.
-5. If you are uncertain, say so explicitly inside <thought>. Never hallucinate.
-6. Code must be complete and runnable. Prose must be factual and sourced.
-
-Format:
-<thought>
-[Your reasoning here]
-</thought>
-
-[Your final answer here]
+KARPATHY_SYSTEM = """You are a precise output synthesizer.
+Return only the completed final answer, with a concise explanation or evidence
+when useful. Do not expose private reasoning or internal thought blocks.
+Do not claim council approval, tool execution or persistence unless supplied
+as authoritative runtime evidence. State uncertainty and evidence limits.
+Code must be complete and prose factual. No filler.
 """
 
-KARPATHY_REFINEMENT_SYSTEM = """You are a strict output refiner.
-Given a draft response, remove all filler, fix logical gaps, and tighten the prose.
-Keep <thought> blocks intact. Return the refined version only.
+KARPATHY_REFINEMENT_SYSTEM = """Refine the final answer for correctness and clarity.
+Return only the improved final answer, with evidence and limitations.
+Do not return private reasoning or process-status claims.
 """
 
-SELF_CRITIQUE_SYSTEM = """You are a self-critique agent. You will receive:
-  1. The original task
-  2. A draft answer
-
-Your job:
-  A. Inside <thought>, identify every flaw, gap, or unsupported claim in the draft.
-     Be brutally honest. Note: logic errors, missing edge cases, hallucinations,
-     vague language, unsubstantiated claims.
-  B. After </thought>, write a corrected, improved version that fixes all issues you found.
-
-If the draft is already correct, say so inside <thought> and return it unchanged.
-"""
+SELF_CRITIQUE_SYSTEM = KARPATHY_REFINEMENT_SYSTEM
 
 
 @dataclass
@@ -65,8 +43,8 @@ class KarpathyResult:
 class KarpathyEngine:
     """
     Wraps LLM calls with Karpathy-style prompting:
-    - Forced <thought> chain-of-thought
-    - Low temperature (deterministic)
+    - Final-answer-only prompting
+    - Low temperature (not a determinism guarantee)
     - Optional refinement pass
     - self_critique(): two-pass critique → refine loop
     """
@@ -75,7 +53,7 @@ class KarpathyEngine:
         self.llm = llm_client
         self.cfg = config or {}
         self.temperature = self.cfg.get("temperature_override", 0.1)
-        self.force_cot = self.cfg.get("force_cot", True)
+        self.force_cot = False  # retained configuration field is no longer used to request reasoning
         self.thought_tag = self.cfg.get("thought_tag", "thought")
 
     # BETA: refine=True runs a second LLM pass — useful but doubles token usage
@@ -93,13 +71,6 @@ class KarpathyEngine:
         system = KARPATHY_SYSTEM
         if extra_system:
             system = f"{system}\n\nAdditional context:\n{extra_system}"
-
-        if self.force_cot and "<thought>" not in prompt:
-            prompt = (
-                f"{prompt}\n\n"
-                f"Remember: begin your reply with <{self.thought_tag}> reasoning, "
-                f"then give your final answer after </{self.thought_tag}>."
-            )
 
         raw = self.llm.chat(
             prompt=prompt,
@@ -161,18 +132,12 @@ class KarpathyEngine:
         return [self.run(p, **kwargs) for p in prompts]
 
     def _parse(self, raw: str) -> KarpathyResult:
-        tag = self.thought_tag
-        pattern = rf"<{tag}>(.*?)</{tag}>"
-        match = re.search(pattern, raw, re.DOTALL)
-        if match:
-            thought = match.group(1).strip()
-            answer = raw[match.end():].strip()
-            had_tag = True
-        else:
-            thought = ""
-            answer = raw.strip()
-            had_tag = False
-        return KarpathyResult(raw=raw, thought=thought, answer=answer, had_thought_tag=had_tag)
+        from modules.output import clean_answer
+        pattern = rf"<{re.escape(self.thought_tag)}>(.*?)</{re.escape(self.thought_tag)}>"
+        match = re.search(pattern, raw, re.DOTALL | re.I)
+        return KarpathyResult(raw=raw, thought=match.group(1).strip() if match else "",
+                              answer=clean_answer(raw, self.thought_tag),
+                              had_thought_tag=bool(match))
 
     def build_prompt(self, task: str, examples: list[dict] | None = None) -> str:
         """
@@ -185,7 +150,6 @@ class KarpathyEngine:
             for ex in examples:
                 parts.append(
                     f"Input: {ex['input']}\n"
-                    f"<thought>\n{ex['thought']}\n</thought>\n"
                     f"{ex['output']}"
                 )
             parts.append("---")

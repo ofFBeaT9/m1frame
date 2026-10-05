@@ -61,7 +61,7 @@ See [VALIDATION.md](VALIDATION.md). Run tests/check_mcp.py with the Python execu
 
 Report problems at [m1frame issues](https://github.com/ofFBeaT9/m1frame/issues), with your OS, Python/plugin versions and a redacted error. Never include keys or private wiki content.
 
-The bundled runtime derives from version 1.10.1, commit fbb06dd5cb066d26627e3dc88868312016cebdbe, with the runtime fixes documented in MODULE-AUDIT.md. Both root runtime source and bundled code are included in the release. Plugin version: 0.1.3. See LICENSE for upstream attribution and terms.
+The bundled runtime derives from version 1.10.1, commit 8e69dcd, plus the operational audit and controller repairs, with the runtime fixes documented in MODULE-AUDIT.md. Both root runtime source and bundled code are included in the release. Plugin source version: 0.1.3 (release publication pending). See LICENSE for upstream attribution and terms.
 
 ## Optional modules and free testing
 

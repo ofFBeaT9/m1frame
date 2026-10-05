@@ -51,6 +51,22 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 
 ---
 
+Latest repair evidence and remaining limits: [operational audit repairs](AUDIT_REPAIRS.md).
+
+## Execution boundaries
+
+The named pillars are local implementations inspired by the linked projects. The council
+uses role prompts on the configured provider; it is not automatically a multi-provider
+council. External Miras memory and scientific execution dependencies require separate setup.
+The Karpathy gist describes wiki architecture, not forced reasoning tags or determinism.
+Low temperature does not guarantee deterministic answers. Reasoning blocks are withheld.
+
+Use `m1frame_run` or Studio **full** mode for the pipeline. Ordinary host prompts, utility
+calls and quick chat do not automatically traverse it. Optional layers run only when
+relevant and configured. Final approval and persistence status come from runtime receipts
+under `runs/receipts/`, not generated process claims. Sensor scores measure code structure;
+lexical skill optimization does not certify improved task accuracy.
+
 ## Source Repositories
 
 | Pillar | Source | Role |
@@ -58,7 +74,7 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 | **BMAD** | [bmad-code-org/BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) | Agile story backlog — analyst / architect / dev / qa / pm / investigator roles |
 | **LLM Council** | [gcpdev/llm-council-skill](https://github.com/gcpdev/llm-council-skill) | Brainstorm before generation + QA review after |
 | **Miras** | [ofFBeaT9/miras](https://github.com/ofFBeaT9/miras) | Sequential sub-agent orchestration with full state handoffs |
-| **Karpathy Patterns** | [karpathy gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Forced `<thought>` chain-of-thought, deterministic prompting |
+| **Karpathy Patterns** | [karpathy gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) | Immutable-source wiki architecture; answer refinement is a local implementation |
 | **LLM Wiki** | [nashsu/llm_wiki](https://github.com/nashsu/llm_wiki) | Persistent three-layer knowledge graph (Analysis→Generation) |
 | **OpenPlanter** | [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter) | Recursive investigation agent — entity resolution, cross-referencing, dataset ingestion |
 | **ADHD output shaping** *(optional)* | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | Dependency-free actionability guidance and conservative final-prose cleanup |
@@ -118,7 +134,7 @@ dependency. When enabled, it:
 
 It is intentionally not applied to every internal handoff. The workflow formats
 the final response immediately before the output safety gate, while live API
-chat receives guidance and streams the provider's response unchanged.
+chat receives guidance and checks buffered final output before delivery.
 
 #### Headroom context compression
 
@@ -231,7 +247,7 @@ Seven surfaces, one renderer:
 
 | Surface | What you get |
 |---|---|
-| **Studio** | Type a goal and watch all 7 pillars work **live** — BMAD stories appear, the Council debates persona-by-persona (Critic · Advocate · Domain Expert + **red-team**) with animated consensus scores, Karpathy streams its `<thought>`, the knowledge graph grows node-by-node, and the miras memory feed pulses. |
+| **Studio** | Type a goal and watch all 7 pillars work **live** — BMAD stories appear, the Council debates persona-by-persona (Critic · Advocate · Domain Expert + **red-team**) with animated consensus scores, refinement produces a validated final answer, the knowledge graph grows node-by-node, and the miras memory feed pulses. |
 | **Chat** | Talk to m1frame — answers stream token-by-token, **grounded** in the wiki with clickable citations. |
 | **Graph** | The full force-directed knowledge-graph constellation; click any node to read its page. |
 | **Runs** | Every run, fully **replayable** from its recorded event trace. |
@@ -292,8 +308,8 @@ Your Goal
 └───────────────────────┬─────────────────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 5. Karpathy  —  Chain-of-Thought Refinement                 │
-│    Forced <thought> reasoning · two-pass refine             │
+│ 5. Karpathy  —  Answer Refinement                          │
+│    Final-answer validation · optional second-pass refine   │
 └───────────────────────┬─────────────────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -588,3 +604,22 @@ See [SECURITY.md](SECURITY.md) for gateway authentication and deployment limits.
 The static demo server exposes only bundled UI assets; repository artifact links
 should be opened locally. Run the installed CLI from a workspace containing
 `config.yaml`, `purpose.md` and the project's knowledge files.
+
+For main-agent routing and required Headroom/SkillOpt execution, see [the controller contract](CONTROLLER.md).
+
+## Functional audit and module diagnostics
+
+See [the full module status chart](MODULE_STATUS_2026-10-04.md) for measured
+results and remaining service/account requirements. The [filterable chart](MODULE_STATUS_2026-10-04.html)
+is also available as a standalone HTML file.
+
+Run `python -m scripts.doctor --config PATH_TO_RUNTIME/config.yaml --output module-audit.json`
+using that runtime's Python interpreter. Add `--live` for a small provider probe.
+The report separates real optional-module execution, missing setup and failures.
+Headroom defaults to lightweight compression; set `headroom.kompress_model`
+explicitly to opt into model-based compression and its downloads.
+
+For a preconfigured persistent runtime, `python scripts/launch_managed.py`
+launches its own environment and state. Set `M1FRAME_HOME` to an absolute path to
+override the default `~/Documents/Codex/m1frame-data`. Ordinary source checkouts
+continue to use their own `mcp_server.py` and configuration.
