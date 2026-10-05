@@ -606,3 +606,20 @@ should be opened locally. Run the installed CLI from a workspace containing
 `config.yaml`, `purpose.md` and the project's knowledge files.
 
 For main-agent routing and required Headroom/SkillOpt execution, see [the controller contract](CONTROLLER.md).
+
+## Functional audit and module diagnostics
+
+See [the full module status chart](MODULE_STATUS_2026-10-04.md) for measured
+results and remaining service/account requirements. The [filterable chart](MODULE_STATUS_2026-10-04.html)
+is also available as a standalone HTML file.
+
+Run `python -m scripts.doctor --config PATH_TO_RUNTIME/config.yaml --output module-audit.json`
+using that runtime's Python interpreter. Add `--live` for a small provider probe.
+The report separates real optional-module execution, missing setup and failures.
+Headroom defaults to lightweight compression; set `headroom.kompress_model`
+explicitly to opt into model-based compression and its downloads.
+
+For a preconfigured persistent runtime, `python scripts/launch_managed.py`
+launches its own environment and state. Set `M1FRAME_HOME` to an absolute path to
+override the default `~/Documents/Codex/m1frame-data`. Ordinary source checkouts
+continue to use their own `mcp_server.py` and configuration.
