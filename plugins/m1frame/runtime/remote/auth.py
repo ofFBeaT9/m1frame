@@ -60,13 +60,27 @@ class OwnerOAuthProvider:
         self._codes: dict[str, AuthorizationCode] = {}
         self._fails: dict[str, tuple[int, float]] = {}
         self._state: dict[str, dict[str, dict]] = {"clients": {}, "access": {}, "refresh": {}}
-        if self.path.is_file():
-            try:
-                self._state.update(json.loads(self.path.read_text(encoding="utf-8")))
-            except (OSError, ValueError):
-                pass
+        self._mtime = 0.0
+        self._refresh()
 
     # ── persistence ──────────────────────────────────────────────────────
+    def _refresh(self) -> None:
+        """Reload if another process changed the file (e.g. `python -m remote --revoke-all`
+        while the server runs), so revocations apply at once and are never overwritten."""
+        try:
+            mtime = self.path.stat().st_mtime
+        except OSError:
+            return
+        if mtime == self._mtime:
+            return
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        self._state = {"clients": {}, "access": {}, "refresh": {}}
+        self._state.update(data)
+        self._mtime = mtime
+
     def _save(self) -> None:
         now = time.time()
         for kind in ("access", "refresh"):
@@ -80,9 +94,11 @@ class OwnerOAuthProvider:
             self.path.chmod(0o600)
         except OSError:
             pass
+        self._mtime = self.path.stat().st_mtime
 
     # ── clients (Dynamic Client Registration) ───────────────────────────
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
+        self._refresh()
         raw = self._state["clients"].get(client_id)
         return OAuthClientInformationFull.model_validate(raw) if raw else None
 
@@ -95,6 +111,7 @@ class OwnerOAuthProvider:
         if not client_info.client_id:
             raise RegistrationError("invalid_client_metadata", "missing client_id")
         with self._lock:
+            self._refresh()
             if len(self._state["clients"]) >= MAX_CLIENTS:
                 raise RegistrationError("invalid_client_metadata", "client registration limit reached")
             self._state["clients"][client_info.client_id] = client_info.model_dump(mode="json")
@@ -135,6 +152,7 @@ class OwnerOAuthProvider:
         return ok
 
     def access_valid(self, token: str) -> bool:
+        self._refresh()
         raw = self._state["access"].get(_h(token or ""))
         return raw is not None and raw["expires_at"] > time.time()
 
@@ -174,6 +192,7 @@ class OwnerOAuthProvider:
         access, refresh = secrets.token_urlsafe(40), secrets.token_urlsafe(40)
         now = int(time.time())
         with self._lock:
+            self._refresh()
             self._state["access"][_h(access)] = {"client_id": client_id, "scopes": scopes,
                                                  "expires_at": now + ACCESS_TTL, "resource": resource}
             self._state["refresh"][_h(refresh)] = {"client_id": client_id, "scopes": scopes,
@@ -190,6 +209,7 @@ class OwnerOAuthProvider:
 
     async def load_refresh_token(self, client: OAuthClientInformationFull,
                                  refresh_token: str) -> RefreshToken | None:
+        self._refresh()
         raw = self._state["refresh"].get(_h(refresh_token))
         if not raw or raw["client_id"] != client.client_id or raw["expires_at"] < time.time():
             return None
@@ -199,11 +219,13 @@ class OwnerOAuthProvider:
     async def exchange_refresh_token(self, client: OAuthClientInformationFull, refresh_token: RefreshToken,
                                      scopes: list[str]) -> OAuthToken:
         with self._lock:
+            self._refresh()
             if self._state["refresh"].pop(_h(refresh_token.token), None) is None:
                 raise TokenError("invalid_grant", "refresh token already used")
         return self._issue(str(client.client_id), scopes or refresh_token.scopes, refresh_token.resource)
 
     async def load_access_token(self, token: str) -> AccessToken | None:
+        self._refresh()
         raw = self._state["access"].get(_h(token or ""))
         if not raw or raw["expires_at"] < time.time():
             return None
@@ -212,6 +234,7 @@ class OwnerOAuthProvider:
 
     async def revoke_token(self, token) -> None:
         with self._lock:
+            self._refresh()
             for kind in ("access", "refresh"):
                 self._state[kind].pop(_h(token.token), None)
             self._save()
@@ -219,6 +242,7 @@ class OwnerOAuthProvider:
     def revoke_all(self) -> int:
         """Sign every connected app out (CLI: python -m remote --revoke-all)."""
         with self._lock:
+            self._refresh()
             n = len(self._state["access"]) + len(self._state["refresh"])
             self._state["access"], self._state["refresh"] = {}, {}
             self._save()
