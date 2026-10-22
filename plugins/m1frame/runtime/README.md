@@ -59,7 +59,8 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 >
 > **🌍 Remote m1frame (v1.12).** Run it once, reach it from any AI on any device: Claude (web, desktop,
 > phone), ChatGPT, Cursor, Gemini CLI via an OAuth-protected MCP URL, and chat apps via `/v1`.
-> `docker compose --profile remote up -d`. 📖 **[REMOTE.md](REMOTE.md)**
+> `docker compose --profile remote up -d`, or on a **Raspberry Pi**: `bash scripts/install_pi.sh`.
+> 📖 **[REMOTE.md](REMOTE.md)**
 
 Latest repair evidence and remaining limits: [operational audit repairs](AUDIT_REPAIRS.md).
 

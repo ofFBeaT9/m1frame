@@ -148,6 +148,18 @@ class RemoteServerTests(unittest.TestCase):
         r = c.post("/mcp", json=INIT, headers={**ACCEPT, "Authorization": f"Bearer {tokens['access_token']}"})
         self.assertEqual(r.status_code, 401)
 
+    def test_revoke_from_other_process_applies_immediately(self):
+        c, _, provider = self.client()
+        _, tokens = self.connect(c)
+        from remote.auth import OwnerOAuthProvider
+        time.sleep(0.01)
+        OwnerOAuthProvider(BASE, PW, provider.path).revoke_all()     # e.g. `python -m remote --revoke-all`
+        r = c.post("/mcp", json=INIT, headers={**ACCEPT, "Authorization": f"Bearer {tokens['access_token']}"})
+        self.assertEqual(r.status_code, 401)
+        cid, again = self.connect(c)                                  # later writes don't resurrect old tokens
+        self.assertFalse(provider.access_valid(tokens["access_token"]))
+        self.assertTrue(provider.access_valid(again["access_token"]))
+
     def test_redirect_allowlist(self):
         c, *_ = self.client(allowed_redirect_hosts=["claude.ai"])
         self.assertEqual(self.register(c).status_code, 201)

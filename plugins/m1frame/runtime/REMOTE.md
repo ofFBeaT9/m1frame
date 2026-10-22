@@ -17,11 +17,32 @@ from your laptop, phone or anywhere else.
 The AI app you're chatting in handles the conversation. m1frame does the pipeline work
 on whichever model `config.yaml` names, so a phone chat can trigger a full council run.
 
+## Raspberry Pi (one command)
+
+A Pi 4 or 5 (2 GB+ RAM) with 64-bit Raspberry Pi OS makes a good always-on m1frame: low
+power, and the heavy thinking happens at your model provider. On the Pi:
+
+```bash
+git clone https://github.com/ofFBeaT9/m1frame ~/m1frame
+bash ~/m1frame/scripts/install_pi.sh
+```
+
+It asks for your AI provider and key and an owner password, installs everything in a private
+Python environment, gives the Pi a free public HTTPS address with Tailscale Funnel (you sign
+in to Tailscale once in a browser link it prints), and runs m1frame as a service that starts
+on boot. At the end it prints the URL to paste into Claude, ChatGPT and other apps
+(step 5 below). Update later with `bash ~/m1frame/scripts/install_pi.sh --update`.
+
+If Tailscale says Funnel isn't enabled, turn on **HTTPS** and **Funnel** in the Tailscale
+admin console (the script prints the link) and run the script again.
+
+The steps below are the manual route for any other machine.
+
 ## 1. Choose where it runs
 
 | Option | Cost | Notes |
 |---|---|---|
-| A computer at home that stays on | free | Your files and local models (Ollama) stay at home. It's offline when the computer sleeps. |
+| A Raspberry Pi or other computer at home that stays on | free | Your files and local models (Ollama) stay at home. It's offline when the computer sleeps. |
 | A small cloud server (VPS) | ~$5/month | Always on. Use a cloud model backend (Claude, OpenAI, OpenRouter). |
 
 ## 2. Configure
@@ -33,7 +54,7 @@ cp .env.example .env
 
 In `.env` set:
 
-- a model key (e.g. `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`) and pick the backend in `config.yaml` (`backend: ...`);
+- a model key (e.g. `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`) and the backend, either as `M1FRAME_BACKEND=openrouter` in `.env` (keeps `config.yaml` untouched for updates) or `backend:` in `config.yaml`. `M1FRAME_MODEL` optionally picks the model;
 - `M1FRAME_OWNER_PASSWORD`: 12+ characters. You type this on m1frame's sign-in page each time you connect a new app;
 - `M1FRAME_API_TOKEN`: a long random string for chat apps that use `/v1` (e.g. `python -c "import secrets;print(secrets.token_urlsafe(32))"`).
 

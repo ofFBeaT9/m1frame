@@ -192,6 +192,14 @@ def main(argv=None) -> None:
     p.add_argument("--state-dir", default=os.environ.get("M1FRAME_STATE_DIR", "runs"))
     p.add_argument("--revoke-all", action="store_true", help="sign out every connected app and exit")
     a = p.parse_args(argv)
+    from dotenv import load_dotenv
+    load_dotenv(Path(".env").resolve(), override=False)   # same .env the model keys live in
+    if not a.public_url:
+        a.public_url = os.environ.get("M1FRAME_PUBLIC_URL", "")
+    if "HOST" in os.environ and a.host == "0.0.0.0":
+        a.host = os.environ["HOST"]
+    if "PORT" in os.environ and a.port == 8765:
+        a.port = int(os.environ["PORT"])
 
     password = os.environ.get("M1FRAME_OWNER_PASSWORD", "")
     if not a.public_url:

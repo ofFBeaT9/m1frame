@@ -24,6 +24,12 @@ def load_config(config_path: str = "config.yaml") -> dict:
         cfg = yaml.safe_load(f) or {}
     if cfg.get('environment_file'):
         load_dotenv(Path(cfg['environment_file']), override=False)
+    # Deployment overrides (e.g. a Raspberry Pi's .env) so local choices never edit
+    # the tracked config.yaml and `git pull` updates stay conflict-free.
+    if os.environ.get('M1FRAME_BACKEND'):
+        cfg['backend'] = os.environ['M1FRAME_BACKEND'].strip()
+    if os.environ.get('M1FRAME_MODEL'):
+        cfg.setdefault(cfg.get('backend', 'claude'), {})['model'] = os.environ['M1FRAME_MODEL'].strip()
     from modules.controller import effective_config
     return effective_config(cfg)
 

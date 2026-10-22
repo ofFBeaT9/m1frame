@@ -6,6 +6,18 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.13.0] — 2026-10-22 — Raspberry Pi
+
+- `scripts/install_pi.sh`: one-command setup on a Raspberry Pi (or any Debian-family Linux):
+  private venv, `.env` (provider key, owner password, generated API token), a public HTTPS
+  address via Tailscale Funnel, and a systemd service bound to localhost that starts on boot.
+  `--update` pulls and restarts. Re-runs keep existing settings.
+- `M1FRAME_BACKEND` / `M1FRAME_MODEL` environment overrides, so deployments never edit the
+  tracked `config.yaml`. `python -m remote` now reads `.env` itself.
+- Fixed: `python -m remote --revoke-all` run beside a live server now takes effect at once
+  and can no longer be overwritten by the server's in-memory state.
+- All dependencies verified to install from prebuilt ARM64 wheels on Python 3.11 and 3.13.
+
 ## [1.12.0] — 2026-10-22 — Remote m1frame
 
 - Added `remote/` (`python -m remote`, `m1frame-remote`): one HTTPS service any AI on any
