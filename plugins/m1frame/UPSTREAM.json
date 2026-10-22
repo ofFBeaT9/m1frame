@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/ofFBeaT9/m1frame",
   "commit": "4510937",
-  "version": "1.11.0",
-  "modifications": "Operational audit repairs and synchronized runtime from the containing 0.2.0 source (adds the portable front door); see VALIDATION.md. Not a live-readiness certification."
+  "version": "1.12.0",
+  "modifications": "Operational audit repairs and synchronized runtime from the containing 0.3.0 source (portable front door and remote server); see VALIDATION.md. Not a live-readiness certification."
 }

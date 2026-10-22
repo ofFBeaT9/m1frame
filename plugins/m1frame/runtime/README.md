@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 
-> **v1.11.0:** Portable front door — see [PORTABLE.md](PORTABLE.md). Studio chat uses the full workflow by default. Story agents can
+> **v1.12.0:** Remote access for any AI on any device — see [REMOTE.md](REMOTE.md). Portable front door — see [PORTABLE.md](PORTABLE.md). Studio chat uses the full workflow by default. Story agents can
 > retrieve skills and execute registered tools; coding assistants follow AGENTS.md.
 > Security hardening and adversarial regression results: [red-team QA](REDTEAM_QA.md).
 > See [full-system QA](FULL_SYSTEM_QA.md) for setup, checks and connection limits.
@@ -56,6 +56,10 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > m1frame as a "model" in Open WebUI, Jan, LibreChat, n8n…), the **`m1frame_agent` MCP tool**,
 > and the messaging gateways. The MCP server now ships its routing contract to every host.
 > Non-Claude models' tool calls no longer get silently dropped. 📖 **[PORTABLE.md](PORTABLE.md)**
+>
+> **🌍 Remote m1frame (v1.12).** Run it once, reach it from any AI on any device: Claude (web, desktop,
+> phone), ChatGPT, Cursor, Gemini CLI via an OAuth-protected MCP URL, and chat apps via `/v1`.
+> `docker compose --profile remote up -d`. 📖 **[REMOTE.md](REMOTE.md)**
 
 Latest repair evidence and remaining limits: [operational audit repairs](AUDIT_REPAIRS.md).
 

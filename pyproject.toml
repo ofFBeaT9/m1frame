@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "m1frame"
-version = "1.11.0"
+version = "1.12.0"
 description = "Portable multi-agent AI framework with a real-time Studio UI: BMAD · Council · Miras · Karpathy · LLM Wiki"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,6 +41,7 @@ Changelog = "https://github.com/ofFBeaT9/m1frame/blob/main/CHANGELOG.md"
 [project.scripts]
 m1frame = "scripts.run_workflow:main"
 m1frame-agent = "frontdoor.__main__:main"
+m1frame-remote = "remote.server:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.4.0", "mypy>=1.10.1"]
@@ -74,7 +75,7 @@ python_files = ["qa_validate.py", "test_*.py"]
 py-modules = ["llm_client", "mcp_server"]
 
 [tool.setuptools.packages.find]
-include = ["agents*", "api*", "frontdoor*", "gateways*", "guardrails*", "m1frame*", "modules*", "optimizers*", "scientific*", "scripts*", "sensors*", "studio*", "tools*"]
+include = ["agents*", "api*", "frontdoor*", "remote*", "gateways*", "guardrails*", "m1frame*", "modules*", "optimizers*", "scientific*", "scripts*", "sensors*", "studio*", "tools*"]
 exclude = ["scripts.test*", "*.tests*"]
 
 [tool.setuptools.package-data]

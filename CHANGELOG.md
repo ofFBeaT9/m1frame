@@ -6,6 +6,22 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.12.0] — 2026-10-22 — Remote m1frame
+
+- Added `remote/` (`python -m remote`, `m1frame-remote`): one HTTPS service any AI on any
+  device can use. MCP over streamable HTTP at `/mcp`, protected by a built-in single-owner
+  OAuth 2.1 server (discovery, dynamic client registration, PKCE, refresh rotation, revocation)
+  with an owner sign-in page; the OpenAI-compatible API at `/v1` accepts `M1FRAME_API_TOKEN`
+  or an OAuth token.
+- Same tools as the local MCP server, executed off the event loop, plus `m1frame_start` /
+  `m1frame_result` for pipeline runs longer than a host's tool timeout. The local Studio
+  launcher is not exposed remotely.
+- Login lockouts (per address and global), hashed token storage, optional redirect-host
+  allowlist, `--revoke-all`.
+- `docker compose --profile remote` service and an optional Cloudflare tunnel profile;
+  REMOTE.md setup guide (Tailscale Funnel, Cloudflare Tunnel, VPS) and per-app connection steps.
+- Codex plugin 0.3.0 bundles the remote server.
+
 ## [1.11.0] — 2026-10-22 — Portable front door
 
 - Added `frontdoor/`: a main agent that every prompt enters on any configured backend
