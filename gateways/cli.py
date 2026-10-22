@@ -13,7 +13,7 @@ import os
 import sys
 import time
 
-from .handlers import make_default_handler
+from .handlers import make_agent_or_none, make_default_handler
 from .router import GatewayRouter, InboundMessage
 
 
@@ -22,7 +22,7 @@ def _status() -> dict:
 
 
 def run_cli() -> None:
-    router = GatewayRouter(handler=make_default_handler(), status_fn=_status)
+    router = GatewayRouter(handler=make_default_handler(agent=make_agent_or_none()), status_fn=_status)
     print("m1frame gateway (cli) — type /help or a message; Ctrl-D to exit.\n")
     try:
         for line in sys.stdin:
@@ -42,7 +42,7 @@ def run_telegram(poll_timeout: int = 25) -> None:
     if not token:
         sys.exit("Set TELEGRAM_BOT_TOKEN to run the Telegram gateway.")
     base = f"https://api.telegram.org/bot{token}"
-    router = GatewayRouter(handler=make_default_handler(), status_fn=_status)
+    router = GatewayRouter(handler=make_default_handler(agent=make_agent_or_none()), status_fn=_status)
     offset = None
     print("m1frame gateway (telegram) — polling…")
     while True:

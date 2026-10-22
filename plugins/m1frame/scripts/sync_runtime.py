@@ -3,11 +3,11 @@ import argparse
 import shutil
 from pathlib import Path
 
-CODE_DIRS = ('agents', 'api', 'gateways', 'm1frame', 'modules', 'optimizers',
+CODE_DIRS = ('agents', 'api', 'frontdoor', 'gateways', 'm1frame', 'modules', 'optimizers',
              'scientific', 'scripts', 'sensors', 'studio', 'tools')
 SUFFIXES = {'.py', '.js', '.cjs', '.html', '.css', '.json'}
 ROOT_FILES = ('__main__.py', 'llm_client.py', 'mcp_server.py', 'm1frame-studio.html',
-              'config.yaml', 'README.md', 'AUDIT_REPAIRS.md', 'CONTROLLER.md', 'requirements.txt', 'pyproject.toml')
+              'config.yaml', 'README.md', 'AUDIT_REPAIRS.md', 'CONTROLLER.md', 'PORTABLE.md', 'requirements.txt', 'pyproject.toml')
 
 
 def synchronize(check=False):

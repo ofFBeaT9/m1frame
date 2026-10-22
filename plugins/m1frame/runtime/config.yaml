@@ -82,6 +82,15 @@ controller:
   skillopt_required: true
   investigate_every_goal: true
 
+# ── Front door (portable main agent) ─────────────────────────────
+# Every prompt from `python -m frontdoor`, the /v1 OpenAI-compatible API, the
+# m1frame_agent MCP tool and the messaging gateways enters here. See PORTABLE.md.
+frontdoor:
+  default_mode: auto       # auto (agent decides) | full (always pipeline) | chat (no tools)
+  max_steps: 8             # tool calls per prompt before a forced final answer
+  tool_result_max_chars: 6000
+  gateways: true           # route plain Telegram/Slack/Discord/CLI messages via the agent
+
 # ── Pillar: BMAD ─────────────────────────────────────────────────
 bmad:
   max_subtasks: 10         # max stories in one Blueprint

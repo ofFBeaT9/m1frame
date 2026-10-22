@@ -43,6 +43,8 @@ the work. Discover broadly, load selectively, and report actual execution.
 - Host tools, MCP connections, API credentials, optional packages, and model windows
   are separate from repository files. These instructions do not install or connect them.
 - Full Studio chat is the default. Quick answer explicitly bypasses the workflow.
+- Outside coding hosts, `frontdoor/` applies this contract at runtime (CLI, `/v1` API,
+  `m1frame_agent` MCP tool, gateways). See `PORTABLE.md`.
 
 ## Validation
 

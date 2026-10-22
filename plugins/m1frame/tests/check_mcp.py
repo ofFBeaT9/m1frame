@@ -22,7 +22,7 @@ async def check(plugin, runtime):
         async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=45)) as client:
             await client.initialize()
             tools = await client.list_tools()
-            assert len(tools.tools) == 9
+            assert len(tools.tools) == 10
             for tool in tools.tools:
                 assert all(isinstance(getattr(tool.annotations, field), bool) for field in
                            ("readOnlyHint", "destructiveHint", "openWorldHint"))

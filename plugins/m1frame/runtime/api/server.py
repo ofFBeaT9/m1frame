@@ -268,7 +268,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         lifespan=lifespan, title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.10.1", docs_url="/docs", redoc_url="/redoc",
+        version="1.11.0", docs_url="/docs", redoc_url="/redoc",
     )
     @app.middleware("http")
     async def access_policy(request, call_next):
@@ -327,7 +327,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.10.1",
+            "status": "ok", "version": "1.11.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -688,6 +688,21 @@ def create_app() -> FastAPI:
                 "can_run_live": _can_run_live(cfg), "runs": len(_RUNS)}
     _gw_router = GatewayRouter(handler=lambda m: grounded_answer(m.text), status_fn=_gw_status)
 
+    def _gw_agent_reply(msg, loop) -> str:
+        """Route a plain gateway message through the front door when a live backend is
+        configured. A pipeline request becomes an async Studio run (webhooks must answer
+        quickly), so the reply carries the run id instead of blocking for minutes."""
+        from frontdoor import FrontDoor
+
+        def launch(goal: str) -> dict:
+            fut = asyncio.run_coroutine_threadsafe(submit_run(RunRequest(goal=goal)), loop)
+            res = fut.result(timeout=15)
+            return {"output": f"Started full deliberation, run {res['run_id']}. Watch it live in Studio.",
+                    "run_id": res["run_id"], "receipt": None, "score": None, "approved": None}
+        agent = FrontDoor.from_config(cfg.get("backend"), workflow=launch)
+        result = agent.handle(msg.text)
+        return f"{result.answer}\n\n[{result.receipt()}]"
+
     @app.get("/gateway/status")
     async def gateway_status():
         return {"platforms": list(_gw_adapters.ADAPTERS.keys()) + ["webhook", "cli"],
@@ -707,11 +722,27 @@ def create_app() -> FastAPI:
             res = await submit_run(RunRequest(goal=text[4:].strip()))
             out = OutboundMessage(text=f"▸ started deliberation · run {res['run_id']} ({res['mode']}). "
                                        f"Watch it live in Studio.", channel=msg.channel, platform=platform)
+        elif text and not text.startswith("/") and _can_run_live(cfg) \
+                and (cfg.get("frontdoor") or {}).get("gateways", True):
+            loop = asyncio.get_running_loop()
+            try:
+                reply = await asyncio.to_thread(_gw_agent_reply, msg, loop)
+            except Exception as e:  # noqa: BLE001 — degrade to offline grounded recall
+                reply = grounded_answer(text) + f"\n(agent unavailable: {e})"
+            out = OutboundMessage(text=reply, channel=msg.channel, platform=platform)
         else:
             out = await asyncio.to_thread(_gw_router.handle, msg)
         delivered = await asyncio.to_thread(_gw_adapters.deliver, out)       # best-effort; needs platform creds
         return {"ok": True, "reply": out.text, "delivered": delivered,
                 "payload": _gw_adapters.format_out(platform, out)}
+
+    # ── OpenAI-compatible front door (/v1) — any chat app can use m1frame as a model ──
+    from frontdoor.openai_server import register_routes as _register_openai
+
+    def _frontdoor_factory():
+        from frontdoor import FrontDoor
+        return FrontDoor.from_config(cfg.get("backend"))   # dangerous tools stay denied
+    _register_openai(app, _frontdoor_factory)   # auth: the access_policy middleware above
 
     # ── model registry ────────────────────────────────────────────────────────────
     @app.get("/backends")

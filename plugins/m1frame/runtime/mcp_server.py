@@ -4,6 +4,7 @@ mcp_server.py — m1frame as an MCP server for Claude Code (and any MCP client).
 
 Exposes the whole framework over stdio so Claude Code's agent can:
   • run the 7-pillar deliberation on a goal               → m1frame_run
+  • hand a whole prompt to m1frame's own agent             → m1frame_agent
   • ask the grounded knowledge graph (offline, cited)     → m1frame_ask
   • call any of m1frame's 40 auditable tools              → m1frame_call_tool
   • discover tools / learned skills                       → m1frame_list_tools / m1frame_list_skills
@@ -31,7 +32,23 @@ try:
 except Exception:  # noqa: BLE001
     sys.exit("The m1frame MCP server needs the MCP SDK. Install it with:  pip install mcp")
 
-mcp = FastMCP("m1frame")
+# Delivered to every MCP host at initialize (Claude Desktop/Code, Codex, Cursor,
+# Gemini CLI, ChatGPT connectors, ...). This is the portable form of the routing
+# contract that used to live only in AGENTS.md/CLAUDE.md, which non-coding hosts never read.
+ROUTING_INSTRUCTIONS = """m1frame is a multi-agent pipeline (BMAD planning, LLM Council debate,
+OpenPlanter investigation, Miras sub-agents, Karpathy refinement, Council QA gate with an
+independent red-team, LLM-wiki knowledge graph). How to use it:
+- Before substantive decisions, recall prior conclusions with m1frame_ask (offline, cited).
+- For a substantive goal (build/design/plan/investigate/decide/compare), call m1frame_run with the
+  user's goal and constraints preserved verbatim. It is slow and may make paid model calls.
+- To hand a whole prompt to m1frame and let its own agent decide (direct answer, tools, or the full
+  pipeline), call m1frame_agent. Useful when this host's model should not do the routing itself.
+- Discover capabilities with m1frame_context, m1frame_list_tools, m1frame_list_skills.
+- m1frame_call_tool runs one registered tool; approve=true only when the user authorised that action.
+- Report the score, gate and receipt that m1frame returns. Never claim a pillar ran if it did not,
+  and never call m1frame_run/m1frame_agent from inside an m1frame workflow."""
+
+mcp = FastMCP("m1frame", instructions=ROUTING_INSTRUCTIONS)
 
 # ── Studio (UI) helpers — auto-start + a reachable URL for phones ──────────────
 _STUDIO_BIND = os.environ.get("M1_STUDIO_BIND", "127.0.0.1")
@@ -89,6 +106,38 @@ def m1frame_run(goal: str, skip_council: bool = False, skip_wiki: bool = False) 
         evidence += (f"\nController: full workflow · Headroom checks: {usage.get('headroom_checks', 0)}"
                      f" · SkillOpt evaluations: {usage.get('skillopt_evaluations', 0)}")
     return head + output + (evidence if res.get("receipt") else "")
+
+
+@mcp.tool()
+def m1frame_agent(prompt: str, mode: str = "auto") -> str:
+    """Hand a whole prompt to m1frame's own main agent (the portable front door).
+
+    m1frame's configured backend decides how to handle it: answer directly, call its
+    registered tools, recall the knowledge graph, or run the full 7-pillar pipeline.
+    Dangerous tools (file writes) are denied here; use m1frame_call_tool with approve.
+
+    Args:
+        prompt: The user's request, verbatim.
+        mode: "auto" (agent decides), "full" (always run the pipeline), "chat" (no tools).
+
+    Returns: The answer followed by a receipt of the tools and pillars that actually ran.
+    """
+    from frontdoor import FrontDoor
+    if mode not in ("auto", "full", "chat"):
+        return "mode must be one of: auto, full, chat"
+    try:
+        result = FrontDoor.from_config().handle(prompt, mode=mode)
+    except ValueError as exc:   # controller policy refusal
+        return str(exc)
+    return f"{result.answer}\n\n---\nm1frame: {result.receipt()}"
+
+
+@mcp.prompt(name="m1frame", description="Run a goal through the full m1frame pipeline")
+def m1frame_prompt(goal: str) -> str:
+    """Slash-command style entry for hosts that surface MCP prompts."""
+    return (f"Use m1frame for this goal. First call m1frame_ask to recall prior conclusions, "
+            f"then call m1frame_run with the goal below preserved verbatim, then present the "
+            f"result with its council score, gate and receipt.\n\nGoal: {goal}")
 
 
 @mcp.tool()

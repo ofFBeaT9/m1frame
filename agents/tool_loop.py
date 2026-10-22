@@ -6,6 +6,7 @@ import uuid
 
 from agents.context import clip
 from agents.guardrails import GuardrailEngine
+from frontdoor.protocol import parse_tool_call
 from tools import default_registry
 
 CONTRACT = """
@@ -38,15 +39,14 @@ def run_with_tools(llm, prompt: str, system: str, temperature: float = 0.2,
     guard = GuardrailEngine()
     for step in range(rounds + 1):
         raw = llm.chat(prompt=current, system=system, temperature=temperature, history=history)
-        try:
-            request = json.loads(raw)
-        except (ValueError, TypeError):
-            return raw
-        if not isinstance(request, dict) or "m1frame_tool" not in request:
+        # Tolerant parse: non-Claude models often fence the JSON or add a preamble;
+        # a strict json.loads(raw) silently skipped their tool calls.
+        request = parse_tool_call(raw, set(registry.names()))
+        if request is None:
             return raw
         if step == rounds:
             raise RuntimeError("Story tool-call budget exhausted before a final deliverable")
-        name, args = request.get("m1frame_tool"), request.get("arguments", {})
+        name, args = request
         if not isinstance(name, str) or not isinstance(args, dict):
             raise ValueError("Invalid M1Frame tool request: expected name and argument object")
         try:
