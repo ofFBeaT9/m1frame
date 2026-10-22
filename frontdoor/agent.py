@@ -73,9 +73,9 @@ class FrontDoorResult:
         return f"mode={self.mode} · tools: {used}{extra}"
 
 
-def _default_workflow(goal: str) -> dict:
+def _default_workflow(goal: str, backend: str | None = None) -> dict:
     from scripts.run_workflow import run_workflow
-    res = run_workflow(goal=goal, verbose=False)
+    res = run_workflow(goal=goal, backend=backend, verbose=False)
     verdict = res.get("verdict")
     return {
         "output": res.get("output") or "(no output)",
@@ -104,25 +104,55 @@ class FrontDoor:
     registry:  a ToolRegistry; defaults to m1frame's built-ins (+ any MCP tools you attached).
     approve:   callback(tool_name, args) -> bool for tools marked dangerous. Default: deny.
     workflow / wiki / context: injectable for tests; default to the real pillars.
+    config:    the loaded config.yaml dict. Enables controller policy (a full-workflow
+               controller forces `full` and refuses `chat`) and guardrails.
     """
+
+    @classmethod
+    def from_config(cls, backend: str | None = None, config_path: str = "config.yaml", **kw):
+        """Build from config.yaml (`frontdoor:` block) with the configured LLM backend."""
+        from llm_client import LLMClient, load_config
+        cfg = load_config(config_path)
+        fd_cfg = cfg.get("frontdoor") or {}
+        kw.setdefault("max_steps", int(fd_cfg.get("max_steps", 8)))
+        kw.setdefault("result_chars", int(fd_cfg.get("tool_result_max_chars", 6000)))
+        kw.setdefault("default_mode", fd_cfg.get("default_mode", "auto"))
+        return cls(LLMClient(config_path=config_path, override_backend=backend), config=cfg, **kw)
 
     def __init__(self, llm, registry=None, *, max_steps: int = 8,
                  approve: Callable[[str, dict], bool] | None = None,
                  workflow: Callable[[str], dict] | None = None,
                  wiki: Callable[..., str] | None = None,
                  context: Callable[..., dict] | None = None,
-                 result_chars: int = 6000, temperature: float = 0.2) -> None:
+                 result_chars: int = 6000, temperature: float = 0.2,
+                 config: dict | None = None, default_mode: str = "auto") -> None:
         if registry is None:
             from tools import default_registry
             registry = default_registry()
         self.llm, self.registry = llm, registry
         self.max_steps = max(1, min(max_steps, 24))
         self.approve = approve or (lambda _n, _a: False)
-        self._workflow = workflow or _default_workflow
+        backend = getattr(llm, "backend", None)
+        # The pipeline runs on the same backend the front door was given (e.g. --backend ollama).
+        self._workflow = workflow or (lambda goal: _default_workflow(goal, backend))
         self._wiki = wiki or _default_wiki
         self._context = context or _default_context
         self.result_chars, self.temperature = result_chars, temperature
         self._last_workflow: dict | None = None
+        self.config = config or {}
+        self.default_mode = default_mode if default_mode in ("auto", "full", "chat") else "auto"
+        from agents.guardrails import GuardrailEngine
+        self.guard = GuardrailEngine(self.config.get("guardrails") or {})
+
+    def _policy_mode(self, mode: str) -> str:
+        """Apply the repository's controller policy (modules/controller.py)."""
+        from modules.controller import chat_mode, controller_policy
+        policy = controller_policy(self.config)
+        if policy["enabled"] and policy["require_full_workflow"]:
+            if mode == "chat":
+                chat_mode(self.config, "quick")      # raises ValueError with the canonical message
+            return "full"
+        return mode
 
     # ── tool surface ─────────────────────────────────────────────────────
     def _pillar_specs(self) -> list[dict]:
@@ -162,7 +192,7 @@ class FrontDoor:
 
     # ── main entry ───────────────────────────────────────────────────────
     def handle(self, prompt: str, history: list[dict] | None = None,
-               mode: str = "auto") -> FrontDoorResult:
+               mode: str | None = None) -> FrontDoorResult:
         """mode: 'auto' (agent decides), 'full' (force pipeline), 'chat' (no tools).
         Prefixes in the prompt override: '/run ...' -> full, '/quick ...' -> chat."""
         text = (prompt or "").strip()
@@ -171,13 +201,22 @@ class FrontDoor:
             mode, text = "full", text[5:].strip()
         elif low.startswith("/quick "):
             mode, text = "chat", text[7:].strip()
+        mode = self._policy_mode(mode or self.default_mode)
         history = list(history or [])
         self._last_workflow = None
+
+        if mode != "full":
+            # The full pipeline runs its own input gate; guard the direct paths here.
+            gate = self.guard.check_input(text)
+            if not gate.allowed:
+                return FrontDoorResult(answer="Request blocked by m1frame guardrails: "
+                                       + ", ".join(gate.categories or gate.reasons or ["policy"]),
+                                       mode=mode)
 
         if mode == "chat":
             answer = self.llm.chat(prompt=text, system="You are m1frame. Answer directly and concisely.",
                                    temperature=self.temperature, history=history)
-            return FrontDoorResult(answer=answer, mode="chat")
+            return FrontDoorResult(answer=self._out(answer), mode="chat")
 
         if mode == "full":
             # Enforced entry gate: no reliance on the model choosing to call the pipeline.
@@ -200,7 +239,8 @@ class FrontDoor:
             raw = self.llm.chat(prompt=current, system=system, temperature=self.temperature, history=history)
             call = parse_tool_call(raw, known)
             if call is None:
-                return FrontDoorResult(answer=raw, mode="auto", steps=steps, workflow=self._last_workflow)
+                return FrontDoorResult(answer=self._out(raw), mode="auto", steps=steps,
+                                       workflow=self._last_workflow)
             name, args = call
             if i == self.max_steps:
                 break
@@ -209,7 +249,9 @@ class FrontDoor:
                 ok, payload = True, {"tool": name, "result": result}
             except Exception as exc:  # noqa: BLE001 — errors go back to the model
                 ok, payload = False, {"tool": name, "error": str(exc)}
-            text_result = json.dumps(payload, ensure_ascii=False, default=str)[: self.result_chars]
+            # Tool output is untrusted: redact secrets, quarantine injection attempts.
+            text_result = self.guard.check_ingest(
+                json.dumps(payload, ensure_ascii=False, default=str)).text[: self.result_chars]
             steps.append(Step(name, args, ok, text_result[:200]))
             history += [{"role": "user", "content": current}, {"role": "assistant", "content": raw}]
             left = self.max_steps - i - 1
@@ -219,4 +261,10 @@ class FrontDoor:
         # Budget spent: force a plain-text wrap-up instead of failing.
         final = self.llm.chat(prompt=current + "\nNo more tools. Final answer as plain text now.",
                               system=system, temperature=self.temperature, history=history)
-        return FrontDoorResult(answer=final, mode="auto", steps=steps, workflow=self._last_workflow)
+        return FrontDoorResult(answer=self._out(final), mode="auto", steps=steps,
+                               workflow=self._last_workflow)
+
+    def _out(self, text: str) -> str:
+        """Final-output gate for direct answers (the pipeline applies its own)."""
+        gate = self.guard.check_output(text or "")
+        return gate.text if gate.allowed else "Response withheld by m1frame output guardrails."

@@ -141,5 +141,105 @@ class StoryLoopRegression(unittest.TestCase):
         self.assertIn("81", llm.calls[1]["prompt"])
 
 
+class PolicyAndGuardTests(unittest.TestCase):
+    CONTROLLER = {"controller": {"enabled": True, "require_full_workflow": True}}
+
+    def test_controller_forces_full_pipeline(self):
+        r = fd(ScriptedLLM([]), config=self.CONTROLLER).handle("hello")
+        self.assertEqual(r.mode, "full")
+        self.assertEqual(r.steps[-1].tool, "m1frame_run")
+
+    def test_controller_refuses_quick_chat(self):
+        with self.assertRaises(ValueError):
+            fd(ScriptedLLM([]), config=self.CONTROLLER).handle("/quick hi")
+
+    def test_default_mode_from_config(self):
+        r = fd(ScriptedLLM([]), default_mode="full").handle("plan it")
+        self.assertEqual(r.mode, "full")
+
+    def test_tool_results_pass_ingest_guard(self):
+        reg = registry()
+        reg.register(Tool("leak", "x", lambda: "key AKIAABCDEFGHIJKLMNOP here", {}))
+        llm = ScriptedLLM(['{"m1frame_tool":"leak","arguments":{}}', "done"])
+        FrontDoor(llm, reg, workflow=lambda g: {}, wiki=lambda q, n=3: "", context=lambda q="": {}).handle("go")
+        self.assertNotIn("AKIAABCDEFGHIJKLMNOP", llm.calls[1]["prompt"])
+
+    def test_backend_is_passed_to_pipeline(self):
+        import frontdoor.agent as agent_mod
+        seen = {}
+        original = agent_mod._default_workflow
+        agent_mod._default_workflow = lambda goal, backend=None: seen.setdefault("b", backend) and {"output": ""}
+        try:
+            llm = ScriptedLLM([])
+            llm.backend = "ollama"
+            FrontDoor(llm, registry(), wiki=lambda q, n=3: "", context=lambda q="": {}).handle("/run x")
+        finally:
+            agent_mod._default_workflow = original
+        self.assertEqual(seen["b"], "ollama")
+
+
+class IntegrationSurfaceTests(unittest.TestCase):
+    def test_register_routes_on_existing_app(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from frontdoor.openai_server import register_routes
+        app = FastAPI()
+        register_routes(app, lambda: fd(ScriptedLLM(["ok"])))
+        res = TestClient(app).post("/v1/chat/completions", json={
+            "messages": [{"role": "user", "content": "hi"}]}).json()
+        self.assertTrue(res["choices"][0]["message"]["content"].startswith("ok"))
+
+    def test_standalone_key_required(self):
+        from fastapi.testclient import TestClient
+        client = TestClient(build_app(lambda: fd(ScriptedLLM(["ok"])), key="secret"))
+        self.assertEqual(client.get("/v1/models").status_code, 401)
+        self.assertEqual(client.get("/v1/models", headers={"Authorization": "Bearer secret"}).status_code, 200)
+
+    def test_policy_refusal_is_http_400(self):
+        from fastapi.testclient import TestClient
+        agent = fd(ScriptedLLM([]), config=PolicyAndGuardTests.CONTROLLER)
+        client = TestClient(build_app(lambda: agent, key=""))
+        r = client.post("/v1/chat/completions", json={"model": "m1frame-chat",
+                        "messages": [{"role": "user", "content": "hi"}]})
+        self.assertEqual(r.status_code, 400)
+
+    def test_gateway_handler_uses_agent(self):
+        from gateways.handlers import make_default_handler
+        from gateways.router import GatewayRouter, InboundMessage
+        router = GatewayRouter(handler=make_default_handler(agent=fd(ScriptedLLM(["agent reply"]))))
+        self.assertIn("agent reply", router.handle(InboundMessage(text="hello")).text)
+        full = GatewayRouter(handler=make_default_handler(agent=fd(ScriptedLLM([]))))
+        self.assertIn("PIPELINE:build x", full.handle(InboundMessage(text="/run build x")).text)
+
+    def test_gateway_without_agent_stays_offline(self):
+        from gateways.handlers import make_default_handler
+        from gateways.router import InboundMessage
+        out = make_default_handler()(InboundMessage(text="m1frame"))
+        self.assertIsInstance(out, str)
+
+    def test_mcp_server_exposes_routing_and_agent(self):
+        try:
+            import mcp_server
+        except SystemExit:
+            self.skipTest("mcp SDK not installed")
+        import asyncio
+        self.assertIn("m1frame_run", mcp_server.ROUTING_INSTRUCTIONS)
+        names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
+        self.assertIn("m1frame_agent", names)
+        prompts = {p.name for p in asyncio.run(mcp_server.mcp.list_prompts())}
+        self.assertIn("m1frame", prompts)
+
+
+class StudioServerTests(unittest.TestCase):
+    def test_studio_serves_v1_models(self):
+        from fastapi.testclient import TestClient
+
+        from api.server import create_app
+        with TestClient(create_app()) as client:
+            ids = [m["id"] for m in client.get("/v1/models").json()["data"]]
+        self.assertEqual(set(ids), {"m1frame", "m1frame-full", "m1frame-chat"})
+
+
 if __name__ == "__main__":
     unittest.main()

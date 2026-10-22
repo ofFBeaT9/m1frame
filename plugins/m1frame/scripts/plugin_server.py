@@ -79,6 +79,7 @@ def configure_server(upstream):
     effects = {
         "m1frame_context": (True, False, False),
         "m1frame_run": (False, True, True),
+        "m1frame_agent": (False, True, True),
         "m1frame_ask": (True, False, False),
         "m1frame_list_tools": (True, False, False),
         "m1frame_call_tool": (False, True, True),

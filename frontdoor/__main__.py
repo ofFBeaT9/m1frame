@@ -4,12 +4,13 @@
   python -m frontdoor ask "plan a FastAPI app"  one-shot
   python -m frontdoor serve --port 8765         OpenAI-compatible API for any app
   --backend ollama|openrouter|openai|claude|claudecli|lmstudio|...   override config.yaml
-  --mode auto|full|chat
+  --mode auto|full|chat                         default: frontdoor.default_mode in config.yaml
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 
@@ -18,21 +19,16 @@ def _approve_cli(name: str, args: dict) -> bool:
     return input("allow? [y/N] ").strip().lower() == "y"
 
 
-def _frontdoor(backend: str | None, interactive: bool):
-    from frontdoor.agent import FrontDoor
-    from llm_client import LLMClient
-    return FrontDoor(LLMClient(override_backend=backend),
-                     approve=_approve_cli if interactive else None)
-
-
 def main(argv=None) -> None:
-    p = argparse.ArgumentParser(prog="frontdoor")
+    p = argparse.ArgumentParser(prog="frontdoor", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     for name in ("chat", "ask", "serve"):
         sp = sub.add_parser(name)
         sp.add_argument("--backend", default=None)
+        sp.add_argument("--config", default="config.yaml")
         if name != "serve":
-            sp.add_argument("--mode", default="auto", choices=["auto", "full", "chat"])
+            sp.add_argument("--mode", default=None, choices=["auto", "full", "chat"])
         if name == "ask":
             sp.add_argument("prompt")
         if name == "serve":
@@ -40,24 +36,31 @@ def main(argv=None) -> None:
             sp.add_argument("--port", type=int, default=8765)
     a = p.parse_args(argv)
 
-    if a.cmd == "serve":
-        import uvicorn
+    from frontdoor.agent import FrontDoor
 
-        from frontdoor.agent import FrontDoor
-        from frontdoor.openai_server import build_app
-        from llm_client import LLMClient
-        app = build_app(lambda: FrontDoor(LLMClient(override_backend=a.backend)))
-        print(f"m1frame front door on http://{a.host}:{a.port}/v1  (models: m1frame, m1frame-full, m1frame-chat)")
+    if a.cmd == "serve":
+        from frontdoor.openai_server import LOOPBACK, build_app
+        if a.host not in LOOPBACK and not os.environ.get("M1FRAME_PROXY_KEY"):
+            p.error("binding beyond loopback requires M1FRAME_PROXY_KEY")
+        import uvicorn
+        app = build_app(lambda: FrontDoor.from_config(a.backend, a.config))
+        print(f"m1frame front door on http://{a.host}:{a.port}/v1 "
+              "(models: m1frame, m1frame-full, m1frame-chat)")
         uvicorn.run(app, host=a.host, port=a.port)
         return
 
-    fd = _frontdoor(a.backend, interactive=sys.stdin.isatty())
+    interactive = sys.stdin.isatty()
+    fd = FrontDoor.from_config(a.backend, a.config, approve=_approve_cli if interactive else None)
     if a.cmd == "ask":
-        r = fd.handle(a.prompt, mode=a.mode)
+        try:
+            r = fd.handle(a.prompt, mode=a.mode)
+        except ValueError as exc:
+            sys.exit(str(exc))
         print(r.answer, f"\n\n[{r.receipt()}]", sep="")
         return
 
-    print("m1frame front door — /run <goal> forces the full pipeline, /quick <q> skips tools, Ctrl-D exits.")
+    print("m1frame front door — /run <goal> forces the full pipeline, "
+          "/quick <q> skips tools, Ctrl-D exits.")
     history: list[dict] = []
     while True:
         try:
@@ -67,7 +70,11 @@ def main(argv=None) -> None:
             return
         if not line:
             continue
-        r = fd.handle(line, history=history, mode=a.mode)
+        try:
+            r = fd.handle(line, history=history, mode=a.mode)
+        except ValueError as exc:
+            print(f"\nm1frame › {exc}")
+            continue
         print(f"\nm1frame › {r.answer}\n[{r.receipt()}]")
         history += [{"role": "user", "content": line}, {"role": "assistant", "content": r.answer}]
         history = history[-20:]

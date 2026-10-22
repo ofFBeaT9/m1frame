@@ -6,6 +6,24 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.11.0] — 2026-10-22 — Portable front door
+
+- Added `frontdoor/`: a main agent that every prompt enters on any configured backend
+  (Claude, OpenAI, OpenRouter, Ollama, LM Studio, vLLM, ...). Modes: `auto` (agent picks
+  direct answer, tools, or the full pipeline), `full` (enforced pipeline), `chat` (no tools).
+  Honors the controller policy and applies input/ingest/output guardrails.
+- Entry points: `python -m frontdoor chat|ask|serve` (also `m1frame-agent`), an
+  OpenAI-compatible `/v1/chat/completions` + `/v1/models` API (standalone and on Studio),
+  the `m1frame_agent` MCP tool and an `m1frame` MCP prompt.
+- The MCP server now sends the routing contract as server instructions, so every MCP host
+  receives it, not only hosts that read AGENTS.md/CLAUDE.md.
+- Messaging gateways route plain messages through the agent when a live backend is
+  configured; pipeline requests from Studio webhooks start async runs.
+- Fixed story-agent tool calls on non-Claude models: fenced or prefaced JSON and common
+  key variants (`tool`, `name` + `parameters`) were silently treated as final answers.
+- `--backend` overrides now carry through to the pipeline run.
+- Codex plugin 0.2.0 bundles the front door. See PORTABLE.md.
+
 ## [1.10.1] — 2026-09-30
 
 - Merge upstream optional ADHD formatting and Headroom compression without losing full Studio routing or chat history.

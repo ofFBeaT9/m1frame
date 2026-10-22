@@ -36,18 +36,43 @@ def grounded_answer(text: str, max_pages: int = 3) -> str:
         first = next((ln.strip() for ln in (p.get("body", "") or "").splitlines()
                       if ln.strip() and not ln.strip().startswith(("#", "-", "|", ">"))), "")
         lines.append(f"• {p.get('title')}: {first}".rstrip(": ").strip())
-    cites = ", ".join(p.get("title") for _, p in scored[:max_pages])
+    cites = ", ".join(str(p.get("title")) for _, p in scored[:max_pages])
     return "\n".join(lines) + f"\n[grounded in: {cites}]"
 
 
-def make_default_handler(run_async: Callable[[str], str] | None = None
-                         ) -> Callable[[InboundMessage], str]:
+def make_default_handler(run_async: Callable[[str], str] | None = None,
+                         agent=None) -> Callable[[InboundMessage], str]:
+    """`agent` is an optional FrontDoor. With it, plain messages are routed by m1frame's
+    main agent (direct answer, tools, or the full pipeline) on the configured backend;
+    without it they get the offline grounded answer."""
     def handler(msg: InboundMessage) -> str:
         if (msg.meta or {}).get("mode") == "run":
             if run_async is not None:
                 rid = run_async(msg.text)
                 return (f"▸ started a 7-pillar deliberation on:\n  “{msg.text}”\n"
                         f"run id: {rid} — watch it live in Studio.")
+            if agent is not None:
+                result = agent.handle(msg.text, mode="full")
+                return f"{result.answer}\n\n[{result.receipt()}]"
             return "Run mode needs the API server (start: python api/server.py), then POST /run."
+        if agent is not None:
+            try:
+                result = agent.handle(msg.text)
+                return f"{result.answer}\n\n[{result.receipt()}]"
+            except Exception as exc:  # noqa: BLE001 — fall back to offline recall, never crash
+                return grounded_answer(msg.text) + f"\n(agent unavailable: {exc})"
         return grounded_answer(msg.text)
     return handler
+
+
+def make_agent_or_none():
+    """Build a FrontDoor from config.yaml when `frontdoor.gateways` is on and the
+    backend is usable; otherwise None (gateways stay fully offline-capable)."""
+    try:
+        from llm_client import load_config
+        if not ((load_config().get("frontdoor") or {}).get("gateways", True)):
+            return None
+        from frontdoor import FrontDoor
+        return FrontDoor.from_config()
+    except Exception:  # noqa: BLE001 — missing key/package ⇒ offline grounded mode
+        return None
