@@ -44,6 +44,9 @@ server now ships the routing contract as **server instructions**, which every MC
 receives at connect time; the skill reinforces it where skills exist; and `m1frame_agent`
 lets a weak or busy host hand the whole prompt to m1frame's own agent.
 
+To reach m1frame from other devices and from hosted AIs (Claude, ChatGPT), see
+**[REMOTE.md](REMOTE.md)**.
+
 ## Use it
 
 ```bash

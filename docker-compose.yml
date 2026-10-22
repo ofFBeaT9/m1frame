@@ -25,3 +25,49 @@ services:
       - ./skills:/app/skills
       - ./runs:/app/runs
     restart: unless-stopped
+
+  # ── Remote m1frame: any AI, any device (see REMOTE.md) ───────────────────────
+  #   docker compose --profile remote up -d --build
+  # Serves MCP (OAuth sign-in) at /mcp and the OpenAI-compatible API at /v1 on :8765.
+  # Put it behind HTTPS (Tailscale Funnel, Cloudflare Tunnel below, or a reverse proxy).
+  m1frame-remote:
+    profiles: ["remote"]
+    build: .
+    image: m1frame:latest
+    command: ["python", "-m", "remote"]
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8765
+      - M1FRAME_PUBLIC_URL=${M1FRAME_PUBLIC_URL:-}          # e.g. https://m1frame.example.com
+      - M1FRAME_OWNER_PASSWORD=${M1FRAME_OWNER_PASSWORD:-}  # 12+ chars; asked when an app connects
+      - M1FRAME_API_TOKEN=${M1FRAME_API_TOKEN:-}            # key for chat apps using /v1
+      - M1FRAME_ALLOWED_REDIRECT_HOSTS=${M1FRAME_ALLOWED_REDIRECT_HOSTS:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    volumes:
+      - ./wiki:/app/wiki
+      - ./skills:/app/skills
+      - ./runs:/app/runs
+      - ./config.yaml:/app/config.yaml
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8765/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional public HTTPS via a Cloudflare named tunnel (needs a domain on Cloudflare).
+  #   docker compose --profile remote --profile tunnel up -d
+  # In the Cloudflare dashboard, route your hostname to http://m1frame-remote:8765.
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - m1frame-remote
+    restart: unless-stopped

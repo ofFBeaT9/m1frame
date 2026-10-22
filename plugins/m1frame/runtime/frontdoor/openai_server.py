@@ -51,10 +51,10 @@ def default_factory():
     return FrontDoor.from_config()          # dangerous tools stay denied over HTTP
 
 
-def register_routes(app, frontdoor_factory=None, check_auth=None) -> None:
+def register_routes(app, frontdoor_factory=None, check_auth=None, prefix: str = "/v1") -> None:
     """Add /v1/models and /v1/chat/completions to an existing FastAPI app.
     `check_auth(request)` may raise HTTPException; pass None when middleware already
-    authenticates (the Studio server does)."""
+    authenticates (the Studio server does). Use prefix="" when mounting under /v1."""
     from fastapi import HTTPException, Request
     from fastapi.concurrency import run_in_threadpool
     from fastapi.responses import JSONResponse, StreamingResponse
@@ -62,14 +62,14 @@ def register_routes(app, frontdoor_factory=None, check_auth=None) -> None:
     factory = frontdoor_factory or default_factory
     auth = check_auth or (lambda _r: None)
 
-    @app.get("/v1/models")
+    @app.get(f"{prefix}/models")
     def models(request: Request):
         auth(request)
         now = int(time.time())
         return {"object": "list", "data": [
             {"id": m, "object": "model", "created": now, "owned_by": "m1frame"} for m in MODELS]}
 
-    @app.post("/v1/chat/completions")
+    @app.post(f"{prefix}/chat/completions")
     async def chat(request: Request):
         auth(request)
         try:
