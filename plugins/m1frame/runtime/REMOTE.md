@@ -27,7 +27,7 @@ git clone https://github.com/ofFBeaT9/m1frame ~/m1frame
 bash ~/m1frame/scripts/install_pi.sh
 ```
 
-It asks for your AI provider and key and an owner password, installs everything in a private
+It asks for your AI provider and key (no key yet? answer "n" and add it later with `--set-key`) and an owner password, installs everything in a private
 Python environment, gives the Pi a free public HTTPS address with Tailscale Funnel (you sign
 in to Tailscale once in a browser link it prints), and runs m1frame as a service that starts
 on boot. At the end it prints the URL to paste into Claude, ChatGPT and other apps
