@@ -36,6 +36,14 @@ on boot. At the end it prints the URL to paste into Claude, ChatGPT and other ap
 If Tailscale says Funnel isn't enabled, turn on **HTTPS** and **Funnel** in the Tailscale
 admin console (the script prints the link) and run the script again.
 
+The installer also runs **Studio**, the live view of every run, at `https://<your-pi>:8443`
+(any username; the password is `M1FRAME_API_TOKEN` from `.env`). Runs started from Claude,
+ChatGPT, `/v1` or Telegram show up there as they happen.
+
+**Every module:** `bash ~/m1frame/scripts/install_pi.sh --full` adds Headroom, SkillOpt, vector search,
+the scientific skills, Exa/Voyage clients and Sentrux (Rust), and switches on full-pipeline mode for
+every request. Use a Pi with 4 GB+ (a Pi 5 with 8 GB is ideal).
+
 The steps below are the manual route for any other machine.
 
 ## 1. Choose where it runs

@@ -61,6 +61,11 @@ Fully offline-capable. Git-versionable. Zero lock-in.
 > phone), ChatGPT, Cursor, Gemini CLI via an OAuth-protected MCP URL, and chat apps via `/v1`.
 > `docker compose --profile remote up -d`, or on a **Raspberry Pi**: `bash scripts/install_pi.sh`.
 > 📖 **[REMOTE.md](REMOTE.md)**
+>
+> **📊 Does it beat one model call? (v1.14)** `python -m evals run` compares the full pipeline with a
+> single model call, judged blind with positions swapped, and writes a blind sheet for human experts.
+> Council members can now run on different providers, and Studio shows every run, wherever it started.
+> 📖 **[evals/README.md](evals/README.md)**
 
 Latest repair evidence and remaining limits: [operational audit repairs](AUDIT_REPAIRS.md).
 

@@ -30,6 +30,13 @@ def load_config(config_path: str = "config.yaml") -> dict:
         cfg['backend'] = os.environ['M1FRAME_BACKEND'].strip()
     if os.environ.get('M1FRAME_MODEL'):
         cfg.setdefault(cfg.get('backend', 'claude'), {})['model'] = os.environ['M1FRAME_MODEL'].strip()
+    # M1FRAME_CONTROLLER=on: every request runs the full pipeline (CONTROLLER.md).
+    if os.environ.get('M1FRAME_CONTROLLER', '').strip().lower() in {'1', 'on', 'true', 'yes', 'full'}:
+        cfg.setdefault('controller', {})['enabled'] = True
+    # M1FRAME_VECTOR_MODEL=<embedding model>: semantic wiki search with LanceDB.
+    if os.environ.get('M1FRAME_VECTOR_MODEL'):
+        cfg.setdefault('wiki', {}).update(vector_store='lancedb',
+                                          embed_model=os.environ['M1FRAME_VECTOR_MODEL'].strip())
     from modules.controller import effective_config
     return effective_config(cfg)
 

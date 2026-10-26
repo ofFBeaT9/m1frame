@@ -164,7 +164,17 @@ def _public(run: dict) -> dict:
 
 
 # ── Disk-backed run store (survives restarts; replayable in Studio) ────────────
-_RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
+_DEFAULT_RUNS_DIR = Path(__file__).resolve().parent.parent / "runs"
+_RUNS_DIR = _DEFAULT_RUNS_DIR
+
+
+def _runs_dir() -> Path:
+    """Same folder the run journal writes to (M1FRAME_RUNS_DIR overrides both);
+    an explicit reassignment of _RUNS_DIR still wins."""
+    if _RUNS_DIR != _DEFAULT_RUNS_DIR:
+        return _RUNS_DIR
+    from agents.journal import runs_dir
+    return runs_dir()
 
 
 def _persist_run(run: dict) -> None:
@@ -172,8 +182,8 @@ def _persist_run(run: dict) -> None:
     import json as _json
     import os as _os
     try:
-        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
-        path = _RUNS_DIR / f"{run['run_id']}.json"
+        _runs_dir().mkdir(parents=True, exist_ok=True)
+        path = _runs_dir() / f"{run['run_id']}.json"
         tmp = path.with_suffix(".json.tmp")
         tmp.write_text(_json.dumps(_public(run)), encoding="utf-8")
         _os.replace(tmp, path)
@@ -184,11 +194,13 @@ def _persist_run(run: dict) -> None:
 def _load_persisted_runs(limit: int = 50) -> int:
     """Load the most recent persisted runs into memory on startup."""
     import json as _json
-    if not _RUNS_DIR.exists():
+    if not _runs_dir().exists():
         return 0
     n = 0
-    files = sorted(_RUNS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    files = sorted(_runs_dir().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     for f in files[:limit]:
+        if f.stem in _RUNS:      # already loaded; this runs on every list request
+            continue
         try:
             d = _json.loads(f.read_text(encoding="utf-8"))
             rid = d.get("run_id")
@@ -199,6 +211,40 @@ def _load_persisted_runs(limit: int = 50) -> int:
         except Exception:  # noqa: BLE001
             continue
     return n
+
+
+def _sync_external() -> None:
+    """Bring runs started outside Studio (MCP, remote, /v1, gateways, CLI) into view.
+
+    Running ones come from the run journal's live files; finished ones from their
+    final file. Cheap enough to call on every list/get/stream request."""
+    from agents import journal
+    for rid in journal.list_live():
+        if rid not in _RUNS:
+            run = journal.read_live(rid)
+            if run:
+                run.update(bus=None, task=None, external=True)
+                _RUNS[rid] = run
+    for rid, run in list(_RUNS.items()):
+        if run.get("external") and run.get("status") == "running":
+            final = journal.read_final(rid)
+            if final:
+                final.update(bus=None, task=None, external=True)
+                _RUNS[rid] = final
+            elif rid not in journal.list_live():
+                run["status"] = "error"
+                run["error"] = "run journal disappeared before the run finished"
+    _load_persisted_runs(limit=50)
+
+
+def _allowed_origin(origin: str, base_url: str) -> bool:
+    """Same-origin, or a public address the owner configured (e.g. the Pi's HTTPS
+    name in front of Studio): M1FRAME_ALLOWED_ORIGINS=https://pi.example.ts.net:8443"""
+    origin = origin.rstrip("/")
+    if origin == base_url.rstrip("/"):
+        return True
+    extra = os.environ.get("M1FRAME_ALLOWED_ORIGINS", "")
+    return origin in {o.strip().rstrip("/") for o in extra.split(",") if o.strip()}
 
 
 def _can_run_live(cfg: dict, backend: str | None = None) -> bool:
@@ -268,13 +314,13 @@ def create_app() -> FastAPI:
     app = FastAPI(
         lifespan=lifespan, title="m1frame Studio API",
         description="Portable multi-agent AI OS — real-time REST + SSE interface",
-        version="1.13.0", docs_url="/docs", redoc_url="/redoc",
+        version="1.14.0", docs_url="/docs", redoc_url="/redoc",
     )
     @app.middleware("http")
     async def access_policy(request, call_next):
         # Same-origin browser access only; resist CSRF and DNS rebinding.
         origin = request.headers.get("origin")
-        if origin and origin.rstrip("/") != str(request.base_url).rstrip("/"):
+        if origin and not _allowed_origin(origin, str(request.base_url)):
             return JSONResponse({"detail": "cross-origin access denied"}, status_code=403)
         token = os.environ.get("M1FRAME_API_TOKEN", "")
         auth = request.headers.get("authorization", "")
@@ -327,7 +373,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health():
         return {
-            "status": "ok", "version": "1.13.0",
+            "status": "ok", "version": "1.14.0",
             "backend": cfg.get("backend", "claude"),
             "can_run_live": _can_run_live(cfg),
             "uptime_s": metrics.uptime_s(), "runs_total": len(_RUNS),
@@ -392,16 +438,19 @@ def create_app() -> FastAPI:
 
     @app.get("/run/{run_id}")
     async def get_run(run_id: str):
+        _sync_external()
         if run_id not in _RUNS:
             raise HTTPException(404, "run_id not found")
         return _public(_RUNS[run_id])
 
     @app.get("/runs")
     async def list_runs():
+        _sync_external()
         return [_public(r) for r in _RUNS.values()]
 
     @app.get("/runs/search")
     async def search_runs(q: str = ""):
+        _sync_external()
         ql = (q or "").lower().strip()
         hits = []
         for r in _RUNS.values():
@@ -412,9 +461,34 @@ def create_app() -> FastAPI:
 
     @app.get("/run/{run_id}/events", include_in_schema=False)
     async def run_events(run_id: str):
+        _sync_external()
         if run_id not in _RUNS:
             raise HTTPException(404, "run_id not found")
         bus: EventBus = _RUNS[run_id]["bus"]
+
+        async def tail_external():
+            """Stream a run another process is executing, from its journal."""
+            from agents import journal
+            offset, sent = 0, 0
+            yield ": connected\n\n"
+            deadline = time.time() + 6 * 3600
+            while time.time() < deadline:
+                events, offset = journal.read_events(run_id, offset)
+                for event in events:
+                    sent += 1
+                    yield f"data: {json.dumps(event)}\n\n"
+                    if event.get("type") in {"done", "error"}:
+                        return
+                final = journal.read_final(run_id)
+                if final is not None:
+                    for event in final.get("events", [])[sent:]:
+                        yield f"data: {json.dumps(event)}\n\n"
+                    return
+                await asyncio.sleep(0.5)
+            yield 'data: {"type": "error", "message": "stream timed out"}\n\n'
+
+        if bus is None and _RUNS[run_id].get("external") and _RUNS[run_id].get("status") == "running":
+            return StreamingResponse(tail_external(), media_type="text/event-stream", headers=SSE_HEADERS)
 
         async def gen():
             if bus is None:

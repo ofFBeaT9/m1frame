@@ -4,10 +4,17 @@
 #   git clone https://github.com/ofFBeaT9/m1frame ~/m1frame
 #   bash ~/m1frame/scripts/install_pi.sh            # first install (asks a few questions)
 #   bash ~/m1frame/scripts/install_pi.sh --update   # pull the latest m1frame and restart
+#   bash ~/m1frame/scripts/install_pi.sh --full     # also every optional module (see below)
 #
 # What it does: installs Python packages in a private venv, writes .env (model key,
 # owner password, API token), gives the Pi a public HTTPS address with Tailscale Funnel,
-# and runs m1frame as a background service that starts on boot. Safe to re-run.
+# and runs m1frame plus Studio (the live view of every run) as services that start on
+# boot. Safe to re-run.
+#
+# --full adds every optional module: Headroom (context compression), SkillOpt (skill
+# improvement), vector search (LanceDB + a small embedding model), the 163 scientific
+# skills, Exa/Voyage clients, and Sentrux (Rust code-structure sensor), and switches on
+# the controller so every request runs the full pipeline. Needs a Pi with 4 GB+.
 #
 #   bash ~/m1frame/scripts/install_pi.sh --set-key  # add or change the AI provider key later
 #
@@ -19,6 +26,19 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${M1FRAME_PORT:-8765}"
+STUDIO_PORT="${M1FRAME_STUDIO_PORT:-8080}"
+STUDIO_PUBLIC_PORT=8443        # Tailscale Funnel serves HTTPS on 443, 8443 or 10000
+STUDIO_SERVICE=m1frame-studio
+FULL=0
+MODE=install
+for arg in "$@"; do
+  case "$arg" in
+    --full) FULL=1 ;;
+    --update) MODE=update ;;
+    --set-key) MODE=set-key ;;
+    *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
+  esac
+done
 ENV_FILE="$REPO/.env"
 SERVICE=m1frame
 say()  { printf '\n\033[1;36m▸ %s\033[0m\n' "$*"; }
@@ -77,6 +97,83 @@ UNIT
   $SUDO systemctl restart $SERVICE
 }
 
+install_studio_service() {
+  if [ "${M1FRAME_SKIP_SERVICE:-0}" = 1 ] || ! command -v systemctl >/dev/null 2>&1; then
+    echo "  Studio: cd $REPO && HOST=127.0.0.1 PORT=$STUDIO_PORT .venv/bin/python api/server.py"
+    return
+  fi
+  say "Installing Studio, the live view of every run"
+  $SUDO tee /etc/systemd/system/$STUDIO_SERVICE.service >/dev/null <<UNIT
+[Unit]
+Description=m1frame Studio (live view of every run)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=$(id -un)
+WorkingDirectory=$REPO
+Environment=HOST=127.0.0.1
+Environment=PORT=$STUDIO_PORT
+Environment=PYTHONUNBUFFERED=1
+ExecStart=$REPO/.venv/bin/python api/server.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  $SUDO systemctl daemon-reload
+  $SUDO systemctl enable --now $STUDIO_SERVICE >/dev/null
+  $SUDO systemctl restart $STUDIO_SERVICE
+}
+
+install_full_modules() {
+  say "Installing every optional module (this takes a while on a Pi)"
+  [ "${MEM_MB:-0}" -gt 0 ] && [ "${MEM_MB:-0}" -lt 3500 ] && warn "Under 4 GB RAM: vector search may be slow or run out of memory."
+  "$REPO/.venv/bin/python" -m pip install -q "headroom-ai>=0.37.0" skillopt \
+    "lancedb>=0.8.0" "sentence-transformers>=3.0" "exa-py>=1.1.0" "voyageai>=0.2.3"
+  if ! "$REPO/.venv/bin/python" -m scientific list >/dev/null 2>&1; then
+    "$REPO/.venv/bin/python" -m scientific install || warn "Scientific skills didn't install; the rest is unaffected."
+  fi
+  install_sentrux
+  env_set M1FRAME_FULL 1
+  env_set M1FRAME_CONTROLLER on                       # every request runs the full pipeline
+  [ -n "$(env_get M1FRAME_VECTOR_MODEL)" ] || \
+    env_set M1FRAME_VECTOR_MODEL sentence-transformers/all-MiniLM-L6-v2   # small, CPU-friendly
+  if interactive; then
+    local exa voyage
+    if [ -z "$(env_get EXA_API_KEY)" ]; then
+      read -rsp "Exa API key for live web search in investigations (Enter to skip): " exa; echo
+      [ -n "$exa" ] && env_set EXA_API_KEY "$exa"
+    fi
+    if [ -z "$(env_get VOYAGE_API_KEY)" ]; then
+      read -rsp "Voyage API key for semantic entity matching (Enter to skip): " voyage; echo
+      [ -n "$voyage" ] && env_set VOYAGE_API_KEY "$voyage"
+    fi
+  fi
+}
+
+install_sentrux() {
+  say "Installing Sentrux (Rust code-structure sensor)"
+  if [ "${M1FRAME_SKIP_APT:-0}" != 1 ] && command -v apt-get >/dev/null 2>&1; then
+    # Sentrux's Linux build links GUI libraries even when used headless (check/gate).
+    $SUDO apt-get install -y -qq libgtk-3-0t64 >/dev/null 2>&1 || $SUDO apt-get install -y -qq libgtk-3-0 >/dev/null 2>&1 || true
+    $SUDO apt-get install -y -qq libxkbcommon0 libxcb-render0 libxcb-shape0 libxcb-xfixes0 >/dev/null 2>&1 || true
+  fi
+  if ! command -v sentrux >/dev/null 2>&1; then
+    curl -fsSL https://raw.githubusercontent.com/sentrux/sentrux/main/install.sh | $SUDO sh \
+      || { warn "Sentrux didn't install; m1frame runs without it (the sensor is optional)."; return 0; }
+  fi
+  if sentrux --help >/dev/null 2>&1; then
+    env_set SENTRUX_BIN "$(command -v sentrux)"
+    echo "✓ Sentrux $(sentrux --version 2>/dev/null | head -n1)"
+  else
+    warn "Sentrux is installed but won't start (missing system libraries?). Run: sentrux --help"
+  fi
+}
+
 install_packages() {
   say "Installing m1frame's Python packages (a few minutes on a Pi)"
   [ -x "$REPO/.venv/bin/python" ] || python3 -m venv "$REPO/.venv"
@@ -123,11 +220,12 @@ ask_provider() { # "$1" = force: skip the "do you have a key" question. Returns 
 restart_service() {
   if command -v systemctl >/dev/null 2>&1 && [ "${M1FRAME_SKIP_SERVICE:-0}" != 1 ]; then
     $SUDO systemctl restart $SERVICE
+    systemctl list-unit-files "$STUDIO_SERVICE.service" >/dev/null 2>&1 && $SUDO systemctl restart $STUDIO_SERVICE || true
   fi
 }
 
 # ── add or change the AI key later ────────────────────────────────────────────
-if [ "${1:-}" = "--set-key" ]; then
+if [ "$MODE" = set-key ]; then
   interactive || [ -n "${M1FRAME_PROVIDER_KEY:-}" ] || die "Run --set-key in a terminal"
   ask_provider force || die "No key entered; nothing changed"
   restart_service
@@ -136,10 +234,11 @@ if [ "${1:-}" = "--set-key" ]; then
 fi
 
 # ── update mode ───────────────────────────────────────────────────────────────
-if [ "${1:-}" = "--update" ]; then
+if [ "$MODE" = update ]; then
   say "Updating m1frame"
   git -C "$REPO" pull --ff-only
   install_packages
+  if [ "$FULL" = 1 ] || [ "$(env_get M1FRAME_FULL)" = 1 ]; then install_full_modules; fi
   restart_service
   echo "Done. $(git -C "$REPO" log --oneline -1)"
   exit 0
@@ -166,6 +265,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
 
 # ── 2. python packages ────────────────────────────────────────────────────────
 install_packages
+if [ "$FULL" = 1 ] || [ "$(env_get M1FRAME_FULL)" = 1 ]; then install_full_modules; fi
 
 # ── 3. settings (.env) ────────────────────────────────────────────────────────
 say "Settings"
@@ -215,8 +315,20 @@ fi
 [ -n "$PUBLIC_URL" ] || die "Set M1FRAME_PUBLIC_URL to this Pi's HTTPS address, or allow Tailscale"
 env_set M1FRAME_PUBLIC_URL "${PUBLIC_URL%/}"
 
-# ── 5. service ────────────────────────────────────────────────────────────────
+STUDIO_URL=""
+if [ "${M1FRAME_SKIP_TAILSCALE:-0}" != 1 ] && command -v tailscale >/dev/null 2>&1; then
+  HOSTNAME_ONLY="$(printf '%s' "${PUBLIC_URL#https://}" | cut -d/ -f1 | cut -d: -f1)"
+  if $SUDO tailscale funnel --bg --https=$STUDIO_PUBLIC_PORT "$STUDIO_PORT" >/dev/null 2>&1; then
+    STUDIO_URL="https://$HOSTNAME_ONLY:$STUDIO_PUBLIC_PORT"
+    env_set M1FRAME_ALLOWED_ORIGINS "$STUDIO_URL"
+  else
+    warn "Couldn't publish Studio on port $STUDIO_PUBLIC_PORT; it stays reachable on the Pi itself."
+  fi
+fi
+
+# ── 5. services ───────────────────────────────────────────────────────────────
 install_service
+install_studio_service
 
 # ── 6. verify ─────────────────────────────────────────────────────────────────
 if command -v systemctl >/dev/null 2>&1 && [ "${M1FRAME_SKIP_SERVICE:-0}" != 1 ]; then
@@ -241,12 +353,17 @@ cat <<DONE
     Base URL:  ${PUBLIC_URL%/}/v1
     API key:   in $ENV_FILE (M1FRAME_API_TOKEN)
 
+  Studio, the live view of every run (any username; password = M1FRAME_API_TOKEN):
+    ${STUDIO_URL:-on the Pi: http://127.0.0.1:$STUDIO_PORT}
+$( [ "$(env_get M1FRAME_FULL)" = 1 ] && printf '%s\n' "" \
+"  Full mode: every optional module installed; every request runs the full pipeline." )
+
 $( [ -z "$(env_get M1FRAME_BACKEND)" ] && printf '%s\n' \
 "  No AI key yet: tools, recall and connections work now; full runs" \
 "  need a key. Add one any time:  bash $REPO/scripts/install_pi.sh --set-key" "" )
   Manage:
     status   systemctl status $SERVICE
-    logs     journalctl -u $SERVICE -f
+    logs     journalctl -u $SERVICE -f   (Studio: -u $STUDIO_SERVICE)
     update   bash $REPO/scripts/install_pi.sh --update
     AI key   bash $REPO/scripts/install_pi.sh --set-key
     sign all apps out   cd $REPO && .venv/bin/python -m remote --revoke-all

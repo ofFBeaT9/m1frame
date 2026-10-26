@@ -25,6 +25,7 @@ import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -209,9 +210,19 @@ class LLMCouncil:
         },
     ]
 
-    def __init__(self, llm_client, config: dict | None = None) -> None:
+    def __init__(self, llm_client, config: dict | None = None,
+                 client_factory: Callable[[str], Any] | None = None) -> None:
         self.llm = llm_client
         self.cfg = config or {}
+        # Multi-provider council: a persona (or the red-team) may name its own
+        # `backend` and `model`, so reviewers are different models, not one model
+        # playing roles. Clients are built lazily and cached per backend; if one
+        # can't be built (missing key/package) the call falls back to the default
+        # client and the fallback is reported in model_status(), never hidden.
+        self._factory = client_factory or self._default_factory
+        self._clients: dict[str, Any] = {}
+        self._fallbacks: dict[str, str] = {}
+        self._used: dict[str, dict] = {}
         self.personas = self.cfg.get("personas", self.DEFAULT_PERSONAS)
         self.threshold = float(self.cfg.get("consensus_threshold", 7.0))
         if not math.isfinite(self.threshold) or not 1 <= self.threshold <= 10:
@@ -226,15 +237,60 @@ class LLMCouncil:
                             if getattr(llm_client, "backend", "claude") in {"claude", "claudecli"}
                             else None)
 
+    # ── Provider routing ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _default_factory(backend: str):
+        from llm_client import LLMClient
+        return LLMClient(override_backend=backend)
+
+    def _default_model(self, client) -> str | None:
+        cfg = getattr(client, 'cfg', {})
+        backend = getattr(client, 'backend', None)
+        return cfg.get(backend, {}).get('model') if isinstance(cfg, dict) and backend else None
+
+    def _route(self, member: str, spec: dict | None) -> tuple[Any, str | None]:
+        """Return (client, model override) for a council member and record what ran."""
+        spec = spec or {}
+        backend, model = spec.get('backend'), spec.get('model')
+        client: Any = self.llm
+        fell_back = False
+        if backend and backend != getattr(self.llm, 'backend', None):
+            if backend not in self._clients and backend not in self._fallbacks:
+                try:
+                    self._clients[backend] = self._factory(backend)
+                except Exception as exc:  # noqa: BLE001 — degrade, but say so
+                    self._fallbacks[backend] = f'{type(exc).__name__}: {exc}'[:200]
+            if backend in self._clients:
+                client = self._clients[backend]
+            else:
+                # The requested model belongs to the other provider; don't send it here.
+                fell_back, model = True, None
+        self._used[member] = {'backend': getattr(client, 'backend', 'unknown'),
+                              'model': model or self._default_model(client),
+                              'requested_backend': backend, 'fell_back': fell_back}
+        return client, model
+
+    def _persona_chat(self, persona: dict, **kw) -> str:
+        client, model = self._route(persona['name'], persona)
+        return client.chat(model=model, **kw) if model else client.chat(**kw)
+
     def model_status(self) -> dict:
         backend = getattr(self.llm, 'backend', 'unknown')
-        cfg = getattr(self.llm, 'cfg', {})
-        base = cfg.get(backend, {}).get('model') if isinstance(cfg, dict) else None
+        base = self._default_model(self.llm)
+        members = dict(self._used)
+        backends = {m['backend'] for m in members.values()} or {backend}
+        models = {(m['backend'], m['model']) for m in members.values()} or {(backend, base)}
         return {'backend': backend, 'persona_model': base,
                 'requested_judge_model': self.cfg.get('judge_model'),
                 'effective_judge_model': self.judge_model or base,
                 'judge_override_applied': self.judge_model is not None,
-                'scope': 'same provider client; role diversity does not imply model diversity'}
+                'members': members,
+                'distinct_providers': len(backends),
+                'distinct_models': len(models),
+                'provider_fallbacks': dict(self._fallbacks),
+                'scope': ('independent providers' if len(backends) > 1 else
+                          'same provider client; role diversity does not imply model diversity')}
 
     # ── Mode 1: Brainstorm ────────────────────────────────────────────────────
 
@@ -345,7 +401,8 @@ class LLMCouncil:
             name=persona["name"], role=persona["role"]
         )
         # Task goes in user message — keeps system prompt clean
-        raw = self.llm.chat(
+        raw = self._persona_chat(
+            persona,
             prompt=f"Task to brainstorm:\n\n{task}",
             system=system,
             temperature=0.4,
@@ -402,7 +459,7 @@ class LLMCouncil:
         system = REVIEW_PERSONA_SYSTEM.format(name=persona["name"], role=persona["role"])
         # Output goes in user message — avoids system prompt overflow on long outputs
         prompt = f"Original task:\n{task}\n\nOutput to review:\n{output}"
-        raw = self.llm.chat(prompt=prompt, system=system, temperature=0.3)
+        raw = self._persona_chat(persona, prompt=prompt, system=system, temperature=0.3)
         try:
             d = _parse_json(raw)
             return PersonaAssessment(
@@ -458,8 +515,17 @@ class LLMCouncil:
     def _red_team(self, task: str, output: str, verdict: CouncilVerdict) -> PersonaAssessment:
         """Adversarial pass that attacks the council's verdict; may veto a pass."""
         prompt = f"Task and execution evidence:\n{task}\n\nCandidate answer:\n{output}"
-        raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3,
-                            model=self.judge_model)
+        spec = {'backend': self.cfg.get('red_team_backend'), 'model': self.cfg.get('red_team_model')}
+        if spec['backend'] or spec['model']:
+            client, model = self._route('Red-Team', spec)
+            raw = (client.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3, model=model)
+                   if model else client.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3))
+        else:
+            self._used['Red-Team'] = {'backend': getattr(self.llm, 'backend', 'unknown'),
+                                      'model': self.judge_model or self._default_model(self.llm),
+                                      'requested_backend': None, 'fell_back': False}
+            raw = self.llm.chat(prompt=prompt, system=RED_TEAM_SYSTEM, temperature=0.3,
+                                model=self.judge_model)
         try:
             d = _parse_json(raw)
             return PersonaAssessment(
