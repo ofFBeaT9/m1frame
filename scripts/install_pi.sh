@@ -9,8 +9,11 @@
 # owner password, API token), gives the Pi a public HTTPS address with Tailscale Funnel,
 # and runs m1frame as a background service that starts on boot. Safe to re-run.
 #
+#   bash ~/m1frame/scripts/install_pi.sh --set-key  # add or change the AI provider key later
+#
+# No API key yet? Answer "n" when asked; everything else installs and runs.
 # Non-interactive use: set M1FRAME_PROVIDER (anthropic|openrouter|openai),
-# M1FRAME_PROVIDER_KEY, M1FRAME_OWNER_PASSWORD and optionally M1FRAME_PUBLIC_URL.
+# M1FRAME_PROVIDER_KEY (optional), M1FRAME_OWNER_PASSWORD and optionally M1FRAME_PUBLIC_URL.
 # Skips: M1FRAME_SKIP_APT=1, M1FRAME_SKIP_TAILSCALE=1, M1FRAME_SKIP_SERVICE=1.
 set -euo pipefail
 
@@ -81,14 +84,52 @@ install_packages() {
   "$REPO/.venv/bin/python" -m pip install -q -r "$REPO/requirements.txt"
 }
 
+ask_provider() { # "$1" = force: skip the "do you have a key" question. Returns 1 if no key.
+  local PROVIDER="${M1FRAME_PROVIDER:-}" KEY="${M1FRAME_PROVIDER_KEY:-}" BACKEND KEYVAR have pick
+  if [ -z "$KEY" ] && interactive && [ "${1:-}" != force ]; then
+    read -rp "Do you have an AI provider API key now? You can add one later. [y/N]: " have
+    case "$have" in [yY]*) ;; *) return 1 ;; esac
+  fi
+  if [ -z "$KEY" ] && ! interactive; then return 1; fi
+  if [ -z "$PROVIDER" ] && interactive; then
+    echo "Which AI provider should m1frame think with?"
+    echo "  1) Anthropic (Claude)   2) OpenRouter (200+ models, some free)   3) OpenAI"
+    read -rp "Choose 1-3 [1]: " pick
+    case "${pick:-1}" in 2) PROVIDER=openrouter;; 3) PROVIDER=openai;; *) PROVIDER=anthropic;; esac
+  fi
+  case "${PROVIDER:-anthropic}" in
+    anthropic)  BACKEND=claude;     KEYVAR=ANTHROPIC_API_KEY ;;
+    openrouter) BACKEND=openrouter; KEYVAR=OPENROUTER_API_KEY ;;
+    openai)     BACKEND=openai;     KEYVAR=OPENAI_API_KEY ;;
+    *) die "M1FRAME_PROVIDER must be anthropic, openrouter or openai" ;;
+  esac
+  if [ -z "$KEY" ] && interactive; then read -rsp "Paste your $KEYVAR (hidden): " KEY; echo; fi
+  [ -n "$KEY" ] || return 1
+  env_set M1FRAME_BACKEND "$BACKEND"
+  env_set "$KEYVAR" "$KEY"
+}
+
+restart_service() {
+  if command -v systemctl >/dev/null 2>&1 && [ "${M1FRAME_SKIP_SERVICE:-0}" != 1 ]; then
+    $SUDO systemctl restart $SERVICE
+  fi
+}
+
+# ── add or change the AI key later ────────────────────────────────────────────
+if [ "${1:-}" = "--set-key" ]; then
+  interactive || [ -n "${M1FRAME_PROVIDER_KEY:-}" ] || die "Run --set-key in a terminal"
+  ask_provider force || die "No key entered; nothing changed"
+  restart_service
+  echo "✓ Key saved. m1frame restarted with backend $(env_get M1FRAME_BACKEND)."
+  exit 0
+fi
+
 # ── update mode ───────────────────────────────────────────────────────────────
 if [ "${1:-}" = "--update" ]; then
   say "Updating m1frame"
   git -C "$REPO" pull --ff-only
   install_packages
-  if command -v systemctl >/dev/null 2>&1 && [ "${M1FRAME_SKIP_SERVICE:-0}" != 1 ]; then
-    $SUDO systemctl restart $SERVICE
-  fi
+  restart_service
   echo "Done. $(git -C "$REPO" log --oneline -1)"
   exit 0
 fi
@@ -118,24 +159,7 @@ install_packages
 # ── 3. settings (.env) ────────────────────────────────────────────────────────
 say "Settings"
 if [ -z "$(env_get M1FRAME_BACKEND)" ]; then
-  PROVIDER="${M1FRAME_PROVIDER:-}"
-  if [ -z "$PROVIDER" ] && interactive; then
-    echo "Which AI provider should m1frame think with?"
-    echo "  1) Anthropic (Claude)   2) OpenRouter (200+ models)   3) OpenAI"
-    read -rp "Choose 1-3 [1]: " pick
-    case "${pick:-1}" in 2) PROVIDER=openrouter;; 3) PROVIDER=openai;; *) PROVIDER=anthropic;; esac
-  fi
-  case "${PROVIDER:-anthropic}" in
-    anthropic)  BACKEND=claude;     KEYVAR=ANTHROPIC_API_KEY ;;
-    openrouter) BACKEND=openrouter; KEYVAR=OPENROUTER_API_KEY ;;
-    openai)     BACKEND=openai;     KEYVAR=OPENAI_API_KEY ;;
-    *) die "M1FRAME_PROVIDER must be anthropic, openrouter or openai" ;;
-  esac
-  KEY="${M1FRAME_PROVIDER_KEY:-}"
-  if [ -z "$KEY" ] && interactive; then read -rsp "Paste your $KEYVAR (hidden): " KEY; echo; fi
-  [ -n "$KEY" ] || die "An API key for $PROVIDER is required"
-  env_set M1FRAME_BACKEND "$BACKEND"
-  env_set "$KEYVAR" "$KEY"
+  ask_provider || true
 else
   echo "Keeping provider: $(env_get M1FRAME_BACKEND)"
 fi
@@ -206,10 +230,14 @@ cat <<DONE
     Base URL:  ${PUBLIC_URL%/}/v1
     API key:   in $ENV_FILE (M1FRAME_API_TOKEN)
 
+$( [ -z "$(env_get M1FRAME_BACKEND)" ] && printf '%s\n' \
+"  No AI key yet: tools, recall and connections work now; full runs" \
+"  need a key. Add one any time:  bash $REPO/scripts/install_pi.sh --set-key" "" )
   Manage:
     status   systemctl status $SERVICE
     logs     journalctl -u $SERVICE -f
     update   bash $REPO/scripts/install_pi.sh --update
+    AI key   bash $REPO/scripts/install_pi.sh --set-key
     sign all apps out   cd $REPO && .venv/bin/python -m remote --revoke-all
 ────────────────────────────────────────────────────────────────
 DONE

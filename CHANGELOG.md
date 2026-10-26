@@ -6,6 +6,11 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.13.1] — 2026-10-26
+
+- Pi installer: the AI provider key is optional at install time; everything else installs and
+  runs. `install_pi.sh --set-key` adds or changes it later and restarts the service.
+
 ## [1.13.0] — 2026-10-22 — Raspberry Pi
 
 - `scripts/install_pi.sh`: one-command setup on a Raspberry Pi (or any Debian-family Linux):
