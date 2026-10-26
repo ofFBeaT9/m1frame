@@ -3,9 +3,9 @@ import argparse
 import shutil
 from pathlib import Path
 
-CODE_DIRS = ('agents', 'api', 'frontdoor', 'gateways', 'remote', 'm1frame', 'modules', 'optimizers',
+CODE_DIRS = ('agents', 'api', 'evals', 'frontdoor', 'gateways', 'remote', 'm1frame', 'modules', 'optimizers',
              'scientific', 'scripts', 'sensors', 'studio', 'tools')
-SUFFIXES = {'.py', '.js', '.cjs', '.html', '.css', '.json'}
+SUFFIXES = {'.py', '.js', '.cjs', '.html', '.css', '.json', '.yaml'}
 ROOT_FILES = ('__main__.py', 'llm_client.py', 'mcp_server.py', 'm1frame-studio.html',
               'config.yaml', 'README.md', 'AUDIT_REPAIRS.md', 'CONTROLLER.md', 'PORTABLE.md', 'REMOTE.md', 'requirements.txt', 'pyproject.toml')
 

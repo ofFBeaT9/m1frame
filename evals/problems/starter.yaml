@@ -1,0 +1,136 @@
+# Starter evaluation set: 12 problems across the fields in the roadmap.
+# These test reasoning from the information given; none needs live web data.
+# Replace or extend them with real problems from pilots — results on a client's
+# own problems are what a pitch can honestly quote.
+problems:
+  - id: dd-saas-churn
+    domain: due-diligence
+    prompt: >
+      A private equity fund is considering buying a B2B SaaS company with $12M annual recurring
+      revenue growing 35% a year, net revenue retention of 96%, gross margin 71%, and 40% of revenue
+      from its top 5 customers. Management says churn is "under control". Write a due-diligence
+      memo: the three biggest risks, what data you would request to test each, and whether the
+      growth story holds up.
+    rubric: >
+      Strong answers notice that 96% NRR means the installed base shrinks (growth depends on new
+      sales), flag customer concentration, question the churn claim with cohort data, and request
+      specific evidence (cohort retention, contract terms, pipeline).
+
+  - id: dd-supplier-risk
+    domain: due-diligence
+    prompt: >
+      A mid-sized manufacturer sources 70% of a critical component from one supplier in a single
+      country. The supplier offers a 15% discount for a 3-year exclusive contract. Assess the
+      decision: risks, how to quantify them, alternatives, and a recommendation.
+    rubric: >
+      Should weigh concentration and geopolitical/logistics risk against savings, propose
+      quantification (cost of disruption x probability), consider dual sourcing, buffer stock or
+      contract clauses, and give a clear conditional recommendation.
+
+  - id: dd-claims-check
+    domain: due-diligence
+    prompt: >
+      A startup pitch claims: "Our AI cuts customer support costs by 80%, our pilot customers love
+      it (NPS 72), and our market is $50B." List which claims an investor should verify first, how,
+      and what red flags would change the investment view.
+    rubric: >
+      Should separate measurable from vague claims, ask how 80% was measured (baseline, sample,
+      deflection vs resolution), question NPS sample size, and challenge top-down market sizing.
+
+  - id: arch-queue-choice
+    domain: technical-decision
+    prompt: >
+      A team of 4 engineers runs a Python web app on one Postgres database. They need background
+      jobs (emails, PDF generation, nightly reports) with retries, about 50,000 jobs a day. Options:
+      Postgres-based queue, Redis with a job library, or a managed cloud queue. Recommend one with
+      reasons, trade-offs, and what would make you change the recommendation.
+    rubric: >
+      50k/day is low volume; a Postgres-backed queue avoids new infrastructure for a small team.
+      Good answers consider operational load, durability, retries/visibility, and name concrete
+      triggers to switch (volume, latency, fan-out).
+
+  - id: arch-auth-migration
+    domain: technical-decision
+    prompt: >
+      A company wants to move 200,000 users from its homegrown password login to an external identity
+      provider without forcing everyone to reset passwords. Outline a migration plan, risks, and how to
+      roll back.
+    rubric: >
+      Should cover lazy migration on login or hash import (depending on hash compatibility), phased
+      rollout, session handling, monitoring, account-linking edge cases, and a concrete rollback path.
+
+  - id: research-sleep-claims
+    domain: research-synthesis
+    prompt: >
+      Summarise what is reasonably well established versus uncertain about the effect of blue light
+      from screens before bed on sleep in healthy adults. Structure it as: established, uncertain,
+      practical advice, and how confident you are in each part.
+    rubric: >
+      Good answers separate laboratory melatonin effects from small real-world sleep-onset effects,
+      note confounders (engagement, arousal), avoid overclaiming, and calibrate confidence explicitly.
+
+  - id: research-study-critique
+    domain: research-synthesis
+    prompt: >
+      An observational study of 3,000 office workers finds that people who use standing desks report
+      22% less back pain. A company wants to buy standing desks for everyone based on this. Critique
+      the evidence and advise the company.
+    rubric: >
+      Should identify self-selection, confounding, self-report bias, lack of causal design, and
+      propose a cheaper staged approach (pilot, ergonomic assessment) rather than a blanket purchase.
+
+  - id: fpga-uart-review
+    domain: hardware
+    prompt: >
+      Review this design plan for a small FPGA (about 8,600 logic cells, 27 MHz clock): a UART receiver
+      at 115200 baud that samples the RX line once per bit at the bit's centre, writes bytes into a
+      16-byte FIFO, and a state machine that parses ASCII commands. List the design flaws and risks
+      and how to fix them.
+    rubric: >
+      Should flag missing input synchronisation (metastability), single-sample-per-bit fragility
+      (use oversampling and majority vote), baud divider error at 27 MHz, FIFO overflow handling,
+      and framing/stop-bit error handling.
+
+  - id: fpga-timing-failure
+    domain: hardware
+    prompt: >
+      An FPGA design passes simulation but fails intermittently on hardware: wrong values appear on a
+      bus between two clock domains about once every few minutes. Describe a debugging plan from most
+      to least likely cause, and the fixes.
+    rubric: >
+      Clock-domain crossing is the most likely cause: should propose CDC review (synchronisers,
+      handshakes, async FIFOs, Gray code for multi-bit), timing constraints/false paths, and on-chip
+      logic analysis, before less likely causes.
+
+  - id: ops-outage-rca
+    domain: operations
+    prompt: >
+      An online shop went down for 40 minutes on Black Friday. Facts: traffic was 6x normal, the
+      database CPU hit 100%, a new discount feature launched that morning, and autoscaling added web
+      servers. Write a root-cause analysis with the most likely causal chain, what evidence would
+      confirm it, and preventive actions.
+    rubric: >
+      Should reason that adding web servers increased database load, suspect an expensive query in
+      the new feature, ask for query logs/plans, and propose load testing, query fixes, caching,
+      connection limits and launch-freeze policies.
+
+  - id: strategy-pricing
+    domain: strategy
+    prompt: >
+      A small software consultancy wants to start selling a fixed-price "AI assistant setup" package
+      to dental clinics. Advise on pricing structure, the main risks, what to include and exclude,
+      and how to validate demand before building anything.
+    rubric: >
+      Should cover setup plus retainer pricing, scope limits, health-data and privacy obligations,
+      liability, and cheap validation (interviews, pre-sales, a pilot) before building.
+
+  - id: strategy-build-vs-buy
+    domain: strategy
+    prompt: >
+      A 30-person logistics company spends 3 analyst-days a week compiling a carrier performance
+      report from spreadsheets and emails. Should they build an internal automated pipeline, buy a
+      SaaS tool, or hire another analyst? Give a recommendation with a rough cost comparison
+      framework and decision criteria.
+    rubric: >
+      Should quantify the current cost, compare options on cost, time-to-value, maintenance and data
+      quality, state assumptions explicitly, and give a clear recommendation with conditions.

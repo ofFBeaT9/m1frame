@@ -6,6 +6,23 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.14.0] — 2026-10-26 — Demo-ready (Phase 1)
+
+- **Evaluation harness** (`python -m evals`, `m1frame-eval`): full pipeline vs one model call on a
+  problem set, judged blind twice with positions swapped, plus a blind sheet for human experts.
+  12-problem starter set across due diligence, technical decisions, research synthesis,
+  hardware, operations and strategy. See `evals/README.md`.
+- **Independent council:** any persona (and the red-team) can run on its own provider and
+  model. Receipts report which provider actually answered and any fallbacks.
+- **Every run in Studio:** runs started outside Studio (Claude via MCP, the remote server,
+  `/v1`, gateways, CLI) are journaled to `runs/` as they happen; Studio lists them and streams
+  running ones live. `M1FRAME_ALLOWED_ORIGINS` lets Studio sit behind a public HTTPS address.
+- **Pi installer:** installs Studio as a second service with its own HTTPS address (port 8443),
+  and `--full` adds every optional module (Headroom, SkillOpt, LanceDB vector search, scientific
+  skills, Exa/Voyage, Sentrux) and turns on the controller.
+- `.env` switches: `M1FRAME_CONTROLLER=on`, `M1FRAME_VECTOR_MODEL=<embedding model>`.
+- Verified against current releases: headroom-ai 0.41.0 and skillopt 0.2.0 work with the adapters.
+
 ## [1.13.1] — 2026-10-26
 
 - Pi installer: the AI provider key is optional at install time; everything else installs and

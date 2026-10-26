@@ -100,6 +100,14 @@ def record_run(fn):
         bound = inspect.signature(fn).bind(*args, **kwargs)
         downstream = bound.arguments.get('emit')
         receipt = RunReceipt()
+        # Runs that Studio didn't start (MCP, remote, /v1, gateways, CLI) are journaled
+        # so Studio can list and stream them live. Studio passes its own emit.
+        journal = None
+        if downstream is None:
+            from agents import journal as _journal
+            if _journal.enabled():
+                journal = _journal.RunJournal(receipt.id, str(bound.arguments.get('goal', '')))
+                downstream = journal.emit
         def emit(event, **data):
             receipt.event(event, **data)
             if downstream:
@@ -112,9 +120,14 @@ def record_run(fn):
             result['run_id'] = receipt.id
             result['usage'] = receipt.data.get('metrics', {})
             result['module_execution'] = receipt.data.get('modules', {})
+            if journal is not None:
+                result['studio_run_id'] = journal.run_id
+                journal.finish(result)
             return result
         except Exception as exc:
             receipt.finish(error=exc)
+            if journal is not None:
+                journal.finish(error=exc)
             raise
         finally:
             current_receipt.reset(token)
