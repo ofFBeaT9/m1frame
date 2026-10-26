@@ -10,6 +10,8 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 - Pi installer: the AI provider key is optional at install time; everything else installs and
   runs. `install_pi.sh --set-key` adds or changes it later and restarts the service.
+- Choosing OpenRouter offers free-only mode (`M1FRAME_MODEL=openrouter/free`, a router that
+  picks a currently-free model; about 200 requests a day on a free account).
 
 ## [1.13.0] — 2026-10-22 — Raspberry Pi
 

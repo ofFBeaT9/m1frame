@@ -107,6 +107,17 @@ ask_provider() { # "$1" = force: skip the "do you have a key" question. Returns 
   [ -n "$KEY" ] || return 1
   env_set M1FRAME_BACKEND "$BACKEND"
   env_set "$KEYVAR" "$KEY"
+  if [ "$BACKEND" = openrouter ]; then
+    local free="${M1FRAME_OPENROUTER_FREE:-}"
+    if [ -z "$free" ] && interactive; then
+      read -rp "Use OpenRouter's free models only (no charges, ~200 requests/day)? [Y/n]: " free
+    fi
+    case "${free:-y}" in
+      [nN]*) ;;
+      *) env_set M1FRAME_MODEL "openrouter/free"   # router that picks a currently-free model
+         echo "Using free models (openrouter/free). Change later with M1FRAME_MODEL in $ENV_FILE." ;;
+    esac
+  fi
 }
 
 restart_service() {
