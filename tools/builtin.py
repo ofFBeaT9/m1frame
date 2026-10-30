@@ -236,6 +236,11 @@ def register_builtins(reg: ToolRegistry) -> ToolRegistry:
     except Exception:                       # noqa: BLE001
         pass
     try:
+        from .rea import register_rea_tools
+        register_rea_tools(reg)             # REA + Ghidra reverse engineering
+    except Exception:                       # noqa: BLE001
+        pass
+    try:
         from optimizers.tools import register_optimizer_tools
         register_optimizer_tools(reg)       # SkillOpt skill optimiser
     except Exception:                       # noqa: BLE001

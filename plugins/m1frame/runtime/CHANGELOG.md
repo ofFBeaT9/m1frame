@@ -6,6 +6,84 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [Unreleased]
+
+- **REA reverse engineering** (`tools/rea.py`): `rea_available` and `rea_investigate` drive
+  [REA](https://github.com/morluto/rea) + Ghidra through m1frame's MCP client — binary overview,
+  procedure search and decompiled pseudocode in one bounded, always-closed session. Static only;
+  targets jailed to the workspace plus `rea.allowed_roots`; results flagged `untrusted_content`.
+  Configured under `rea:` in `config.yaml`; tests in `scripts/test_rea.py`.
+
+## [1.14.0] — 2026-10-26 — Demo-ready (Phase 1)
+
+- **Evaluation harness** (`python -m evals`, `m1frame-eval`): full pipeline vs one model call on a
+  problem set, judged blind twice with positions swapped, plus a blind sheet for human experts.
+  12-problem starter set across due diligence, technical decisions, research synthesis,
+  hardware, operations and strategy. See `evals/README.md`.
+- **Independent council:** any persona (and the red-team) can run on its own provider and
+  model. Receipts report which provider actually answered and any fallbacks.
+- **Every run in Studio:** runs started outside Studio (Claude via MCP, the remote server,
+  `/v1`, gateways, CLI) are journaled to `runs/` as they happen; Studio lists them and streams
+  running ones live. `M1FRAME_ALLOWED_ORIGINS` lets Studio sit behind a public HTTPS address.
+- **Pi installer:** installs Studio as a second service with its own HTTPS address (port 8443),
+  and `--full` adds every optional module (Headroom, SkillOpt, LanceDB vector search, scientific
+  skills, Exa/Voyage, Sentrux) and turns on the controller.
+- `.env` switches: `M1FRAME_CONTROLLER=on`, `M1FRAME_VECTOR_MODEL=<embedding model>`.
+- Verified against current releases: headroom-ai 0.41.0 and skillopt 0.2.0 work with the adapters.
+
+## [1.13.1] — 2026-10-26
+
+- Pi installer: the AI provider key is optional at install time; everything else installs and
+  runs. `install_pi.sh --set-key` adds or changes it later and restarts the service.
+- Choosing OpenRouter offers free-only mode (`M1FRAME_MODEL=openrouter/free`, a router that
+  picks a currently-free model; about 200 requests a day on a free account).
+
+## [1.13.0] — 2026-10-22 — Raspberry Pi
+
+- `scripts/install_pi.sh`: one-command setup on a Raspberry Pi (or any Debian-family Linux):
+  private venv, `.env` (provider key, owner password, generated API token), a public HTTPS
+  address via Tailscale Funnel, and a systemd service bound to localhost that starts on boot.
+  `--update` pulls and restarts. Re-runs keep existing settings.
+- `M1FRAME_BACKEND` / `M1FRAME_MODEL` environment overrides, so deployments never edit the
+  tracked `config.yaml`. `python -m remote` now reads `.env` itself.
+- Fixed: `python -m remote --revoke-all` run beside a live server now takes effect at once
+  and can no longer be overwritten by the server's in-memory state.
+- All dependencies verified to install from prebuilt ARM64 wheels on Python 3.11 and 3.13.
+
+## [1.12.0] — 2026-10-22 — Remote m1frame
+
+- Added `remote/` (`python -m remote`, `m1frame-remote`): one HTTPS service any AI on any
+  device can use. MCP over streamable HTTP at `/mcp`, protected by a built-in single-owner
+  OAuth 2.1 server (discovery, dynamic client registration, PKCE, refresh rotation, revocation)
+  with an owner sign-in page; the OpenAI-compatible API at `/v1` accepts `M1FRAME_API_TOKEN`
+  or an OAuth token.
+- Same tools as the local MCP server, executed off the event loop, plus `m1frame_start` /
+  `m1frame_result` for pipeline runs longer than a host's tool timeout. The local Studio
+  launcher is not exposed remotely.
+- Login lockouts (per address and global), hashed token storage, optional redirect-host
+  allowlist, `--revoke-all`.
+- `docker compose --profile remote` service and an optional Cloudflare tunnel profile;
+  REMOTE.md setup guide (Tailscale Funnel, Cloudflare Tunnel, VPS) and per-app connection steps.
+- Codex plugin 0.3.0 bundles the remote server.
+
+## [1.11.0] — 2026-10-22 — Portable front door
+
+- Added `frontdoor/`: a main agent that every prompt enters on any configured backend
+  (Claude, OpenAI, OpenRouter, Ollama, LM Studio, vLLM, ...). Modes: `auto` (agent picks
+  direct answer, tools, or the full pipeline), `full` (enforced pipeline), `chat` (no tools).
+  Honors the controller policy and applies input/ingest/output guardrails.
+- Entry points: `python -m frontdoor chat|ask|serve` (also `m1frame-agent`), an
+  OpenAI-compatible `/v1/chat/completions` + `/v1/models` API (standalone and on Studio),
+  the `m1frame_agent` MCP tool and an `m1frame` MCP prompt.
+- The MCP server now sends the routing contract as server instructions, so every MCP host
+  receives it, not only hosts that read AGENTS.md/CLAUDE.md.
+- Messaging gateways route plain messages through the agent when a live backend is
+  configured; pipeline requests from Studio webhooks start async runs.
+- Fixed story-agent tool calls on non-Claude models: fenced or prefaced JSON and common
+  key variants (`tool`, `name` + `parameters`) were silently treated as final answers.
+- `--backend` overrides now carry through to the pipeline run.
+- Codex plugin 0.2.0 bundles the front door. See PORTABLE.md.
+
 ## [1.10.1] — 2026-09-30
 
 - Merge upstream optional ADHD formatting and Headroom compression without losing full Studio routing or chat history.
