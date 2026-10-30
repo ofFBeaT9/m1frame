@@ -6,6 +6,14 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [Unreleased]
+
+- **REA reverse engineering** (`tools/rea.py`): `rea_available` and `rea_investigate` drive
+  [REA](https://github.com/morluto/rea) + Ghidra through m1frame's MCP client — binary overview,
+  procedure search and decompiled pseudocode in one bounded, always-closed session. Static only;
+  targets jailed to the workspace plus `rea.allowed_roots`; results flagged `untrusted_content`.
+  Configured under `rea:` in `config.yaml`; tests in `scripts/test_rea.py`.
+
 ## [1.14.0] — 2026-10-26 — Demo-ready (Phase 1)
 
 - **Evaluation harness** (`python -m evals`, `m1frame-eval`): full pipeline vs one model call on a

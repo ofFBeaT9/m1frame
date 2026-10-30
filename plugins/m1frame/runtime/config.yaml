@@ -229,6 +229,16 @@ sensors:
   enforce: false             # false = ADVISORY (reported, never applied).
                              # true  = the sensor can veto a passing council run.
 
+# ── REA: reverse engineering via github.com/morluto/rea + Ghidra ─
+# Tools: rea_available, rea_investigate (static analysis; target never runs).
+rea:
+  binary: null               # null = $REA_BIN, else `rea` on PATH, else /opt/node24/bin/rea
+  provider: ghidra           # REA deep-analysis provider (ghidra | ida | kuna | hopper)
+  timeout: 600               # seconds per rea_investigate call (cold Ghidra import is slow)
+  ghidra_install_dir: null   # null = $GHIDRA_INSTALL_DIR, else newest /opt/ghidra_12.*_PUBLIC
+  java_home: null            # null = $JAVA_HOME
+  allowed_roots: []          # extra absolute dirs targets may live in (workspace is always allowed)
+
 # ── Optimizers: make skills better, not just more numerous ───────
 # Mechanic from https://github.com/microsoft/SkillOpt (MIT). Two tiers:
 #   local    — dependency-free seeded hill-climber; always available
